@@ -360,18 +360,83 @@
   @media (min-width:420px){
     .reflex-grid{ grid-template-columns:1fr 1fr; }
   }
+  .home-links{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:6px;
+  }
+  .home-link{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:3px;
+    text-align:left;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:3px solid var(--forest);
+    border-radius:3px;
+    padding:16px 18px;
+    cursor:pointer;
+    min-height:44px;
+  }
+  .home-link:hover{ border-color:var(--forest); }
+  .home-link-title{
+    font-family:Georgia,"Iowan Old Style",serif;
+    font-size:17px;
+    color:var(--ink);
+  }
+  .home-link-sub{
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  #quoteCard{
+    border-left:3px solid var(--spark);
+  }
+  #quoteText{
+    font-family:Georgia,"Iowan Old Style",serif;
+    font-style:italic;
+    line-height:1.5;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="tabs">
-    <button class="tab active" id="tabWorkBtn">The Work</button>
+    <button class="tab active" id="tabHomeBtn">Start</button>
+    <button class="tab" id="tabWorkBtn">The Work</button>
     <button class="tab" id="tabEveningBtn">Abend-Journal</button>
     <button class="tab" id="tabReflexionBtn">Reflexion</button>
   </div>
 
-  <div id="panelWork">
+  <div id="panelHome">
+    <div class="eyebrow">Selbst-Erforschung</div>
+    <h1 id="homeGreeting">Willkommen zurück</h1>
+    <div class="sub">Schön, dass du dir Zeit nimmst.</div>
+
+    <div class="card" id="quoteCard">
+      <div class="step-label">Impuls für heute</div>
+      <div class="question" id="quoteText" style="font-size:18px;"></div>
+    </div>
+
+    <div class="home-links">
+      <button type="button" class="home-link" id="homeToWork">
+        <span class="home-link-title">The Work</span>
+        <span class="home-link-sub">Einen Glaubenssatz durcharbeiten</span>
+      </button>
+      <button type="button" class="home-link" id="homeToEvening">
+        <span class="home-link-title">Abend-Journal</span>
+        <span class="home-link-sub">Deinen Tag reflektieren</span>
+      </button>
+      <button type="button" class="home-link" id="homeToReflexion">
+        <span class="home-link-title">Reflexion</span>
+        <span class="home-link-sub">Wochen-, Monats-, Quartals- oder Jahresrückblick</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="panelWork" style="display:none;">
     <div class="eyebrow">The Work · Byron Katie <span class="data-badge">Airtable</span></div>
     <h1>Deine tägliche Selbst-Erforschung</h1>
     <div class="sub">Nimm dir einen Gedanken vor, der dich gerade beschäftigt, und geh in Ruhe durch die vier Fragen und die Umkehrung.</div>
@@ -578,14 +643,17 @@
   }
 
   /* ---------- Tabs ---------- */
+  const tabHomeBtn = document.getElementById('tabHomeBtn');
   const tabWorkBtn = document.getElementById('tabWorkBtn');
   const tabEveningBtn = document.getElementById('tabEveningBtn');
   const tabReflexionBtn = document.getElementById('tabReflexionBtn');
+  const panelHome = document.getElementById('panelHome');
   const panelWork = document.getElementById('panelWork');
   const panelEvening = document.getElementById('panelEvening');
   const panelReflexion = document.getElementById('panelReflexion');
 
   const tabs = [
+    { btn: tabHomeBtn, panel: panelHome },
     { btn: tabWorkBtn, panel: panelWork },
     { btn: tabEveningBtn, panel: panelEvening },
     { btn: tabReflexionBtn, panel: panelReflexion }
@@ -599,9 +667,48 @@
     });
   }
 
+  tabHomeBtn.onclick = ()=>switchTab(tabHomeBtn);
   tabWorkBtn.onclick = ()=>switchTab(tabWorkBtn);
   tabEveningBtn.onclick = ()=>switchTab(tabEveningBtn);
   tabReflexionBtn.onclick = ()=>switchTab(tabReflexionBtn);
+
+  document.getElementById('homeToWork').onclick = ()=>switchTab(tabWorkBtn);
+  document.getElementById('homeToEvening').onclick = ()=>switchTab(tabEveningBtn);
+  document.getElementById('homeToReflexion').onclick = ()=>switchTab(tabReflexionBtn);
+
+  /* ---------- Begrüßung & täglicher Impuls ---------- */
+  const QUOTES = [
+    "Der Gedanke, den du gerade glaubst, ist nicht dasselbe wie die Wirklichkeit.",
+    "Jeder kleine Schritt heute zählt, auch wenn er sich klein anfühlt.",
+    "Du musst nicht alles auf einmal lösen – nur den nächsten Schritt.",
+    "Klarheit entsteht oft erst, wenn du aufhörst, gegen die Realität anzukämpfen.",
+    "Was du heute übersiehst, darfst du morgen wieder anschauen.",
+    "Fortschritt zeigt sich selten laut – meistens in kleinen, stillen Momenten.",
+    "Ein ehrlicher Blick auf dich selbst ist mutiger als jede Ausrede.",
+    "Du darfst Dinge langsam angehen und trotzdem vorankommen.",
+    "Nicht jeder Gedanke, der dir durch den Kopf geht, verdient dein Vertrauen.",
+    "Wachstum fühlt sich selten bequem an – das ist kein Zeichen, dass etwas falsch läuft.",
+    "Frag dich heute einmal: ist das wirklich wahr, oder nur ein Gefühl?",
+    "Der Vergleich mit anderen sagt selten etwas über deinen eigenen Weg aus.",
+    "Du bist nicht deine schlechteste Selbsteinschätzung.",
+    "Ruhe ist kein Rückschritt, sondern Teil des Prozesses."
+  ];
+
+  function dayOfYear(d){
+    const start = new Date(d.getFullYear(), 0, 0);
+    const diff = d - start;
+    return Math.floor(diff / 86400000);
+  }
+
+  function renderHome(){
+    const now = new Date();
+    const hour = now.getHours();
+    const greeting = hour < 11 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend";
+    document.getElementById('homeGreeting').textContent = greeting;
+    const idx = dayOfYear(now) % QUOTES.length;
+    document.getElementById('quoteText').textContent = '„' + QUOTES[idx] + '"';
+  }
+  renderHome();
 
   const reflexionContent = document.getElementById('reflexionContent');
   function showReflexionPlaceholder(label){
