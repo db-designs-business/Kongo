@@ -484,6 +484,7 @@
       <button type="button" class="nav-menu-item" data-tab="work">The Work</button>
       <button type="button" class="nav-menu-item" data-tab="evening">Abend-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
+      <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
     </div>
   </div>
 
@@ -556,6 +557,17 @@
     </div>
 
     <div id="reflexionContent"></div>
+  </div>
+
+  <div id="panelRoutinen" style="display:none;">
+    <div class="eyebrow">Routinen</div>
+    <h1>Deine Gewohnheiten</h1>
+    <div class="sub">Baust du dir gerade eine neue Routine auf? Hier kannst du sie bald verfolgen.</div>
+
+    <div class="card">
+      <div class="step-label">In Arbeit</div>
+      <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
+    </div>
   </div>
 
 </div>
@@ -726,8 +738,9 @@
   const panelWork = document.getElementById('panelWork');
   const panelEvening = document.getElementById('panelEvening');
   const panelReflexion = document.getElementById('panelReflexion');
+  const panelRoutinen = document.getElementById('panelRoutinen');
 
-  const panels = { home: panelHome, work: panelWork, evening: panelEvening, reflexion: panelReflexion };
+  const panels = { home: panelHome, work: panelWork, evening: panelEvening, reflexion: panelReflexion, routinen: panelRoutinen };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
