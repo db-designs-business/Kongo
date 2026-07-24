@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Selbst-Erforschung – The Work &amp; Abend-Journal</title>
+<style>
+  :root{
+    --paper: #E9E7DC;
+    --paper-raised: #F3F1E7;
+    --ink: #2B2A26;
+    --ink-soft: #5B5A52;
+    --line: #C9C5B4;
+    --forest: #3F5A48;
+    --forest-deep: #2C4136;
+    --spark: #A9793A;
+    --spark-soft: #E8D9BC;
+    --danger: #8C4A3C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family: -apple-system, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+  }
+  .tabs{
+    display:flex;
+    gap:4px;
+    margin-bottom:26px;
+    border-bottom:1px solid var(--line);
+  }
+  .tab{
+    background:none;
+    border:none;
+    font-family:inherit;
+    font-size:14.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+    padding:10px 4px;
+    margin-right:22px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    transform:translateY(1px);
+  }
+  .tab.active{
+    color:var(--forest-deep);
+    border-bottom:2px solid var(--spark);
+  }
+  .eyebrow{
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--forest);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  h1{
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-weight:600;
+    font-size:28px;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:15px;
+    margin-bottom:26px;
+  }
+
+  .chain{
+    display:flex;
+    gap:6px;
+    margin:0 0 32px;
+    flex-wrap:wrap;
+  }
+  .link{
+    width:34px; height:20px;
+    position:relative;
+  }
+  .link svg{width:100%;height:100%;display:block;}
+  .link .ring{fill:none;stroke:var(--line);stroke-width:2.5;transition:stroke .4s;}
+  .link.done .ring{stroke:var(--forest);}
+  .link.active .ring{stroke:var(--spark);}
+  .link.broken .top{transform:translateY(-3px) rotate(-8deg);}
+  .link.broken .bottom{transform:translateY(3px) rotate(8deg);}
+  .link .top,.link .bottom{transition:transform .5s cubic-bezier(.34,1.4,.64,1);transform-origin:center;}
+
+  .card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:26px 24px;
+    margin-bottom:16px;
+  }
+  .step-label{
+    font-size:12px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--spark);
+    font-weight:700;
+    margin-bottom:10px;
+  }
+  .question{
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-size:20px;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .hint{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-bottom:16px;
+    font-style:italic;
+  }
+  textarea, input[type=text]{
+    width:100%;
+    font-family:inherit;
+    font-size:15px;
+    color:var(--ink);
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:12px 14px;
+    resize:vertical;
+    min-height:64px;
+  }
+  input[type=text]{min-height:auto;}
+  textarea:focus, input:focus{
+    outline:2px solid var(--forest);
+    outline-offset:1px;
+  }
+  .list-input-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .list-input-row input{flex:1;}
+  .list-remove{
+    background:none;border:none;color:var(--danger);
+    font-size:16px;cursor:pointer;line-height:1;padding:4px 6px;
+  }
+  .add-item-btn{
+    background:none;
+    border:1px dashed var(--line);
+    color:var(--forest);
+    font-size:13.5px;
+    font-weight:600;
+    padding:8px 12px;
+    border-radius:3px;
+    cursor:pointer;
+    margin-top:2px;
+  }
+  .add-item-btn:hover{border-color:var(--forest);}
+  .yesno{display:flex;gap:10px;margin-bottom:14px;}
+  .yesno button{
+    flex:1;
+    padding:10px;
+    border-radius:3px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+    font-size:14.5px;
+    cursor:pointer;
+  }
+  .yesno button.picked{
+    background:var(--forest);
+    border-color:var(--forest);
+    color:#fff;
+  }
+  .turn-title{
+    font-weight:600;
+    font-size:14.5px;
+    margin-bottom:4px;
+  }
+  .nav-row{
+    display:flex;
+    justify-content:space-between;
+    margin-top:22px;
+    gap:10px;
+  }
+  button.primary{
+    background:var(--forest);
+    color:#fff;
+    border:none;
+    padding:11px 22px;
+    border-radius:3px;
+    font-size:14.5px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  button.primary:hover{background:var(--forest-deep);}
+  button.ghost{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:11px 18px;
+    border-radius:3px;
+    font-size:14.5px;
+    cursor:pointer;
+  }
+  button.ghost:hover{border-color:var(--ink-soft);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+
+  .summary-belief{
+    font-family: Georgia, serif;
+    font-style:italic;
+    font-size:18px;
+    color:var(--forest-deep);
+    border-left:3px solid var(--spark);
+    padding-left:14px;
+    margin-bottom:18px;
+  }
+  .summary-q{font-weight:600;font-size:13.5px;color:var(--ink-soft);margin:14px 0 3px;text-transform:uppercase;letter-spacing:.04em;}
+  .summary-a{font-size:15px;white-space:pre-wrap;}
+
+  .journal-toggle{
+    background:none;border:none;color:var(--forest);
+    font-size:14px;font-weight:600;cursor:pointer;padding:0;
+    margin-bottom:14px;
+  }
+  .entry{
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    background:var(--paper-raised);
+  }
+  .entry-head{
+    display:flex;justify-content:space-between;align-items:center;
+    cursor:pointer;
+  }
+  .entry-date{font-size:12px;color:var(--ink-soft);}
+  .entry-belief{font-family:Georgia,serif;font-style:italic;font-size:15px;margin-top:2px;}
+  .entry-body{margin-top:12px;display:none;}
+  .entry-body.open{display:block;}
+  .entry-delete{
+    background:none;border:none;color:var(--danger);
+    font-size:12.5px;cursor:pointer;margin-top:10px;
+  }
+  .empty{color:var(--ink-soft);font-size:14px;font-style:italic;}
+  .loading{color:var(--ink-soft);font-size:14px;}
+  .save-status{margin-top:10px;font-size:13px;color:var(--ink-soft);}
+  .example-box{
+    background: var(--spark-soft);
+    border-left:3px solid var(--spark);
+    border-radius:3px;
+    padding:12px 14px;
+    margin-top:16px;
+    font-size:13.5px;
+  }
+  .example-title{font-weight:600;margin-bottom:5px;color:var(--forest-deep);}
+  .example-text{margin-bottom:6px;color:var(--ink);}
+  .example-sub{color:var(--ink-soft);font-style:italic;}
+  .example-extra{margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.08);}
+
+  .lib-link{
+    background:none;border:none;color:var(--forest);
+    font-size:13.5px;font-weight:600;cursor:pointer;
+    padding:0;margin-top:10px;
+  }
+  .modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(43,42,38,.45);
+    display:flex;align-items:center;justify-content:center;
+    z-index:50;padding:20px;
+  }
+  .modal-card{
+    background:var(--paper-raised);
+    border-radius:4px;
+    max-width:480px;width:100%;max-height:80vh;
+    overflow-y:auto;
+    padding:24px 24px 20px;
+    border:1px solid var(--line);
+    position:relative;
+  }
+  .modal-close{
+    position:absolute;top:14px;right:16px;
+    background:none;border:none;color:var(--ink-soft);
+    font-size:20px;cursor:pointer;line-height:1;
+  }
+  .modal-title{
+    font-family:Georgia,"Iowan Old Style",serif;
+    font-size:19px;margin:0 0 4px;padding-right:24px;
+  }
+  .modal-sub{font-size:13px;color:var(--ink-soft);margin-bottom:16px;}
+  .lib-item{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 0;border-bottom:1px solid var(--line);
+  }
+  .lib-item:last-child{border-bottom:none;}
+  .lib-item-text{font-size:14.5px;flex:1;}
+  .lib-item-actions{display:flex;gap:6px;flex-shrink:0;}
+  .lib-item-actions button{
+    font-size:12.5px;padding:5px 10px;border-radius:3px;
+    border:1px solid var(--line);background:var(--paper);cursor:pointer;
+  }
+  .lib-item-actions button.use{color:var(--forest);border-color:var(--forest);}
+  .lib-item-actions button.del{color:var(--danger);}
+  .lib-add-row{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+  .lib-add-row input{flex:1;}
+  .data-badge{
+    display:inline-block;
+    font-size:11px;
+    color:var(--forest);
+    background:var(--spark-soft);
+    border-radius:3px;
+    padding:2px 7px;
+    margin-left:8px;
+    font-weight:600;
+    vertical-align:middle;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tabs">
+    <button class="tab active" id="tabWorkBtn">The Work</button>
+    <button class="tab" id="tabEveningBtn">Abend-Journal</button>
+    <button class="tab" id="tabReflexionBtn">Reflexion</button>
+  </div>
+
+  <div id="panelWork">
+    <div class="eyebrow">The Work · Byron Katie <span class="data-badge">Airtable</span></div>
+    <h1>Deine tägliche Selbst-Erforschung</h1>
+    <div class="sub">Nimm dir einen Gedanken vor, der dich gerade beschäftigt, und geh in Ruhe durch die vier Fragen und die Umkehrung.</div>
+
+    <div class="chain" id="chain"></div>
+    <div id="app"></div>
+
+    <div style="margin-top:40px;">
+      <button class="journal-toggle" id="workJournalToggle">Bisherige Einträge anzeigen</button>
+      <div id="workJournal" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="panelEvening" style="display:none;">
+    <div class="eyebrow">Abend-Journal <span class="data-badge">Airtable</span></div>
+    <h1>Rückblick auf deinen Tag</h1>
+    <div class="sub">Ein paar Minuten, um den Tag abzuschließen – nimm dir Zeit für jeden Punkt.</div>
+
+    <div id="eveningForm"></div>
+
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="eveningJournalToggle">Bisherige Einträge anzeigen</button>
+      <div id="eveningJournal" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="panelReflexion" style="display:none;">
+    <div class="eyebrow">Reflexion</div>
+    <h1>Rückblick über die Zeit</h1>
+    <div class="sub">Wähle einen Zeitraum für deine Reflexion.</div>
+
+    <div class="card">
+      <div class="step-label">Zeitraum wählen</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button class="ghost" id="reflWocheBtn" style="padding:16px;">Wochenreflexion</button>
+        <button class="ghost" id="reflMonatBtn" style="padding:16px;">Monatsreflexion</button>
+        <button class="ghost" id="reflQuartalBtn" style="padding:16px;">Quartalsreflexion</button>
+        <button class="ghost" id="reflJahrBtn" style="padding:16px;">Jahresreflexion</button>
+      </div>
+    </div>
+
+    <div id="reflexionContent"></div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="libModalOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="libModalCloseBtn" aria-label="Schließen">×</button>
+    <div class="modal-title">Deine Glaubenssätze</div>
+    <div class="modal-sub">Gedanken, die du kennst und die du dir bei Bedarf für The Work vornehmen kannst.</div>
+    <div id="libList"></div>
+    <div class="lib-add-row">
+      <input type="text" id="libNewInput" placeholder="Neuen Glaubenssatz hinzufügen ...">
+      <button class="primary" id="libAddBtn">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  /* =========================================================
+     AIRTABLE-ANBINDUNG ÜBER CLAUDE-API (MCP)
+     ========================================================= */
+  const AIRTABLE_BASE_ID = 'appfl5KfwVXCa2t82';
+  const TABLE_WORK = 'tblhbBilacGsggKuN';
+  const TABLE_EVENING = 'tblyCEqtMZZkFbbHw';
+  const TABLE_LIBRARY = 'tbllnTfT4scPXRVvF';
+
+  async function callClaudeMCP(instruction){
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: instruction }],
+        mcp_servers: [{ type: 'url', url: 'https://mcp.airtable.com/mcp', name: 'airtable-mcp' }]
+      })
+    });
+    const data = await response.json();
+    if(data.error) throw new Error(data.error.message || 'API-Fehler');
+    const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
+    return textBlocks.join('\n');
+  }
+
+  function extractJson(text){
+    const trimmed = (text || '').trim();
+    try{ return JSON.parse(trimmed); }catch(e){ /* fall through */ }
+    const firstObj = trimmed.indexOf('{');
+    const firstArr = trimmed.indexOf('[');
+    let start = -1;
+    if(firstObj === -1) start = firstArr;
+    else if(firstArr === -1) start = firstObj;
+    else start = Math.min(firstObj, firstArr);
+    if(start === -1) throw new Error('Keine JSON-Antwort erhalten.');
+    const lastObj = trimmed.lastIndexOf('}');
+    const lastArr = trimmed.lastIndexOf(']');
+    const end = Math.max(lastObj, lastArr);
+    if(end === -1) throw new Error('Keine JSON-Antwort erhalten.');
+    return JSON.parse(trimmed.slice(start, end + 1));
+  }
+
+  async function withRetry(fn, attempts){
+    attempts = attempts || 2;
+    let lastErr;
+    for(let i=0;i<attempts;i++){
+      try{ return await fn(); }catch(e){ lastErr = e; }
+      if(i < attempts-1) await new Promise(r=>setTimeout(r, 900*(i+1)));
+    }
+    throw lastErr;
+  }
+
+  async function airtableCreate(tableId, fields){
+    const instruction = `You have access to Airtable via MCP tools. Create exactly one record in the table with tableId "${tableId}" in base "${AIRTABLE_BASE_ID}". First call list_tables_for_base if you need the field IDs for this table, then call create_records_for_table with the field IDs matching these field NAMES and values (JSON, name -> value): ${JSON.stringify(fields)}. Skip any field whose value is null or empty string. After creating the record, respond with ONLY this minified JSON as the very last line of your reply and nothing else after it: {"success":true,"recordId":"<the new record id>"} — or on failure: {"success":false,"error":"<short reason>"}.`;
+    const text = await withRetry(()=>callClaudeMCP(instruction));
+    const parsed = extractJson(text);
+    if(!parsed || !parsed.success) throw new Error((parsed && parsed.error) || 'Anlegen fehlgeschlagen.');
+    return parsed.recordId;
+  }
+
+  async function airtableList(tableId){
+    const instruction = `You have access to Airtable via MCP tools. List every record from the table with tableId "${tableId}" in base "${AIRTABLE_BASE_ID}" using list_records_for_table (page through with offset if there are more than 100 records). Respond with ONLY minified JSON, no markdown fencing and no explanation: an array where each item is {"id": "<record id>", "fields": {"<field name>": <value>, ...}} including every field that has a value. If there are no records, respond with exactly [].`;
+    const text = await withRetry(()=>callClaudeMCP(instruction));
+    const parsed = extractJson(text);
+    if(!Array.isArray(parsed)) throw new Error('Unerwartetes Antwortformat.');
+    return parsed;
+  }
+
+  async function airtableDelete(tableId, recordId){
+    const instruction = `You have access to Airtable via MCP tools. Delete the record with id "${recordId}" from the table with tableId "${tableId}" in base "${AIRTABLE_BASE_ID}" using delete_records_for_table. Respond with ONLY this minified JSON as the very last line and nothing else after it: {"success":true} — or on failure: {"success":false,"error":"<short reason>"}.`;
+    const text = await withRetry(()=>callClaudeMCP(instruction));
+    const parsed = extractJson(text);
+    if(!parsed || !parsed.success) throw new Error((parsed && parsed.error) || 'Löschen fehlgeschlagen.');
+  }
+
+  function escapeHtml(str){
+    return (str||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function cssSafe(k){ return k.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+  function showSaveFailure(statusEl, retryFn, textBackup){
+    statusEl.innerHTML = '';
+    const msg = document.createElement('div');
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Speichern in Airtable fehlgeschlagen. Dein Eintrag bleibt hier stehen — nichts ist verloren.';
+    statusEl.appendChild(msg);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.marginTop = '8px';
+    btnRow.style.display = 'flex';
+    btnRow.style.gap = '8px';
+
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'ghost';
+    retryBtn.textContent = 'Erneut versuchen';
+    retryBtn.onclick = retryFn;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'ghost';
+    copyBtn.textContent = 'Als Text kopieren';
+    copyBtn.onclick = async ()=>{
+      try{
+        await navigator.clipboard.writeText(textBackup);
+        copyBtn.textContent = 'Kopiert ✓';
+        setTimeout(()=>{ copyBtn.textContent = 'Als Text kopieren'; }, 2000);
+      }catch(e){
+        copyBtn.textContent = 'Kopieren fehlgeschlagen — bitte manuell markieren';
+      }
+    };
+
+    btnRow.appendChild(retryBtn);
+    btnRow.appendChild(copyBtn);
+    statusEl.appendChild(btnRow);
+  }
+
+  function formatWorkEntryText(entry){
+    return [
+      'The Work – ' + new Date(entry.date).toLocaleString('de-DE'),
+      'Glaubenssatz: ' + entry.belief,
+      'Ist das wahr? ' + (entry.q1_answer || '-'),
+      'Absolut sicher? ' + entry.q2,
+      'Reaktion auf den Gedanken: ' + entry.q3,
+      'Ohne den Gedanken: ' + entry.q4,
+      'Umkehrung ins Gegenteil: ' + entry.turn1_text + (entry.turn1_examples ? ' (' + entry.turn1_examples + ')' : ''),
+      'Umkehrung auf dich selbst: ' + entry.turn2_text + (entry.turn2_examples ? ' (' + entry.turn2_examples + ')' : ''),
+      'Umkehrung auf andere: ' + entry.turn3_text + (entry.turn3_examples ? ' (' + entry.turn3_examples + ')' : ''),
+      'Fünkchen Wahrheit: ' + entry.spark
+    ].join('\n');
+  }
+
+  function formatEveningEntryText(entry){
+    return [
+      'Abend-Journal – ' + new Date(entry.date).toLocaleString('de-DE'),
+      'Erfolge: ' + (entry.erfolge || []).join('; '),
+      'Schwierig: ' + entry.schwierig,
+      'Dankbarkeit: ' + (entry.dankbarkeit || []).join('; '),
+      'Morgen besser machen: ' + entry.morgenBesser,
+      'Körperlich & mental: ' + entry.koerperlichMental,
+      'Was hilft, mich besser zu fühlen: ' + entry.tunBesser,
+      'Freitext: ' + entry.freitext
+    ].join('\n');
+  }
+
+  /* ---------- Tabs ---------- */
+  const tabWorkBtn = document.getElementById('tabWorkBtn');
+  const tabEveningBtn = document.getElementById('tabEveningBtn');
+  const tabReflexionBtn = document.getElementById('tabReflexionBtn');
+  const panelWork = document.getElementById('panelWork');
+  const panelEvening = document.getElementById('panelEvening');
+  const panelReflexion = document.getElementById('panelReflexion');
+
+  const tabs = [
+    { btn: tabWorkBtn, panel: panelWork },
+    { btn: tabEveningBtn, panel: panelEvening },
+    { btn: tabReflexionBtn, panel: panelReflexion }
+  ];
+
+  function switchTab(activeBtn){
+    tabs.forEach(t=>{
+      const isActive = t.btn === activeBtn;
+      t.btn.classList.toggle('active', isActive);
+      t.panel.style.display = isActive ? 'block' : 'none';
+    });
+  }
+
+  tabWorkBtn.onclick = ()=>switchTab(tabWorkBtn);
+  tabEveningBtn.onclick = ()=>switchTab(tabEveningBtn);
+  tabReflexionBtn.onclick = ()=>switchTab(tabReflexionBtn);
+
+  const reflexionContent = document.getElementById('reflexionContent');
+  function showReflexionPlaceholder(label){
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">${label}</div>
+        <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
+      </div>`;
+  }
+  document.getElementById('reflWocheBtn').onclick = ()=>showReflexionPlaceholder('Wochenreflexion');
+  document.getElementById('reflMonatBtn').onclick = ()=>showReflexionPlaceholder('Monatsreflexion');
+  document.getElementById('reflQuartalBtn').onclick = ()=>showReflexionPlaceholder('Quartalsreflexion');
+  document.getElementById('reflJahrBtn').onclick = ()=>showReflexionPlaceholder('Jahresreflexion');
+
+  /* =========================================================
+     THE WORK
+     ========================================================= */
+  const STEPS = ["belief","q1","q2","q3","q4","turn1","turn2","turn3","spark","summary"];
+  let stepIndex = 0;
+  let data = { belief:"", q1_answer:null, q2:"", q3:"", q4:"",
+               turn1_text:"", turn1_examples:"",
+               turn2_text:"", turn2_examples:"",
+               turn3_text:"", turn3_examples:"",
+               spark:"" };
+
+  const app = document.getElementById('app');
+  const chainEl = document.getElementById('chain');
+
+  function renderChain(){
+    chainEl.innerHTML = STEPS.map((s,i)=>{
+      let cls = 'link';
+      if(i < stepIndex) cls += ' done broken';
+      else if(i === stepIndex) cls += ' active';
+      return `<div class="${cls}">
+        <svg viewBox="0 0 34 20">
+          <g class="top"><path class="ring" d="M9 10 a6 6 0 1 1 12 0" /></g>
+          <g class="bottom"><path class="ring" d="M9 10 a6 6 0 1 0 12 0" /></g>
+        </svg>
+      </div>`;
+    }).join('');
+  }
+
+  function go(delta){
+    stepIndex = Math.max(0, Math.min(STEPS.length-1, stepIndex+delta));
+    render();
+  }
+
+  function navRow(canNext, nextLabel){
+    return `<div class="nav-row">
+      <button class="ghost" id="backBtn" ${stepIndex===0?'disabled':''}>Zurück</button>
+      <button class="primary" id="nextBtn" ${canNext?'':'disabled'}>${nextLabel||'Weiter'}</button>
+    </div>`;
+  }
+
+  function wireNav(onNext){
+    const back = document.getElementById('backBtn');
+    const next = document.getElementById('nextBtn');
+    if(back) back.onclick = ()=>go(-1);
+    if(next) next.onclick = ()=>{ if(onNext) onNext(); go(1); };
+  }
+
+  function render(){
+    renderChain();
+    const s = STEPS[stepIndex];
+
+    if(s === "belief"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Schritt 1</div>
+          <div class="question">Welcher Gedanke belastet dich gerade?</div>
+          <div class="hint">z.B. "Er sollte mich mehr respektieren." oder "Ich bin nicht gut genug."</div>
+          <input type="text" id="beliefInput" placeholder="Dein belastender Gedanke ..." value="${escapeHtml(data.belief)}">
+          <button type="button" class="lib-link" id="openLibBtn">📖 Meine gespeicherten Glaubenssätze</button>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{ data.belief = document.getElementById('beliefInput').value.trim(); });
+      const input = document.getElementById('beliefInput');
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.disabled = data.belief.trim().length === 0;
+      input.addEventListener('input', ()=>{ nextBtn.disabled = input.value.trim().length === 0; });
+      document.getElementById('openLibBtn').onclick = openLibraryModal;
+      return;
+    }
+
+    if(s === "q1"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Frage 1</div>
+          <div class="question">Ist das wahr?</div>
+          <div class="hint">"${escapeHtml(data.belief)}" — antworte spontan, ohne lange Erklärung.</div>
+          <div class="yesno">
+            <button data-v="ja" class="${data.q1_answer==='ja'?'picked':''}">Ja</button>
+            <button data-v="nein" class="${data.q1_answer==='nein'?'picked':''}">Nein</button>
+          </div>
+          ${navRow(true)}
+        </div>`;
+      app.querySelectorAll('.yesno button').forEach(b=>{
+        b.onclick = ()=>{ data.q1_answer = b.dataset.v; render(); };
+      });
+      wireNav(()=>{});
+      return;
+    }
+
+    if(s === "q2"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Frage 2</div>
+          <div class="question">Kannst du absolut sicher wissen, dass das wahr ist?</div>
+          <div class="hint">Gibt es etwas, das zeigt, dass es nicht zu 100% stimmt?</div>
+          <textarea id="q2Input" placeholder="Deine Antwort ...">${escapeHtml(data.q2)}</textarea>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{ data.q2 = document.getElementById('q2Input').value; });
+      return;
+    }
+
+    if(s === "q3"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Frage 3</div>
+          <div class="question">Wie reagierst du, was passiert, wenn du diesen Gedanken glaubst?</div>
+          <div class="hint">Gefühle, Reaktionen, Auswirkungen auf dein Verhalten.</div>
+          <textarea id="q3Input" placeholder="Deine Antwort ...">${escapeHtml(data.q3)}</textarea>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{ data.q3 = document.getElementById('q3Input').value; });
+      return;
+    }
+
+    if(s === "q4"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Frage 4</div>
+          <div class="question">Wer wärst du ohne diesen Gedanken?</div>
+          <div class="hint">Stell dir vor, der Gedanke wäre einfach nicht da.</div>
+          <textarea id="q4Input" placeholder="Deine Antwort ...">${escapeHtml(data.q4)}</textarea>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{ data.q4 = document.getElementById('q4Input').value; });
+      return;
+    }
+
+    if(s === "turn1"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Umkehrung 1 von 3</div>
+          <div class="question">Umkehrung ins Gegenteil</div>
+          <div class="hint">Dreh den Gedanken in sein Gegenteil und formuliere ihn hier.</div>
+          <textarea id="turnText" placeholder="z.B. Ich bin gut genug.">${escapeHtml(data.turn1_text)}</textarea>
+          <div class="turn-title" style="margin-top:14px;">Konkrete Beispiele, wo das ebenfalls wahr sein könnte</div>
+          <textarea id="turnEx" placeholder="Deine Beispiele ...">${escapeHtml(data.turn1_examples)}</textarea>
+          <div class="example-box">
+            <div class="example-title">Beispiel: „Ich mache immer alles falsch.“ → „Ich mache alles richtig.“</div>
+            <div class="example-text">Suche nach Beispielen, die das unterstützen:</div>
+            <div class="example-sub">„Ich habe mich bemüht, mein Bestes zu geben.“ · „Es gab auch schon Momente, in denen ich stolz auf mich war.“</div>
+            <div class="example-extra">
+              <div class="example-text">Zusatz bei Wörtern wie „immer“/„nie“: „Ich mache nie alles falsch.“ – suche Beweise dafür:</div>
+              <div class="example-sub">„Das Gericht ist vielleicht nicht perfekt, aber ich habe es immerhin zubereitet.“ · „Fehler gehören zum Lernen, also ist das kein ‚falsch machen‘.“</div>
+            </div>
+          </div>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{
+        data.turn1_text = document.getElementById('turnText').value;
+        data.turn1_examples = document.getElementById('turnEx').value;
+      });
+      return;
+    }
+
+    if(s === "turn2"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Umkehrung 2 von 3</div>
+          <div class="question">Umkehrung auf dich selbst</div>
+          <div class="hint">Wie lautet der Gedanke, wenn er sich auf dich selbst statt auf jemand anderen bezieht?</div>
+          <textarea id="turnText" placeholder="z.B. Ich denke, ich bin nicht gut genug.">${escapeHtml(data.turn2_text)}</textarea>
+          <div class="turn-title" style="margin-top:14px;">Konkrete Beispiele</div>
+          <textarea id="turnEx" placeholder="Deine Beispiele ...">${escapeHtml(data.turn2_examples)}</textarea>
+          <div class="example-box">
+            <div class="example-title">Beispiel: „Ich mache immer alles falsch.“ → „Ich denke, ich mache alles falsch.“</div>
+            <div class="example-text">Frage dich: „Ist das wirklich wahr?“ – oft erkennst du, dass dieser Gedanke nur aus einem Moment der Selbstkritik entstanden ist und nicht objektiv ist.</div>
+            <div class="example-sub">„Vielleicht bin ich einfach zu streng mit mir selbst.“</div>
+          </div>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{
+        data.turn2_text = document.getElementById('turnText').value;
+        data.turn2_examples = document.getElementById('turnEx').value;
+      });
+      return;
+    }
+
+    if(s === "turn3"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Umkehrung 3 von 3</div>
+          <div class="question">Umkehrung auf andere</div>
+          <div class="hint">Wie lautet der Gedanke, wenn er sich auf andere statt auf dich bezieht?</div>
+          <textarea id="turnText" placeholder="z.B. Andere sind nicht gut genug.">${escapeHtml(data.turn3_text)}</textarea>
+          <div class="turn-title" style="margin-top:14px;">Konkrete Beispiele</div>
+          <textarea id="turnEx" placeholder="Deine Beispiele ...">${escapeHtml(data.turn3_examples)}</textarea>
+          <div class="example-box">
+            <div class="example-title">Beispiel: „Ich mache immer alles falsch.“ → „Andere machen alles falsch.“</div>
+            <div class="example-text">Überlege, ob du diesen Gedanken auf andere projizierst:</div>
+            <div class="example-sub">„Vielleicht denke ich, andere machen es besser als ich, und vergleiche mich zu viel.“ · „Es ist aber nicht wahr, dass andere perfekt sind – jeder macht Fehler.“</div>
+          </div>
+          ${navRow(true)}
+        </div>`;
+      wireNav(()=>{
+        data.turn3_text = document.getElementById('turnText').value;
+        data.turn3_examples = document.getElementById('turnEx').value;
+      });
+      return;
+    }
+
+    if(s === "spark"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Letzter Schritt</div>
+          <div class="question">Kannst du ein Fünkchen Wahrheit in den Umkehrungen finden?</div>
+          <div class="hint">Was wird dir klar, wenn du die Umkehrungen betrachtest?</div>
+          <textarea id="sparkInput" placeholder="Deine Antwort ...">${escapeHtml(data.spark)}</textarea>
+          ${navRow(true, 'Zur Zusammenfassung')}
+        </div>`;
+      wireNav(()=>{ data.spark = document.getElementById('sparkInput').value; });
+      return;
+    }
+
+    if(s === "summary"){
+      app.innerHTML = `
+        <div class="card">
+          <div class="step-label">Zusammenfassung</div>
+          <div class="summary-belief">"${escapeHtml(data.belief)}"</div>
+
+          <div class="summary-q">Ist das wahr?</div>
+          <div class="summary-a">${data.q1_answer === 'ja' ? 'Ja' : data.q1_answer === 'nein' ? 'Nein' : '–'}</div>
+
+          <div class="summary-q">Absolut sicher?</div>
+          <div class="summary-a">${escapeHtml(data.q2) || '–'}</div>
+
+          <div class="summary-q">Reaktion auf den Gedanken</div>
+          <div class="summary-a">${escapeHtml(data.q3) || '–'}</div>
+
+          <div class="summary-q">Wer wärst du ohne den Gedanken?</div>
+          <div class="summary-a">${escapeHtml(data.q4) || '–'}</div>
+
+          <div class="summary-q">Umkehrung ins Gegenteil</div>
+          <div class="summary-a">${escapeHtml(data.turn1_text) || '–'}${data.turn1_examples ? '<br><span style="color:var(--ink-soft);font-size:13.5px;">'+escapeHtml(data.turn1_examples)+'</span>' : ''}</div>
+
+          <div class="summary-q">Umkehrung auf dich selbst</div>
+          <div class="summary-a">${escapeHtml(data.turn2_text) || '–'}${data.turn2_examples ? '<br><span style="color:var(--ink-soft);font-size:13.5px;">'+escapeHtml(data.turn2_examples)+'</span>' : ''}</div>
+
+          <div class="summary-q">Umkehrung auf andere</div>
+          <div class="summary-a">${escapeHtml(data.turn3_text) || '–'}${data.turn3_examples ? '<br><span style="color:var(--ink-soft);font-size:13.5px;">'+escapeHtml(data.turn3_examples)+'</span>' : ''}</div>
+
+          <div class="summary-q">Fünkchen Wahrheit</div>
+          <div class="summary-a">${escapeHtml(data.spark) || '–'}</div>
+
+          <div class="nav-row">
+            <button class="ghost" id="backBtn">Zurück</button>
+            <div style="display:flex;gap:10px;">
+              <button class="ghost" id="newBtn">Neuer Gedanke</button>
+              <button class="primary" id="saveWorkBtn">Eintrag speichern</button>
+            </div>
+          </div>
+          <div id="saveWorkStatus" class="save-status"></div>
+        </div>`;
+      document.getElementById('backBtn').onclick = ()=>go(-1);
+      document.getElementById('newBtn').onclick = ()=>{ resetData(); render(); };
+      document.getElementById('saveWorkBtn').onclick = saveWorkEntry;
+      return;
+    }
+  }
+
+  function resetData(){
+    stepIndex = 0;
+    data = { belief:"", q1_answer:null, q2:"", q3:"", q4:"",
+             turn1_text:"", turn1_examples:"",
+             turn2_text:"", turn2_examples:"",
+             turn3_text:"", turn3_examples:"",
+             spark:"" };
+  }
+
+  async function saveWorkEntry(){
+    const statusEl = document.getElementById('saveWorkStatus');
+    statusEl.innerHTML = 'Speichere in Airtable ...';
+    const entry = Object.assign({}, data, { date: new Date().toISOString() });
+    const fields = {
+      'Datum': entry.date,
+      'Glaubenssatz': entry.belief,
+      'Ist das wahr': entry.q1_answer === 'ja' ? 'Ja' : entry.q1_answer === 'nein' ? 'Nein' : null,
+      'Absolut sicher': entry.q2,
+      'Reaktion auf den Gedanken': entry.q3,
+      'Wer ohne den Gedanken': entry.q4,
+      'Umkehrung ins Gegenteil': entry.turn1_text,
+      'Beispiele ins Gegenteil': entry.turn1_examples,
+      'Umkehrung auf dich selbst': entry.turn2_text,
+      'Beispiele auf dich selbst': entry.turn2_examples,
+      'Umkehrung auf andere': entry.turn3_text,
+      'Beispiele auf andere': entry.turn3_examples,
+      'Fünkchen Wahrheit': entry.spark
+    };
+    try{
+      await airtableCreate(TABLE_WORK, fields);
+      statusEl.textContent = 'In Airtable gespeichert.';
+      loadWorkJournal();
+    }catch(e){
+      showSaveFailure(statusEl, saveWorkEntry, formatWorkEntryText(entry));
+    }
+  }
+
+  function mapWorkFieldsFromAirtable(f){
+    f = f || {};
+    return {
+      date: f['Datum'] || new Date().toISOString(),
+      belief: f['Glaubenssatz'] || '',
+      q1_answer: f['Ist das wahr'] === 'Ja' ? 'ja' : (f['Ist das wahr'] === 'Nein' ? 'nein' : null),
+      q2: f['Absolut sicher'] || '',
+      q3: f['Reaktion auf den Gedanken'] || '',
+      q4: f['Wer ohne den Gedanken'] || '',
+      turn1_text: f['Umkehrung ins Gegenteil'] || '',
+      turn1_examples: f['Beispiele ins Gegenteil'] || '',
+      turn2_text: f['Umkehrung auf dich selbst'] || '',
+      turn2_examples: f['Beispiele auf dich selbst'] || '',
+      turn3_text: f['Umkehrung auf andere'] || '',
+      turn3_examples: f['Beispiele auf andere'] || '',
+      spark: f['Fünkchen Wahrheit'] || ''
+    };
+  }
+
+  const workJournalToggle = document.getElementById('workJournalToggle');
+  const workJournalEl = document.getElementById('workJournal');
+
+  workJournalToggle.onclick = async ()=>{
+    const showing = workJournalEl.style.display !== 'none';
+    if(showing){
+      workJournalEl.style.display = 'none';
+      workJournalToggle.textContent = 'Bisherige Einträge anzeigen';
+    } else {
+      workJournalEl.style.display = 'block';
+      workJournalToggle.textContent = 'Einträge ausblenden';
+      await loadWorkJournal();
+    }
+  };
+
+  async function loadWorkJournal(){
+    workJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_WORK);
+      if(records.length === 0){
+        workJournalEl.innerHTML = '<div class="empty">Noch keine gespeicherten Einträge.</div>';
+        return;
+      }
+      const entries = records.map(r=>({ key: r.id, data: mapWorkFieldsFromAirtable(r.fields) }));
+      entries.sort((a,b)=> new Date(b.data.date) - new Date(a.data.date));
+      renderWorkJournal(entries);
+    }catch(e){
+      workJournalEl.innerHTML = '<div class="empty">Einträge konnten nicht aus Airtable geladen werden.</div>';
+    }
+  }
+
+  function renderWorkJournal(entries){
+    workJournalEl.innerHTML = entries.map(e=>{
+      const d = new Date(e.data.date);
+      const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
+      return `<div class="entry">
+        <div class="entry-head" data-key="${e.key}">
+          <div>
+            <div class="entry-date">${dateStr}</div>
+            <div class="entry-belief">"${escapeHtml(e.data.belief)}"</div>
+          </div>
+        </div>
+        <div class="entry-body" id="wbody-${cssSafe(e.key)}">
+          <div class="summary-q">Fünkchen Wahrheit</div>
+          <div class="summary-a">${escapeHtml(e.data.spark) || '–'}</div>
+          <div class="summary-q">Umkehrung ins Gegenteil</div>
+          <div class="summary-a">${escapeHtml(e.data.turn1_text) || '–'}</div>
+          <div class="summary-q">Umkehrung auf dich selbst</div>
+          <div class="summary-a">${escapeHtml(e.data.turn2_text) || '–'}</div>
+          <div class="summary-q">Umkehrung auf andere</div>
+          <div class="summary-a">${escapeHtml(e.data.turn3_text) || '–'}</div>
+          <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    workJournalEl.querySelectorAll('.entry-head').forEach(h=>{
+      h.onclick = ()=>{ document.getElementById('wbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+    });
+    workJournalEl.querySelectorAll('.entry-delete').forEach(btn=>{
+      btn.onclick = async (ev)=>{
+        ev.stopPropagation();
+        const original = btn.textContent;
+        btn.textContent = 'Lösche ...';
+        btn.disabled = true;
+        try{ await airtableDelete(TABLE_WORK, btn.dataset.key); loadWorkJournal(); }
+        catch(e){ btn.textContent = 'Fehler — erneut versuchen'; btn.disabled = false; }
+      };
+    });
+  }
+
+  /* =========================================================
+     GLAUBENSSÄTZE-BIBLIOTHEK
+     ========================================================= */
+  const libOverlay = document.getElementById('libModalOverlay');
+  const libList = document.getElementById('libList');
+  const libNewInput = document.getElementById('libNewInput');
+
+  document.getElementById('libModalCloseBtn').onclick = closeLibraryModal;
+  libOverlay.addEventListener('click', (e)=>{ if(e.target === libOverlay) closeLibraryModal(); });
+  document.getElementById('libAddBtn').onclick = addLibraryEntry;
+  libNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') addLibraryEntry(); });
+
+  function openLibraryModal(){
+    libOverlay.style.display = 'flex';
+    loadLibraryList();
+  }
+  function closeLibraryModal(){
+    libOverlay.style.display = 'none';
+  }
+
+  async function loadLibraryList(){
+    libList.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_LIBRARY);
+      if(records.length === 0){
+        libList.innerHTML = '<div class="empty">Noch keine gespeicherten Glaubenssätze.</div>';
+        return;
+      }
+      const entries = records.map(r=>({
+        key: r.id,
+        data: { text: (r.fields||{})['Glaubenssatz'] || '', createdAt: (r.fields||{})['Hinzugefügt am'] || new Date().toISOString() }
+      }));
+      entries.sort((a,b)=> new Date(b.data.createdAt) - new Date(a.data.createdAt));
+      renderLibraryList(entries);
+    }catch(e){
+      libList.innerHTML = '<div class="empty">Konnte nicht aus Airtable geladen werden.</div>';
+    }
+  }
+
+  function renderLibraryList(entries){
+    libList.innerHTML = entries.map(e=>`
+      <div class="lib-item">
+        <div class="lib-item-text">${escapeHtml(e.data.text)}</div>
+        <div class="lib-item-actions">
+          <button class="use" data-key="${e.key}">Verwenden</button>
+          <button class="del" data-key="${e.key}">Löschen</button>
+        </div>
+      </div>`).join('');
+
+    libList.querySelectorAll('.use').forEach(btn=>{
+      btn.onclick = ()=>{
+        const entry = entries.find(e=>e.key === btn.dataset.key);
+        if(entry){
+          data.belief = entry.data.text;
+          const beliefInput = document.getElementById('beliefInput');
+          if(beliefInput){
+            beliefInput.value = entry.data.text;
+            beliefInput.dispatchEvent(new Event('input'));
+          }
+        }
+        closeLibraryModal();
+      };
+    });
+    libList.querySelectorAll('.del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const original = btn.textContent;
+        btn.textContent = '...';
+        btn.disabled = true;
+        try{ await airtableDelete(TABLE_LIBRARY, btn.dataset.key); loadLibraryList(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+  }
+
+  async function addLibraryEntry(){
+    const text = libNewInput.value.trim();
+    if(!text) return;
+    libList.innerHTML = '<div class="loading">Speichere ...</div>' + libList.innerHTML;
+    try{
+      await airtableCreate(TABLE_LIBRARY, { 'Glaubenssatz': text, 'Hinzugefügt am': new Date().toISOString() });
+      libNewInput.value = '';
+      loadLibraryList();
+    }catch(e){
+      libList.innerHTML = '<div class="empty">Speichern fehlgeschlagen, bitte erneut versuchen.</div>' + libList.innerHTML;
+    }
+  }
+
+  /* =========================================================
+     ABEND-JOURNAL
+     ========================================================= */
+  let eveningData = {
+    erfolge: ["", "", ""],
+    schwierig: "",
+    dankbarkeit: ["", "", ""],
+    morgenBesser: "",
+    koerperlichMental: "",
+    tunBesser: "",
+    freitext: ""
+  };
+
+  const eveningForm = document.getElementById('eveningForm');
+
+  function renderEveningForm(){
+    eveningForm.innerHTML = `
+      <div class="card">
+        <div class="step-label">1</div>
+        <div class="question">Erfolge von heute</div>
+        <div class="hint">Mindestens 3 – auch Kleinigkeiten zählen.</div>
+        <div id="erfolgeList"></div>
+      </div>
+
+      <div class="card">
+        <div class="step-label">2</div>
+        <div class="question">Was war heute schwierig?</div>
+        <textarea id="schwierigInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.schwierig)}</textarea>
+      </div>
+
+      <div class="card">
+        <div class="step-label">3</div>
+        <div class="question">Wofür bin ich dankbar?</div>
+        <div class="hint">Mindestens 3.</div>
+        <div id="dankbarkeitList"></div>
+      </div>
+
+      <div class="card">
+        <div class="step-label">4</div>
+        <div class="question">Was kann ich morgen besser machen?</div>
+        <textarea id="morgenInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.morgenBesser)}</textarea>
+      </div>
+
+      <div class="card">
+        <div class="step-label">5</div>
+        <div class="question">Wie fühle ich mich gerade körperlich und mental?</div>
+        <textarea id="koerperlichInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.koerperlichMental)}</textarea>
+        <div class="turn-title" style="margin-top:14px;">Was kann ich tun, um mich besser zu fühlen?</div>
+        <textarea id="tunBesserInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.tunBesser)}</textarea>
+      </div>
+
+      <div class="card">
+        <div class="step-label">6</div>
+        <div class="question">Freitext</div>
+        <textarea id="freitextInput" placeholder="Was dich sonst noch beschäftigt ...">${escapeHtml(eveningData.freitext)}</textarea>
+      </div>
+
+      <div class="nav-row" style="justify-content:flex-end;">
+        <button class="ghost" id="resetEveningBtn">Zurücksetzen</button>
+        <button class="primary" id="saveEveningBtn">Eintrag speichern</button>
+      </div>
+      <div id="saveEveningStatus" class="save-status"></div>
+    `;
+
+    setupList('erfolgeList', eveningData.erfolge, 'Erfolg');
+    setupList('dankbarkeitList', eveningData.dankbarkeit, 'Punkt');
+
+    document.getElementById('schwierigInput').addEventListener('input', e=>{ eveningData.schwierig = e.target.value; });
+    document.getElementById('morgenInput').addEventListener('input', e=>{ eveningData.morgenBesser = e.target.value; });
+    document.getElementById('koerperlichInput').addEventListener('input', e=>{ eveningData.koerperlichMental = e.target.value; });
+    document.getElementById('tunBesserInput').addEventListener('input', e=>{ eveningData.tunBesser = e.target.value; });
+    document.getElementById('freitextInput').addEventListener('input', e=>{ eveningData.freitext = e.target.value; });
+
+    document.getElementById('resetEveningBtn').onclick = ()=>{
+      eveningData = { erfolge:["","",""], schwierig:"", dankbarkeit:["","",""], morgenBesser:"", koerperlichMental:"", tunBesser:"", freitext:"" };
+      renderEveningForm();
+    };
+    document.getElementById('saveEveningBtn').onclick = saveEveningEntry;
+  }
+
+  function setupList(containerId, arr, label){
+    const container = document.getElementById(containerId);
+
+    function draw(){
+      container.innerHTML = arr.map((v,i)=>`
+        <div class="list-input-row">
+          <input type="text" class="li-input" data-i="${i}" value="${escapeHtml(v)}" placeholder="${label} ${i+1}">
+          ${i >= 3 ? `<button type="button" class="list-remove" data-i="${i}" title="Entfernen">×</button>` : ''}
+        </div>`).join('') + `<button type="button" class="add-item-btn" id="add-${containerId}">+ weiterer Punkt</button>`;
+
+      container.querySelectorAll('.li-input').forEach(inp=>{
+        inp.addEventListener('input', ()=>{ arr[Number(inp.dataset.i)] = inp.value; });
+      });
+      container.querySelectorAll('.list-remove').forEach(btn=>{
+        btn.onclick = ()=>{ arr.splice(Number(btn.dataset.i),1); draw(); };
+      });
+      document.getElementById('add-'+containerId).onclick = ()=>{ arr.push(''); draw(); };
+    }
+    draw();
+  }
+
+  async function saveEveningEntry(){
+    const statusEl = document.getElementById('saveEveningStatus');
+    statusEl.innerHTML = 'Speichere in Airtable ...';
+    const entry = Object.assign({}, eveningData, {
+      erfolge: eveningData.erfolge.filter(x=>x.trim().length>0),
+      dankbarkeit: eveningData.dankbarkeit.filter(x=>x.trim().length>0),
+      date: new Date().toISOString()
+    });
+    const fields = {
+      'Datum': entry.date,
+      'Erfolge': entry.erfolge.join('\n'),
+      'Schwierig': entry.schwierig,
+      'Dankbarkeit': entry.dankbarkeit.join('\n'),
+      'Morgen besser machen': entry.morgenBesser,
+      'Körperlich und mental': entry.koerperlichMental,
+      'Was hilft': entry.tunBesser,
+      'Freitext': entry.freitext
+    };
+    try{
+      await airtableCreate(TABLE_EVENING, fields);
+      statusEl.textContent = 'In Airtable gespeichert.';
+      loadEveningJournal();
+    }catch(e){
+      showSaveFailure(statusEl, saveEveningEntry, formatEveningEntryText(entry));
+    }
+  }
+
+  function mapEveningFieldsFromAirtable(f){
+    f = f || {};
+    return {
+      date: f['Datum'] || new Date().toISOString(),
+      erfolge: (f['Erfolge'] || '').split('\n').filter(x=>x.trim().length>0),
+      schwierig: f['Schwierig'] || '',
+      dankbarkeit: (f['Dankbarkeit'] || '').split('\n').filter(x=>x.trim().length>0),
+      morgenBesser: f['Morgen besser machen'] || '',
+      koerperlichMental: f['Körperlich und mental'] || '',
+      tunBesser: f['Was hilft'] || '',
+      freitext: f['Freitext'] || ''
+    };
+  }
+
+  const eveningJournalToggle = document.getElementById('eveningJournalToggle');
+  const eveningJournalEl = document.getElementById('eveningJournal');
+
+  eveningJournalToggle.onclick = async ()=>{
+    const showing = eveningJournalEl.style.display !== 'none';
+    if(showing){
+      eveningJournalEl.style.display = 'none';
+      eveningJournalToggle.textContent = 'Bisherige Einträge anzeigen';
+    } else {
+      eveningJournalEl.style.display = 'block';
+      eveningJournalToggle.textContent = 'Einträge ausblenden';
+      await loadEveningJournal();
+    }
+  };
+
+  async function loadEveningJournal(){
+    eveningJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_EVENING);
+      if(records.length === 0){
+        eveningJournalEl.innerHTML = '<div class="empty">Noch keine gespeicherten Einträge.</div>';
+        return;
+      }
+      const entries = records.map(r=>({ key: r.id, data: mapEveningFieldsFromAirtable(r.fields) }));
+      entries.sort((a,b)=> new Date(b.data.date) - new Date(a.data.date));
+      renderEveningJournal(entries);
+    }catch(e){
+      eveningJournalEl.innerHTML = '<div class="empty">Einträge konnten nicht aus Airtable geladen werden.</div>';
+    }
+  }
+
+  function renderEveningJournal(entries){
+    eveningJournalEl.innerHTML = entries.map(e=>{
+      const d = new Date(e.data.date);
+      const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
+      const firstErfolg = (e.data.erfolge && e.data.erfolge[0]) ? e.data.erfolge[0] : '(kein Eintrag)';
+      return `<div class="entry">
+        <div class="entry-head" data-key="${e.key}">
+          <div>
+            <div class="entry-date">${dateStr}</div>
+            <div class="entry-belief">"${escapeHtml(firstErfolg)}"</div>
+          </div>
+        </div>
+        <div class="entry-body" id="ebody-${cssSafe(e.key)}">
+          <div class="summary-q">Erfolge</div>
+          <div class="summary-a">${(e.data.erfolge||[]).map(escapeHtml).join(' · ') || '–'}</div>
+          <div class="summary-q">Schwierig</div>
+          <div class="summary-a">${escapeHtml(e.data.schwierig) || '–'}</div>
+          <div class="summary-q">Dankbarkeit</div>
+          <div class="summary-a">${(e.data.dankbarkeit||[]).map(escapeHtml).join(' · ') || '–'}</div>
+          <div class="summary-q">Morgen besser machen</div>
+          <div class="summary-a">${escapeHtml(e.data.morgenBesser) || '–'}</div>
+          <div class="summary-q">Körperlich &amp; mental</div>
+          <div class="summary-a">${escapeHtml(e.data.koerperlichMental) || '–'}</div>
+          <div class="summary-q">Was hilft, mich besser zu fühlen</div>
+          <div class="summary-a">${escapeHtml(e.data.tunBesser) || '–'}</div>
+          <div class="summary-q">Freitext</div>
+          <div class="summary-a">${escapeHtml(e.data.freitext) || '–'}</div>
+          <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    eveningJournalEl.querySelectorAll('.entry-head').forEach(h=>{
+      h.onclick = ()=>{ document.getElementById('ebody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+    });
+    eveningJournalEl.querySelectorAll('.entry-delete').forEach(btn=>{
+      btn.onclick = async (ev)=>{
+        ev.stopPropagation();
+        const original = btn.textContent;
+        btn.textContent = 'Lösche ...';
+        btn.disabled = true;
+        try{ await airtableDelete(TABLE_EVENING, btn.dataset.key); loadEveningJournal(); }
+        catch(e){ btn.textContent = 'Fehler — erneut versuchen'; btn.disabled = false; }
+      };
+    });
+  }
+
+  // init
+  render();
+  renderEveningForm();
+})();
+</script>
+</body>
+</html>
