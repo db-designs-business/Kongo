@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Selbst-Erforschung – The Work &amp; Abend-Journal</title>
+<title>Kongrow</title>
 <style>
   :root{
     --paper: #FFFFFF;
@@ -44,6 +44,56 @@
     scrollbar-width:none;
   }
   .tabs::-webkit-scrollbar{ display:none; }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:24px;
+    position:relative;
+  }
+  .topbar-spacer{ width:36px; flex-shrink:0; }
+  .topbar-title{
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-weight:700;
+    font-size:20px;
+    letter-spacing:.01em;
+    color:var(--forest-deep);
+  }
+  .hamburger-btn{
+    width:38px;height:38px;
+    display:flex;align-items:center;justify-content:center;
+    background:none;border:none;cursor:pointer;
+    border-radius:4px;color:var(--ink);
+    flex-shrink:0;
+  }
+  .hamburger-btn:hover{ background:var(--paper-raised); }
+  .hamburger-btn svg{ width:22px;height:22px; }
+  .nav-menu{
+    position:absolute;
+    top:46px;right:0;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,.1);
+    overflow:hidden;
+    z-index:40;
+    min-width:210px;
+  }
+  .nav-menu-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;border:none;
+    padding:14px 18px;
+    font-size:15px;
+    color:var(--ink);
+    cursor:pointer;
+    border-bottom:1px solid var(--line);
+    min-height:44px;
+  }
+  .nav-menu-item:last-child{ border-bottom:none; }
+  .nav-menu-item:hover{ background:var(--paper); }
+  .nav-menu-item.active{ color:var(--forest-deep); font-weight:700; }
   .tab{
     background:none;
     border:none;
@@ -403,11 +453,22 @@
 <body>
 <div class="wrap">
 
-  <div class="tabs">
-    <button class="tab active" id="tabHomeBtn">Start</button>
-    <button class="tab" id="tabWorkBtn">The Work</button>
-    <button class="tab" id="tabEveningBtn">Abend-Journal</button>
-    <button class="tab" id="tabReflexionBtn">Reflexion</button>
+  <div class="topbar">
+    <div class="topbar-spacer"></div>
+    <div class="topbar-title">Kongrow</div>
+    <button type="button" class="hamburger-btn" id="menuBtn" aria-label="Menü öffnen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="4" y1="7" x2="20" y2="7"></line>
+        <line x1="4" y1="12" x2="20" y2="12"></line>
+        <line x1="4" y1="17" x2="20" y2="17"></line>
+      </svg>
+    </button>
+    <div class="nav-menu" id="navMenu" style="display:none;">
+      <button type="button" class="nav-menu-item active" data-tab="home">Start</button>
+      <button type="button" class="nav-menu-item" data-tab="work">The Work</button>
+      <button type="button" class="nav-menu-item" data-tab="evening">Abend-Journal</button>
+      <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
+    </div>
   </div>
 
   <div id="panelHome">
@@ -642,39 +703,40 @@
     ].join('\n');
   }
 
-  /* ---------- Tabs ---------- */
-  const tabHomeBtn = document.getElementById('tabHomeBtn');
-  const tabWorkBtn = document.getElementById('tabWorkBtn');
-  const tabEveningBtn = document.getElementById('tabEveningBtn');
-  const tabReflexionBtn = document.getElementById('tabReflexionBtn');
+  /* ---------- Navigation ---------- */
+  const menuBtn = document.getElementById('menuBtn');
+  const navMenu = document.getElementById('navMenu');
   const panelHome = document.getElementById('panelHome');
   const panelWork = document.getElementById('panelWork');
   const panelEvening = document.getElementById('panelEvening');
   const panelReflexion = document.getElementById('panelReflexion');
 
-  const tabs = [
-    { btn: tabHomeBtn, panel: panelHome },
-    { btn: tabWorkBtn, panel: panelWork },
-    { btn: tabEveningBtn, panel: panelEvening },
-    { btn: tabReflexionBtn, panel: panelReflexion }
-  ];
+  const panels = { home: panelHome, work: panelWork, evening: panelEvening, reflexion: panelReflexion };
 
-  function switchTab(activeBtn){
-    tabs.forEach(t=>{
-      const isActive = t.btn === activeBtn;
-      t.btn.classList.toggle('active', isActive);
-      t.panel.style.display = isActive ? 'block' : 'none';
+  function switchTab(key){
+    Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
+    document.querySelectorAll('.nav-menu-item').forEach(item=>{
+      item.classList.toggle('active', item.dataset.tab === key);
     });
+    navMenu.style.display = 'none';
   }
 
-  tabHomeBtn.onclick = ()=>switchTab(tabHomeBtn);
-  tabWorkBtn.onclick = ()=>switchTab(tabWorkBtn);
-  tabEveningBtn.onclick = ()=>switchTab(tabEveningBtn);
-  tabReflexionBtn.onclick = ()=>switchTab(tabReflexionBtn);
+  menuBtn.onclick = (e)=>{
+    e.stopPropagation();
+    navMenu.style.display = navMenu.style.display === 'block' ? 'none' : 'block';
+  };
+  document.addEventListener('click', (e)=>{
+    if(navMenu.style.display === 'block' && !navMenu.contains(e.target) && e.target !== menuBtn){
+      navMenu.style.display = 'none';
+    }
+  });
+  document.querySelectorAll('.nav-menu-item').forEach(item=>{
+    item.onclick = ()=>switchTab(item.dataset.tab);
+  });
 
-  document.getElementById('homeToWork').onclick = ()=>switchTab(tabWorkBtn);
-  document.getElementById('homeToEvening').onclick = ()=>switchTab(tabEveningBtn);
-  document.getElementById('homeToReflexion').onclick = ()=>switchTab(tabReflexionBtn);
+  document.getElementById('homeToWork').onclick = ()=>switchTab('work');
+  document.getElementById('homeToEvening').onclick = ()=>switchTab('evening');
+  document.getElementById('homeToReflexion').onclick = ()=>switchTab('reflexion');
 
   /* ---------- Begrüßung & täglicher Impuls ---------- */
   const QUOTES = [
