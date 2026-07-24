@@ -561,13 +561,31 @@
   </div>
 
   <div id="panelRoutinen" style="display:none;">
-    <div class="eyebrow">Routinen</div>
+    <div class="eyebrow">Routinen <span class="data-badge">Airtable</span></div>
     <h1>Deine Gewohnheiten</h1>
-    <div class="sub">Baust du dir gerade eine neue Routine auf? Hier kannst du sie bald verfolgen.</div>
+    <div class="sub">Lege Gewohnheiten an, baue dir Routinen daraus und wähle beim Ausführen, welche du gerade machen willst.</div>
 
     <div class="card">
-      <div class="step-label">In Arbeit</div>
-      <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
+      <div class="step-label">Gewohnheiten</div>
+      <div id="habitsList"></div>
+      <div class="lib-add-row" style="border-top:none;padding-top:0;">
+        <input type="text" id="newHabitInput" placeholder="Neue Gewohnheit, z.B. Meditieren">
+        <button class="primary" id="addHabitBtn">Hinzufügen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step-label">Meine Routinen</div>
+      <div id="routinesList"></div>
+      <button type="button" class="add-item-btn" id="newRoutineBtn" style="margin-top:10px;">+ Neue Routine</button>
+    </div>
+
+    <div id="routineBuilder"></div>
+    <div id="routineExecution"></div>
+
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="routineLogToggle">Bisherige Ausführungen anzeigen</button>
+      <div id="routineLogList" style="display:none;"></div>
     </div>
   </div>
 
@@ -608,10 +626,14 @@
      AIRTABLE-ANBINDUNG ÜBER DIREKTE REST-API
      ========================================================= */
   const AIRTABLE_BASE_ID = 'appfl5KfwVXCa2t82';
+  const ROUTINEN_BASE_ID = 'appFqTB9ogHBBIFU9';
   const AIRTABLE_TOKEN_KEY = 'kongrow_airtable_token';
   const TABLE_WORK = 'tblhbBilacGsggKuN';
   const TABLE_EVENING = 'tblyCEqtMZZkFbbHw';
   const TABLE_LIBRARY = 'tbllnTfT4scPXRVvF';
+  const TABLE_HABITS = 'tblsXSoo7KR1iZXqd';
+  const TABLE_ROUTINES = 'tbln1rGiklO3toc4u';
+  const TABLE_ROUTINE_LOG = 'tbll8w2Ctc954GCgN';
 
   function getAirtableToken(){
     try{ return localStorage.getItem(AIRTABLE_TOKEN_KEY) || ''; }catch(e){ return ''; }
@@ -620,13 +642,14 @@
     try{ localStorage.setItem(AIRTABLE_TOKEN_KEY, token); }catch(e){ /* ignore */ }
   }
 
-  async function airtableFetch(path, options){
+  async function airtableFetch(path, options, baseId){
     options = options || {};
+    baseId = baseId || AIRTABLE_BASE_ID;
     const token = getAirtableToken();
     if(!token){
       throw new Error('Kein Airtable-Token hinterlegt. Bitte in den Einstellungen eintragen.');
     }
-    const res = await fetch('https://api.airtable.com/v0/' + AIRTABLE_BASE_ID + '/' + path, {
+    const res = await fetch('https://api.airtable.com/v0/' + baseId + '/' + path, {
       method: options.method || 'GET',
       headers: Object.assign({
         'Authorization': 'Bearer ' + token,
@@ -649,7 +672,7 @@
     throw lastErr;
   }
 
-  async function airtableCreate(tableId, fields){
+  async function airtableCreate(tableId, fields, baseId){
     const cleanFields = {};
     Object.keys(fields).forEach(k=>{
       if(fields[k] !== null && fields[k] !== undefined && fields[k] !== '') cleanFields[k] = fields[k];
@@ -657,24 +680,24 @@
     const data = await withRetry(()=>airtableFetch(tableId, {
       method: 'POST',
       body: JSON.stringify({ fields: cleanFields, typecast: true })
-    }));
+    }, baseId));
     return data.id;
   }
 
-  async function airtableList(tableId){
+  async function airtableList(tableId, baseId){
     let records = [];
     let offset;
     do{
       const qs = offset ? ('?offset=' + encodeURIComponent(offset)) : '';
-      const data = await withRetry(()=>airtableFetch(tableId + qs));
+      const data = await withRetry(()=>airtableFetch(tableId + qs, {}, baseId));
       records = records.concat(data.records || []);
       offset = data.offset;
     } while(offset);
     return records;
   }
 
-  async function airtableDelete(tableId, recordId){
-    await withRetry(()=>airtableFetch(tableId + '/' + recordId, { method: 'DELETE' }));
+  async function airtableDelete(tableId, recordId, baseId){
+    await withRetry(()=>airtableFetch(tableId + '/' + recordId, { method: 'DELETE' }, baseId));
   }
 
   function escapeHtml(str){
@@ -1547,6 +1570,261 @@
       };
     });
   }
+
+  /* =========================================================
+     ROUTINEN
+     ========================================================= */
+  let habitsCache = [];
+  let routinesCache = [];
+
+  const habitsListEl = document.getElementById('habitsList');
+  const routinesListEl = document.getElementById('routinesList');
+  const routineBuilderEl = document.getElementById('routineBuilder');
+  const routineExecutionEl = document.getElementById('routineExecution');
+
+  async function loadHabits(){
+    habitsListEl.innerHTML = '<div class="loading">Lade ...</div>';
+    try{
+      const records = await airtableList(TABLE_HABITS, ROUTINEN_BASE_ID);
+      habitsCache = records.map(r=>({ id: r.id, name: (r.fields||{})['Name'] || '' }));
+      renderHabits();
+    }catch(e){
+      habitsListEl.innerHTML = '<div class="empty">Gewohnheiten konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderHabits(){
+    if(habitsCache.length === 0){
+      habitsListEl.innerHTML = '<div class="empty">Noch keine Gewohnheiten angelegt.</div>';
+      return;
+    }
+    habitsListEl.innerHTML = habitsCache.map(h=>`
+      <div class="lib-item">
+        <div class="lib-item-text">${escapeHtml(h.name)}</div>
+        <div class="lib-item-actions">
+          <button class="del" data-id="${h.id}">Löschen</button>
+        </div>
+      </div>`).join('');
+    habitsListEl.querySelectorAll('.del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.textContent = '...'; btn.disabled = true;
+        try{ await airtableDelete(TABLE_HABITS, btn.dataset.id, ROUTINEN_BASE_ID); loadHabits(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+  }
+
+  document.getElementById('addHabitBtn').onclick = async ()=>{
+    const input = document.getElementById('newHabitInput');
+    const name = input.value.trim();
+    if(!name) return;
+    try{
+      await airtableCreate(TABLE_HABITS, { 'Name': name, 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID);
+      input.value = '';
+      loadHabits();
+    }catch(e){ /* silent, list refresh will show current state */ }
+  };
+
+  async function loadRoutines(){
+    routinesListEl.innerHTML = '<div class="loading">Lade ...</div>';
+    try{
+      const records = await airtableList(TABLE_ROUTINES, ROUTINEN_BASE_ID);
+      routinesCache = records.map(r=>({
+        id: r.id,
+        name: (r.fields||{})['Name'] || '',
+        habits: ((r.fields||{})['Gewohnheiten'] || '').split('\n').filter(x=>x.trim().length>0)
+      }));
+      renderRoutines();
+    }catch(e){
+      routinesListEl.innerHTML = '<div class="empty">Routinen konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderRoutines(){
+    if(routinesCache.length === 0){
+      routinesListEl.innerHTML = '<div class="empty">Noch keine Routinen angelegt.</div>';
+      return;
+    }
+    routinesListEl.innerHTML = routinesCache.map(r=>`
+      <div class="lib-item">
+        <div>
+          <div class="lib-item-text" style="font-weight:600;">${escapeHtml(r.name)}</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);">${r.habits.map(escapeHtml).join(' · ')}</div>
+        </div>
+        <div class="lib-item-actions">
+          <button class="use" data-id="${r.id}">Ausführen</button>
+          <button class="del" data-id="${r.id}">Löschen</button>
+        </div>
+      </div>`).join('');
+    routinesListEl.querySelectorAll('.use').forEach(btn=>{
+      btn.onclick = ()=>{
+        const routine = routinesCache.find(r=>r.id === btn.dataset.id);
+        if(routine) startRoutineExecution(routine);
+      };
+    });
+    routinesListEl.querySelectorAll('.del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.textContent = '...'; btn.disabled = true;
+        try{ await airtableDelete(TABLE_ROUTINES, btn.dataset.id, ROUTINEN_BASE_ID); loadRoutines(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+  }
+
+  document.getElementById('newRoutineBtn').onclick = ()=>{
+    if(habitsCache.length === 0){
+      routineBuilderEl.innerHTML = '<div class="card"><div class="hint" style="margin-bottom:0;">Lege zuerst mindestens eine Gewohnheit an, bevor du eine Routine baust.</div></div>';
+      return;
+    }
+    routineBuilderEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">Neue Routine</div>
+        <div class="question" style="font-size:17px;">Name der Routine</div>
+        <input type="text" id="routineNameInput" placeholder="z.B. Morgenroutine" style="margin-bottom:16px;">
+        <div class="turn-title">Welche Gewohnheiten gehören dazu?</div>
+        <div id="routineHabitChecks">
+          ${habitsCache.map(h=>`
+            <label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14.5px;">
+              <input type="checkbox" value="${escapeHtml(h.name)}" style="width:18px;height:18px;">
+              ${escapeHtml(h.name)}
+            </label>`).join('')}
+        </div>
+        <div class="nav-row">
+          <button class="ghost" id="cancelRoutineBtn">Abbrechen</button>
+          <button class="primary" id="saveRoutineBtn">Routine speichern</button>
+        </div>
+        <div id="routineBuilderStatus" class="save-status"></div>
+      </div>`;
+    document.getElementById('cancelRoutineBtn').onclick = ()=>{ routineBuilderEl.innerHTML = ''; };
+    document.getElementById('saveRoutineBtn').onclick = async ()=>{
+      const name = document.getElementById('routineNameInput').value.trim();
+      const checked = Array.from(document.querySelectorAll('#routineHabitChecks input:checked')).map(c=>c.value);
+      const statusEl = document.getElementById('routineBuilderStatus');
+      if(!name){ statusEl.textContent = 'Bitte einen Namen eingeben.'; return; }
+      if(checked.length === 0){ statusEl.textContent = 'Bitte mindestens eine Gewohnheit auswählen.'; return; }
+      statusEl.textContent = 'Speichere ...';
+      try{
+        await airtableCreate(TABLE_ROUTINES, {
+          'Name': name,
+          'Gewohnheiten': checked.join('\n'),
+          'Erstellt am': new Date().toISOString()
+        }, ROUTINEN_BASE_ID);
+        routineBuilderEl.innerHTML = '';
+        loadRoutines();
+      }catch(e){
+        statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+      }
+    };
+  };
+
+  function startRoutineExecution(routine){
+    routineExecutionEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">Jetzt ausführen</div>
+        <div class="question" style="font-size:19px;">${escapeHtml(routine.name)}</div>
+        <div class="hint">Hak ab, was du geschafft hast.</div>
+        <div id="execChecks">
+          ${routine.habits.map((h,i)=>`
+            <label style="display:flex;align-items:center;gap:8px;padding:9px 0;font-size:15px;">
+              <input type="checkbox" data-habit="${escapeHtml(h)}" checked style="width:18px;height:18px;">
+              ${escapeHtml(h)}
+            </label>`).join('')}
+        </div>
+        <div class="nav-row">
+          <button class="ghost" id="cancelExecBtn">Abbrechen</button>
+          <button class="primary" id="finishExecBtn">Fertig</button>
+        </div>
+        <div id="execStatus" class="save-status"></div>
+      </div>`;
+    document.getElementById('cancelExecBtn').onclick = ()=>{ routineExecutionEl.innerHTML = ''; };
+    document.getElementById('finishExecBtn').onclick = async ()=>{
+      const checks = Array.from(document.querySelectorAll('#execChecks input'));
+      const erledigt = checks.filter(c=>c.checked).map(c=>c.dataset.habit);
+      const offen = checks.filter(c=>!c.checked).map(c=>c.dataset.habit);
+      const statusEl = document.getElementById('execStatus');
+      statusEl.textContent = 'Speichere ...';
+      try{
+        await airtableCreate(TABLE_ROUTINE_LOG, {
+          'Datum': new Date().toISOString(),
+          'Routine': routine.name,
+          'Erledigt': erledigt.join('\n'),
+          'Offen': offen.join('\n')
+        }, ROUTINEN_BASE_ID);
+        statusEl.textContent = 'Gespeichert.';
+        setTimeout(()=>{ routineExecutionEl.innerHTML = ''; }, 900);
+        if(document.getElementById('routineLogList').style.display !== 'none') loadRoutineLog();
+      }catch(e){
+        statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+      }
+    };
+  }
+
+  const routineLogToggle = document.getElementById('routineLogToggle');
+  const routineLogListEl = document.getElementById('routineLogList');
+  routineLogToggle.onclick = async ()=>{
+    const showing = routineLogListEl.style.display !== 'none';
+    if(showing){
+      routineLogListEl.style.display = 'none';
+      routineLogToggle.textContent = 'Bisherige Ausführungen anzeigen';
+    } else {
+      routineLogListEl.style.display = 'block';
+      routineLogToggle.textContent = 'Ausführungen ausblenden';
+      await loadRoutineLog();
+    }
+  };
+
+  async function loadRoutineLog(){
+    routineLogListEl.innerHTML = '<div class="loading">Lade ...</div>';
+    try{
+      const records = await airtableList(TABLE_ROUTINE_LOG, ROUTINEN_BASE_ID);
+      if(records.length === 0){
+        routineLogListEl.innerHTML = '<div class="empty">Noch keine Ausführungen gespeichert.</div>';
+        return;
+      }
+      const entries = records.map(r=>({
+        key: r.id,
+        date: (r.fields||{})['Datum'] || new Date().toISOString(),
+        routine: (r.fields||{})['Routine'] || '',
+        erledigt: ((r.fields||{})['Erledigt'] || '').split('\n').filter(x=>x.trim().length>0),
+        offen: ((r.fields||{})['Offen'] || '').split('\n').filter(x=>x.trim().length>0)
+      }));
+      entries.sort((a,b)=> new Date(b.date) - new Date(a.date));
+      routineLogListEl.innerHTML = entries.map(e=>{
+        const d = new Date(e.date);
+        const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
+        return `<div class="entry">
+          <div class="entry-head" data-key="${e.key}">
+            <div>
+              <div class="entry-date">${dateStr}</div>
+              <div class="entry-belief">${escapeHtml(e.routine)}</div>
+            </div>
+          </div>
+          <div class="entry-body" id="rbody-${cssSafe(e.key)}">
+            <div class="summary-q">Erledigt</div>
+            <div class="summary-a">${e.erledigt.map(escapeHtml).join(' · ') || '–'}</div>
+            <div class="summary-q">Offen</div>
+            <div class="summary-a">${e.offen.map(escapeHtml).join(' · ') || '–'}</div>
+            <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+          </div>
+        </div>`;
+      }).join('');
+      routineLogListEl.querySelectorAll('.entry-head').forEach(h=>{
+        h.onclick = ()=>{ document.getElementById('rbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+      });
+      routineLogListEl.querySelectorAll('.entry-delete').forEach(btn=>{
+        btn.onclick = async (ev)=>{
+          ev.stopPropagation();
+          try{ await airtableDelete(TABLE_ROUTINE_LOG, btn.dataset.key, ROUTINEN_BASE_ID); loadRoutineLog(); }
+          catch(e){ /* ignore */ }
+        };
+      });
+    }catch(e){
+      routineLogListEl.innerHTML = '<div class="empty">Ausführungen konnten nicht geladen werden.</div>';
+    }
+  }
+
+  loadHabits();
+  loadRoutines();
 
   // init
   render();
