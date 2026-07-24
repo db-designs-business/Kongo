@@ -513,6 +513,14 @@
         <span class="home-link-title">Reflexion</span>
         <span class="home-link-sub">Wochen-, Monats-, Quartals- oder Jahresrückblick</span>
       </button>
+      <button type="button" class="home-link" id="homeToRoutinen">
+        <span class="home-link-title">Routinen</span>
+        <span class="home-link-sub">Eine Routine ausführen</span>
+      </button>
+      <button type="button" class="home-link" id="homeToZiele">
+        <span class="home-link-title">Ziele</span>
+        <span class="home-link-sub">Ziele anlegen und verfolgen</span>
+      </button>
     </div>
   </div>
 
@@ -853,6 +861,8 @@
   document.getElementById('homeToWork').onclick = ()=>switchTab('work');
   document.getElementById('homeToEvening').onclick = ()=>switchTab('evening');
   document.getElementById('homeToReflexion').onclick = ()=>switchTab('reflexion');
+  document.getElementById('homeToRoutinen').onclick = ()=>switchTab('routinen');
+  document.getElementById('homeToZiele').onclick = ()=>switchTab('ziele');
 
   /* ---------- Einstellungen (Airtable-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
