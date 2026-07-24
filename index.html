@@ -489,7 +489,6 @@
     <div class="nav-menu" id="navMenu" style="display:none;">
       <button type="button" class="nav-menu-item active" data-tab="home">Start</button>
       <button type="button" class="nav-menu-item" data-tab="work">The Work</button>
-      <button type="button" class="nav-menu-item" data-tab="evening">Abend-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
@@ -512,13 +511,9 @@
         <span class="home-link-title">The Work</span>
         <span class="home-link-sub">Einen Glaubenssatz durcharbeiten</span>
       </button>
-      <button type="button" class="home-link" id="homeToEvening">
-        <span class="home-link-title">Abend-Journal</span>
-        <span class="home-link-sub">Deinen Tag reflektieren</span>
-      </button>
       <button type="button" class="home-link" id="homeToReflexion">
         <span class="home-link-title">Reflexion</span>
-        <span class="home-link-sub">Wochen-, Monats-, Quartals- oder Jahresrückblick</span>
+        <span class="home-link-sub">Tages-, Wochen-, Monats-, Quartals- oder Jahresrückblick</span>
       </button>
       <button type="button" class="home-link" id="homeToRoutinen">
         <span class="home-link-title">Routinen</span>
@@ -545,19 +540,6 @@
     </div>
   </div>
 
-  <div id="panelEvening" style="display:none;">
-    <div class="eyebrow">Abend-Journal <span class="data-badge">Airtable</span></div>
-    <h1>Rückblick auf deinen Tag</h1>
-    <div class="sub">Ein paar Minuten, um den Tag abzuschließen – nimm dir Zeit für jeden Punkt.</div>
-
-    <div id="eveningForm"></div>
-
-    <div style="margin-top:24px;">
-      <button class="journal-toggle" id="eveningJournalToggle">Bisherige Einträge anzeigen</button>
-      <div id="eveningJournal" style="display:none;"></div>
-    </div>
-  </div>
-
   <div id="panelReflexion" style="display:none;">
     <div class="eyebrow">Reflexion</div>
     <h1>Rückblick über die Zeit</h1>
@@ -566,6 +548,7 @@
     <div class="card">
       <div class="step-label">Zeitraum wählen</div>
       <div class="reflex-grid">
+        <button class="ghost" id="reflTagBtn">Tagesreflexion</button>
         <button class="ghost" id="reflWocheBtn">Wochenreflexion</button>
         <button class="ghost" id="reflMonatBtn">Monatsreflexion</button>
         <button class="ghost" id="reflQuartalBtn">Quartalsreflexion</button>
@@ -574,6 +557,14 @@
     </div>
 
     <div id="reflexionContent"></div>
+
+    <div id="tagesreflexionContent" style="display:none;">
+      <div id="eveningForm"></div>
+      <div style="margin-top:24px;">
+        <button class="journal-toggle" id="eveningJournalToggle">Bisherige Einträge anzeigen</button>
+        <div id="eveningJournal" style="display:none;"></div>
+      </div>
+    </div>
   </div>
 
   <div id="panelRoutinen" style="display:none;">
@@ -837,12 +828,11 @@
   const navMenu = document.getElementById('navMenu');
   const panelHome = document.getElementById('panelHome');
   const panelWork = document.getElementById('panelWork');
-  const panelEvening = document.getElementById('panelEvening');
   const panelReflexion = document.getElementById('panelReflexion');
   const panelRoutinen = document.getElementById('panelRoutinen');
   const panelZiele = document.getElementById('panelZiele');
 
-  const panels = { home: panelHome, work: panelWork, evening: panelEvening, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -866,7 +856,6 @@
   });
 
   document.getElementById('homeToWork').onclick = ()=>switchTab('work');
-  document.getElementById('homeToEvening').onclick = ()=>switchTab('evening');
   document.getElementById('homeToReflexion').onclick = ()=>switchTab('reflexion');
   document.getElementById('homeToRoutinen').onclick = ()=>switchTab('routinen');
   document.getElementById('homeToZiele').onclick = ()=>switchTab('ziele');
@@ -932,13 +921,22 @@
   renderHome();
 
   const reflexionContent = document.getElementById('reflexionContent');
+  const tagesreflexionContent = document.getElementById('tagesreflexionContent');
   function showReflexionPlaceholder(label){
+    tagesreflexionContent.style.display = 'none';
+    reflexionContent.style.display = 'block';
     reflexionContent.innerHTML = `
       <div class="card">
         <div class="step-label">${label}</div>
         <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
       </div>`;
   }
+  function showTagesreflexion(){
+    reflexionContent.style.display = 'none';
+    reflexionContent.innerHTML = '';
+    tagesreflexionContent.style.display = 'block';
+  }
+  document.getElementById('reflTagBtn').onclick = showTagesreflexion;
   document.getElementById('reflWocheBtn').onclick = ()=>showReflexionPlaceholder('Wochenreflexion');
   document.getElementById('reflMonatBtn').onclick = ()=>showReflexionPlaceholder('Monatsreflexion');
   document.getElementById('reflQuartalBtn').onclick = ()=>showReflexionPlaceholder('Quartalsreflexion');
