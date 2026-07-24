@@ -485,6 +485,7 @@
       <button type="button" class="nav-menu-item" data-tab="evening">Abend-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
+      <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -589,6 +590,52 @@
     </div>
   </div>
 
+  <div id="panelZiele" style="display:none;">
+    <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
+    <h1>Deine Ziele</h1>
+    <div class="sub">Denk rückwärts: erst das Jahresziel, dann Quartal, Monat, Woche.</div>
+
+    <div id="zieleReminders"></div>
+
+    <div class="card">
+      <div class="step-label">Neues Ziel</div>
+      <div class="turn-title">Zeitrahmen</div>
+      <select id="zielZeitrahmen" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:14px;">
+        <option value="Jahr">Jahr</option>
+        <option value="Quartal">Quartal</option>
+        <option value="Monat">Monat</option>
+        <option value="Woche" selected>Woche</option>
+      </select>
+
+      <div class="turn-title">Kategorie</div>
+      <select id="zielKategorie" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:14px;">
+        <option value="Business/Karriere">Business/Karriere</option>
+        <option value="Gesundheit/Fitness">Gesundheit/Fitness</option>
+        <option value="Beziehungen/Soziales">Beziehungen/Soziales</option>
+        <option value="Persönliche Entwicklung">Persönliche Entwicklung</option>
+        <option value="Finanzen">Finanzen</option>
+      </select>
+
+      <div class="turn-title">Priorität</div>
+      <select id="zielPrioritaet" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:14px;">
+        <option value="Hauptziel">Hauptziel</option>
+        <option value="Nebenziel">Nebenziel</option>
+      </select>
+
+      <div id="zielParentRow"></div>
+
+      <div class="turn-title">Zieltext</div>
+      <textarea id="zielTextInput" placeholder="Was willst du erreichen?"></textarea>
+
+      <div class="nav-row" style="justify-content:flex-end;">
+        <button class="primary" id="saveZielBtn">Ziel speichern</button>
+      </div>
+      <div id="zielSaveStatus" class="save-status"></div>
+    </div>
+
+    <div id="zieleListen"></div>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="libModalOverlay" style="display:none;">
@@ -634,6 +681,8 @@
   const TABLE_HABITS = 'tblsXSoo7KR1iZXqd';
   const TABLE_ROUTINES = 'tbln1rGiklO3toc4u';
   const TABLE_ROUTINE_LOG = 'tbll8w2Ctc954GCgN';
+  const ZIELE_BASE_ID = 'applIwXn4a9wcivpn';
+  const TABLE_ZIELE = 'tbls9DvMzlCJiEtP1';
 
   function getAirtableToken(){
     try{ return localStorage.getItem(AIRTABLE_TOKEN_KEY) || ''; }catch(e){ return ''; }
@@ -776,8 +825,9 @@
   const panelEvening = document.getElementById('panelEvening');
   const panelReflexion = document.getElementById('panelReflexion');
   const panelRoutinen = document.getElementById('panelRoutinen');
+  const panelZiele = document.getElementById('panelZiele');
 
-  const panels = { home: panelHome, work: panelWork, evening: panelEvening, reflexion: panelReflexion, routinen: panelRoutinen };
+  const panels = { home: panelHome, work: panelWork, evening: panelEvening, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -1825,6 +1875,185 @@
 
   loadHabits();
   loadRoutines();
+
+  /* =========================================================
+     ZIELE
+     ========================================================= */
+  const TIMEFRAMES = ['Jahr','Quartal','Monat','Woche'];
+  const PARENT_TIMEFRAME = { Quartal:'Jahr', Monat:'Quartal', Woche:'Monat' };
+  let zieleCache = [];
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function isoWeekKey(date){
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+    const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+    const weekNum = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + firstDayNum) / 7);
+    return d.getUTCFullYear() + '-W' + pad2(weekNum);
+  }
+
+  function getPeriodKey(zeitrahmen, date){
+    date = date || new Date();
+    const year = date.getFullYear();
+    if(zeitrahmen === 'Jahr') return String(year);
+    if(zeitrahmen === 'Quartal') return year + '-Q' + (Math.floor(date.getMonth()/3)+1);
+    if(zeitrahmen === 'Monat') return year + '-' + pad2(date.getMonth()+1);
+    if(zeitrahmen === 'Woche') return isoWeekKey(date);
+    return '';
+  }
+
+  function periodLabel(zeitrahmen, key){
+    const labels = { Jahr:'Jahr '+key, Quartal:'Quartal '+key, Monat:'Monat '+key, Woche:'Woche '+key };
+    return labels[zeitrahmen] || key;
+  }
+
+  const zielZeitrahmenSelect = document.getElementById('zielZeitrahmen');
+  const zielParentRow = document.getElementById('zielParentRow');
+
+  function renderParentRow(){
+    const tf = zielZeitrahmenSelect.value;
+    const parentTf = PARENT_TIMEFRAME[tf];
+    if(!parentTf){
+      zielParentRow.innerHTML = '';
+      return;
+    }
+    const parentGoals = zieleCache.filter(z=>z.zeitrahmen === parentTf)
+      .sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+    zielParentRow.innerHTML = `
+      <div class="turn-title">Übergeordnetes Ziel (optional)</div>
+      <select id="zielParentSelect" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:14px;">
+        <option value="">Kein übergeordnetes Ziel</option>
+        ${parentGoals.map(g=>`<option value="${escapeHtml(g.text)}">${escapeHtml(g.text.slice(0,60))}</option>`).join('')}
+      </select>`;
+  }
+  zielZeitrahmenSelect.addEventListener('change', renderParentRow);
+
+  async function loadZiele(){
+    try{
+      const records = await airtableList(TABLE_ZIELE, ZIELE_BASE_ID);
+      zieleCache = records.map(r=>{
+        const f = r.fields || {};
+        return {
+          id: r.id,
+          text: f['Zieltext'] || '',
+          zeitrahmen: f['Zeitrahmen'] || '',
+          kategorie: f['Kategorie'] || '',
+          prioritaet: f['Priorität'] || '',
+          status: f['Status'] || 'Offen',
+          parent: f['Übergeordnetes Ziel'] || '',
+          periodKey: f['Zeitraum-Kennung'] || '',
+          createdAt: f['Erstellt am'] || new Date().toISOString()
+        };
+      });
+      renderParentRow();
+      renderZieleReminders();
+      renderZieleListen();
+    }catch(e){
+      document.getElementById('zieleListen').innerHTML = '<div class="empty">Ziele konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderZieleReminders(){
+    const now = new Date();
+    const reminderLabel = { Jahr:'Jahresziel', Quartal:'Quartalsziel', Monat:'Monatsziel', Woche:'Wochenziel' };
+    const missing = TIMEFRAMES.filter(tf=>{
+      const key = getPeriodKey(tf, now);
+      return !zieleCache.some(z=>z.zeitrahmen === tf && z.periodKey === key);
+    });
+    const remEl = document.getElementById('zieleReminders');
+    if(missing.length === 0){ remEl.innerHTML = ''; return; }
+    remEl.innerHTML = missing.map(tf=>{
+      const key = getPeriodKey(tf, now);
+      return `<div class="example-box" style="border-left-color:var(--danger);">
+        <div class="example-title" style="color:var(--danger);">Noch kein ${reminderLabel[tf]} gesetzt</div>
+        <div class="example-text">Für ${escapeHtml(periodLabel(tf,key))} hast du noch kein Ziel angelegt.</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderZieleListen(){
+    const container = document.getElementById('zieleListen');
+    if(zieleCache.length === 0){
+      container.innerHTML = '<div class="card"><div class="empty">Noch keine Ziele angelegt.</div></div>';
+      return;
+    }
+    container.innerHTML = TIMEFRAMES.map(tf=>{
+      const items = zieleCache.filter(z=>z.zeitrahmen === tf)
+        .sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+      if(items.length === 0) return '';
+      return `<div class="card">
+        <div class="step-label">${tf}</div>
+        ${items.map(z=>`
+          <div class="entry">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+              <div>
+                <div style="font-size:15px;">${escapeHtml(z.text)}</div>
+                <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
+                  ${escapeHtml(z.kategorie)} · ${escapeHtml(z.prioritaet)}${z.parent ? ' · gehört zu: '+escapeHtml(z.parent.slice(0,40)) : ''}
+                </div>
+              </div>
+              <button class="entry-delete" data-id="${z.id}" style="margin-top:0;flex-shrink:0;">Löschen</button>
+            </div>
+            <select data-id="${z.id}" class="ziel-status-select" style="margin-top:8px;padding:6px 10px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:13px;">
+              ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===z.status?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('.entry-delete').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.textContent = '...'; btn.disabled = true;
+        try{ await airtableDelete(TABLE_ZIELE, btn.dataset.id, ZIELE_BASE_ID); loadZiele(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+    container.querySelectorAll('.ziel-status-select').forEach(sel=>{
+      sel.onchange = async ()=>{
+        try{
+          await airtableFetch(TABLE_ZIELE + '/' + sel.dataset.id, {
+            method: 'PATCH',
+            body: JSON.stringify({ fields: { 'Status': sel.value } })
+          }, ZIELE_BASE_ID);
+        }catch(e){ /* silent */ }
+      };
+    });
+  }
+
+  document.getElementById('saveZielBtn').onclick = async ()=>{
+    const statusEl = document.getElementById('zielSaveStatus');
+    const zeitrahmen = zielZeitrahmenSelect.value;
+    const kategorie = document.getElementById('zielKategorie').value;
+    const prioritaet = document.getElementById('zielPrioritaet').value;
+    const parentSelect = document.getElementById('zielParentSelect');
+    const parent = parentSelect ? parentSelect.value : '';
+    const text = document.getElementById('zielTextInput').value.trim();
+    if(!text){ statusEl.textContent = 'Bitte einen Zieltext eingeben.'; return; }
+    statusEl.textContent = 'Speichere ...';
+    try{
+      await airtableCreate(TABLE_ZIELE, {
+        'Zieltext': text,
+        'Zeitrahmen': zeitrahmen,
+        'Kategorie': kategorie,
+        'Priorität': prioritaet,
+        'Status': 'Offen',
+        'Übergeordnetes Ziel': parent,
+        'Zeitraum-Kennung': getPeriodKey(zeitrahmen),
+        'Erstellt am': new Date().toISOString()
+      }, ZIELE_BASE_ID);
+      document.getElementById('zielTextInput').value = '';
+      statusEl.textContent = 'Gespeichert.';
+      loadZiele();
+    }catch(e){
+      statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+    }
+  };
+
+  renderParentRow();
+  loadZiele();
 
   // init
   render();
