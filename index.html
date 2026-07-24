@@ -59,6 +59,21 @@
     letter-spacing:.01em;
     color:var(--forest-deep);
   }
+  .logo-mark{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:42px;
+    height:42px;
+    border-radius:11px;
+    background:linear-gradient(135deg, var(--forest) 0%, var(--forest-deep) 100%);
+    color:#fff;
+    font-family: "Helvetica Neue", Arial, "Segoe UI", sans-serif;
+    font-weight:800;
+    font-size:16px;
+    letter-spacing:.02em;
+    box-shadow:0 3px 10px rgba(14,133,128,.28);
+  }
   .hamburger-btn{
     width:38px;height:38px;
     display:flex;align-items:center;justify-content:center;
@@ -455,7 +470,9 @@
 
   <div class="topbar">
     <div class="topbar-spacer"></div>
-    <div class="topbar-title">Kongrow</div>
+    <div class="topbar-title">
+      <span class="logo-mark">KG</span>
+    </div>
     <button type="button" class="hamburger-btn" id="menuBtn" aria-label="Menü öffnen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <line x1="4" y1="7" x2="20" y2="7"></line>
