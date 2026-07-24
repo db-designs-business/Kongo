@@ -485,6 +485,7 @@
       <button type="button" class="nav-menu-item" data-tab="evening">Abend-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
+      <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
 
@@ -585,49 +586,57 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="settingsModalOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="settingsModalCloseBtn" aria-label="Schließen">×</button>
+    <div class="modal-title">Einstellungen</div>
+    <div class="modal-sub">Dein Airtable-Token wird nur in diesem Browser gespeichert – nie im Code oder auf GitHub.</div>
+    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Airtable Personal Access Token</div>
+    <input type="text" id="settingsTokenInput" placeholder="pat...">
+    <div class="nav-row" style="margin-top:16px;">
+      <span></span>
+      <button class="primary" id="settingsSaveBtn">Speichern</button>
+    </div>
+    <div id="settingsStatus" class="save-status"></div>
+  </div>
+</div>
+
 <script>
 (function(){
 
   /* =========================================================
-     AIRTABLE-ANBINDUNG ÜBER CLAUDE-API (MCP)
+     AIRTABLE-ANBINDUNG ÜBER DIREKTE REST-API
      ========================================================= */
   const AIRTABLE_BASE_ID = 'appfl5KfwVXCa2t82';
+  const AIRTABLE_TOKEN_KEY = 'kongrow_airtable_token';
   const TABLE_WORK = 'tblhbBilacGsggKuN';
   const TABLE_EVENING = 'tblyCEqtMZZkFbbHw';
   const TABLE_LIBRARY = 'tbllnTfT4scPXRVvF';
 
-  async function callClaudeMCP(instruction){
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1200,
-        messages: [{ role: 'user', content: instruction }],
-        mcp_servers: [{ type: 'url', url: 'https://mcp.airtable.com/mcp', name: 'airtable-mcp' }]
-      })
-    });
-    const data = await response.json();
-    if(data.error) throw new Error(data.error.message || 'API-Fehler');
-    const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
-    return textBlocks.join('\n');
+  function getAirtableToken(){
+    try{ return localStorage.getItem(AIRTABLE_TOKEN_KEY) || ''; }catch(e){ return ''; }
+  }
+  function setAirtableToken(token){
+    try{ localStorage.setItem(AIRTABLE_TOKEN_KEY, token); }catch(e){ /* ignore */ }
   }
 
-  function extractJson(text){
-    const trimmed = (text || '').trim();
-    try{ return JSON.parse(trimmed); }catch(e){ /* fall through */ }
-    const firstObj = trimmed.indexOf('{');
-    const firstArr = trimmed.indexOf('[');
-    let start = -1;
-    if(firstObj === -1) start = firstArr;
-    else if(firstArr === -1) start = firstObj;
-    else start = Math.min(firstObj, firstArr);
-    if(start === -1) throw new Error('Keine JSON-Antwort erhalten.');
-    const lastObj = trimmed.lastIndexOf('}');
-    const lastArr = trimmed.lastIndexOf(']');
-    const end = Math.max(lastObj, lastArr);
-    if(end === -1) throw new Error('Keine JSON-Antwort erhalten.');
-    return JSON.parse(trimmed.slice(start, end + 1));
+  async function airtableFetch(path, options){
+    options = options || {};
+    const token = getAirtableToken();
+    if(!token){
+      throw new Error('Kein Airtable-Token hinterlegt. Bitte in den Einstellungen eintragen.');
+    }
+    const res = await fetch('https://api.airtable.com/v0/' + AIRTABLE_BASE_ID + '/' + path, {
+      method: options.method || 'GET',
+      headers: Object.assign({
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      }, options.headers || {}),
+      body: options.body
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || 'Airtable-Fehler (' + res.status + ')');
+    return data;
   }
 
   async function withRetry(fn, attempts){
@@ -635,32 +644,37 @@
     let lastErr;
     for(let i=0;i<attempts;i++){
       try{ return await fn(); }catch(e){ lastErr = e; }
-      if(i < attempts-1) await new Promise(r=>setTimeout(r, 900*(i+1)));
+      if(i < attempts-1) await new Promise(r=>setTimeout(r, 700*(i+1)));
     }
     throw lastErr;
   }
 
   async function airtableCreate(tableId, fields){
-    const instruction = `You have access to Airtable via MCP tools. Create exactly one record in the table with tableId "${tableId}" in base "${AIRTABLE_BASE_ID}". First call list_tables_for_base if you need the field IDs for this table, then call create_records_for_table with the field IDs matching these field NAMES and values (JSON, name -> value): ${JSON.stringify(fields)}. Skip any field whose value is null or empty string. After creating the record, respond with ONLY this minified JSON as the very last line of your reply and nothing else after it: {"success":true,"recordId":"<the new record id>"} — or on failure: {"success":false,"error":"<short reason>"}.`;
-    const text = await withRetry(()=>callClaudeMCP(instruction));
-    const parsed = extractJson(text);
-    if(!parsed || !parsed.success) throw new Error((parsed && parsed.error) || 'Anlegen fehlgeschlagen.');
-    return parsed.recordId;
+    const cleanFields = {};
+    Object.keys(fields).forEach(k=>{
+      if(fields[k] !== null && fields[k] !== undefined && fields[k] !== '') cleanFields[k] = fields[k];
+    });
+    const data = await withRetry(()=>airtableFetch(tableId, {
+      method: 'POST',
+      body: JSON.stringify({ fields: cleanFields, typecast: true })
+    }));
+    return data.id;
   }
 
   async function airtableList(tableId){
-    const instruction = `You have access to Airtable via MCP tools. List every record from the table with tableId "${tableId}" in base "${AIRTABLE_BASE_ID}" using list_records_for_table (page through with offset if there are more than 100 records). Respond with ONLY minified JSON, no markdown fencing and no explanation: an array where each item is {"id": "<record id>", "fields": {"<field name>": <value>, ...}} including every field that has a value. If there are no records, respond with exactly [].`;
-    const text = await withRetry(()=>callClaudeMCP(instruction));
-    const parsed = extractJson(text);
-    if(!Array.isArray(parsed)) throw new Error('Unerwartetes Antwortformat.');
-    return parsed;
+    let records = [];
+    let offset;
+    do{
+      const qs = offset ? ('?offset=' + encodeURIComponent(offset)) : '';
+      const data = await withRetry(()=>airtableFetch(tableId + qs));
+      records = records.concat(data.records || []);
+      offset = data.offset;
+    } while(offset);
+    return records;
   }
 
   async function airtableDelete(tableId, recordId){
-    const instruction = `You have access to Airtable via MCP tools. Delete the record with id "${recordId}" from the table with tableId "${tableId}" in base "${AIRTABLE_BASE_ID}" using delete_records_for_table. Respond with ONLY this minified JSON as the very last line and nothing else after it: {"success":true} — or on failure: {"success":false,"error":"<short reason>"}.`;
-    const text = await withRetry(()=>callClaudeMCP(instruction));
-    const parsed = extractJson(text);
-    if(!parsed || !parsed.success) throw new Error((parsed && parsed.error) || 'Löschen fehlgeschlagen.');
+    await withRetry(()=>airtableFetch(tableId + '/' + recordId, { method: 'DELETE' }));
   }
 
   function escapeHtml(str){
@@ -766,6 +780,32 @@
   document.getElementById('homeToWork').onclick = ()=>switchTab('work');
   document.getElementById('homeToEvening').onclick = ()=>switchTab('evening');
   document.getElementById('homeToReflexion').onclick = ()=>switchTab('reflexion');
+
+  /* ---------- Einstellungen (Airtable-Token, nur lokal im Browser) ---------- */
+  const settingsOverlay = document.getElementById('settingsModalOverlay');
+  const settingsTokenInput = document.getElementById('settingsTokenInput');
+  const settingsStatus = document.getElementById('settingsStatus');
+
+  function openSettingsModal(){
+    settingsTokenInput.value = getAirtableToken();
+    settingsStatus.textContent = '';
+    settingsOverlay.style.display = 'flex';
+  }
+  function closeSettingsModal(){ settingsOverlay.style.display = 'none'; }
+
+  document.getElementById('openSettingsBtn').onclick = ()=>{ navMenu.style.display = 'none'; openSettingsModal(); };
+  document.getElementById('settingsModalCloseBtn').onclick = closeSettingsModal;
+  settingsOverlay.addEventListener('click', (e)=>{ if(e.target === settingsOverlay) closeSettingsModal(); });
+  document.getElementById('settingsSaveBtn').onclick = ()=>{
+    const val = settingsTokenInput.value.trim();
+    setAirtableToken(val);
+    settingsStatus.textContent = 'Gespeichert – nur in diesem Browser.';
+    setTimeout(closeSettingsModal, 900);
+  };
+
+  if(!getAirtableToken()){
+    openSettingsModal();
+  }
 
   /* ---------- Begrüßung & täglicher Impuls ---------- */
   const QUOTES = [
