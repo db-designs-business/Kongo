@@ -588,6 +588,15 @@
       <button type="button" class="add-item-btn" id="newRoutineBtn" style="margin-top:10px;">+ Neue Routine</button>
     </div>
 
+    <div class="card">
+      <div class="step-label">Spontan ausführen</div>
+      <div class="hint">Wähl Gewohnheiten aus und starte direkt, ohne eine Routine zu speichern.</div>
+      <div id="adhocHabitChecks"></div>
+      <div class="nav-row" style="justify-content:flex-end;">
+        <button class="primary" id="startAdhocBtn">Jetzt starten</button>
+      </div>
+    </div>
+
     <div id="routineBuilder"></div>
     <div id="routineExecution"></div>
 
@@ -1662,10 +1671,30 @@
         };
       });
       renderHabits();
+      renderAdhocChecks();
     }catch(e){
       habitsListEl.innerHTML = '<div class="empty">Gewohnheiten konnten nicht geladen werden.</div>';
     }
   }
+
+  function renderAdhocChecks(){
+    const el = document.getElementById('adhocHabitChecks');
+    if(habitsCache.length === 0){
+      el.innerHTML = '<div class="empty">Lege zuerst mindestens eine Gewohnheit an.</div>';
+      return;
+    }
+    el.innerHTML = habitsCache.map(h=>`
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14.5px;">
+        <input type="checkbox" value="${escapeHtml(h.name)}" style="width:18px;height:18px;">
+        ${escapeHtml(h.name)}${h.duration ? ' <span style="color:var(--ink-soft);font-size:12px;">('+h.duration+' Min.)</span>' : ''}
+      </label>`).join('');
+  }
+
+  document.getElementById('startAdhocBtn').onclick = ()=>{
+    const checked = Array.from(document.querySelectorAll('#adhocHabitChecks input:checked')).map(c=>c.value);
+    if(checked.length === 0) return;
+    startRoutineExecution({ name: 'Spontane Routine', habits: checked });
+  };
 
   function renderHabits(){
     if(habitsCache.length === 0){
@@ -1811,6 +1840,31 @@
     return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
   }
 
+  function vibrateDevice(){
+    try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){ /* ignore */ }
+  }
+
+  function playBeep(){
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      const ctx = new Ctx();
+      const durations = [0.15, 0.15, 0.3];
+      let t = ctx.currentTime;
+      durations.forEach((d,i)=>{
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = i < durations.length-1 ? 880 : 1046;
+        osc.connect(gain); gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.3, t+0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t+d);
+        osc.start(t); osc.stop(t+d+0.02);
+        t += d + 0.08;
+      });
+    }catch(e){ /* ignore */ }
+  }
+
   function startRoutineExecution(routine){
     const steps = routine.habits.map(name=>{
       const h = habitsCache.find(x=>x.name === name);
@@ -1859,8 +1913,16 @@
           startBtn.disabled = true; pauseBtn.disabled = false;
           timerInterval = setInterval(()=>{
             remaining--;
-            display.textContent = formatTime(Math.max(remaining,0));
-            if(remaining <= 0){ clearTimer(); advance(true); }
+            if(remaining <= 0){
+              clearTimer();
+              display.textContent = 'Zeit abgelaufen!';
+              display.style.color = 'var(--spark)';
+              startBtn.disabled = true; pauseBtn.disabled = true;
+              vibrateDevice();
+              playBeep();
+            } else {
+              display.textContent = formatTime(remaining);
+            }
           }, 1000);
         };
         pauseBtn.onclick = ()=>{
