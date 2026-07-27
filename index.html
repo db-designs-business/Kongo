@@ -574,12 +574,8 @@
 
     <div class="card">
       <div class="step-label">Gewohnheiten</div>
-      <div id="habitsList"></div>
-      <div class="turn-title" style="margin-top:16px;">Neue Gewohnheit</div>
-      <input type="text" id="newHabitInput" placeholder="Name, z.B. Meditieren" style="margin-bottom:10px;">
-      <textarea id="newHabitDescInput" placeholder="Beschreibung (optional) – was genau machst du dabei?" style="margin-bottom:10px;min-height:52px;"></textarea>
-      <input type="number" id="newHabitDurationInput" placeholder="Dauer in Minuten (optional)" min="0" step="0.5" style="margin-bottom:10px;">
-      <button class="primary" id="addHabitBtn">Hinzufügen</button>
+      <div class="hint" style="margin-bottom:0;">Deine Bausteine für Routinen.</div>
+      <button type="button" class="lib-link" id="openHabitsBtn">📖 Meine Gewohnheiten verwalten</button>
     </div>
 
     <div class="card">
@@ -598,11 +594,31 @@
     </div>
 
     <div id="routineBuilder"></div>
-    <div id="routineExecution"></div>
 
     <div style="margin-top:24px;">
       <button class="journal-toggle" id="routineLogToggle">Bisherige Ausführungen anzeigen</button>
       <div id="routineLogList" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="habitsModalOverlay" style="display:none;">
+    <div class="modal-card">
+      <button class="modal-close" id="habitsModalCloseBtn" aria-label="Schließen">×</button>
+      <div class="modal-title">Deine Gewohnheiten</div>
+      <div class="modal-sub">Bausteine, aus denen du Routinen zusammenstellst.</div>
+      <div id="habitsList"></div>
+      <div class="turn-title" style="margin-top:16px;">Neue Gewohnheit</div>
+      <input type="text" id="newHabitInput" placeholder="Name, z.B. Meditieren" style="margin-bottom:10px;">
+      <textarea id="newHabitDescInput" placeholder="Beschreibung (optional) – was genau machst du dabei?" style="margin-bottom:10px;min-height:52px;"></textarea>
+      <input type="number" id="newHabitDurationInput" placeholder="Dauer in Minuten (optional)" min="0" step="0.5" style="margin-bottom:10px;">
+      <button class="primary" id="addHabitBtn">Hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="routineExecOverlay" style="display:none; align-items:stretch; padding:0;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="routineExecCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="routineExecution" style="margin-top:36px;"></div>
     </div>
   </div>
 
@@ -1656,6 +1672,18 @@
   const routinesListEl = document.getElementById('routinesList');
   const routineBuilderEl = document.getElementById('routineBuilder');
   const routineExecutionEl = document.getElementById('routineExecution');
+  const routineExecOverlay = document.getElementById('routineExecOverlay');
+
+  const habitsModalOverlay = document.getElementById('habitsModalOverlay');
+  document.getElementById('openHabitsBtn').onclick = ()=>{ habitsModalOverlay.style.display = 'flex'; };
+  document.getElementById('habitsModalCloseBtn').onclick = ()=>{ habitsModalOverlay.style.display = 'none'; };
+  habitsModalOverlay.addEventListener('click', (e)=>{ if(e.target === habitsModalOverlay) habitsModalOverlay.style.display = 'none'; });
+
+  function closeRoutineExec(){
+    routineExecOverlay.style.display = 'none';
+    routineExecutionEl.innerHTML = '';
+  }
+  document.getElementById('routineExecCloseBtn').onclick = closeRoutineExec;
 
   async function loadHabits(){
     habitsListEl.innerHTML = '<div class="loading">Lade ...</div>';
@@ -1866,6 +1894,7 @@
   }
 
   function startRoutineExecution(routine){
+    routineExecOverlay.style.display = 'flex';
     const steps = routine.habits.map(name=>{
       const h = habitsCache.find(x=>x.name === name);
       return h ? { name: h.name, description: h.description, duration: h.duration } : { name, description:'', duration:null };
@@ -1930,7 +1959,7 @@
         };
       }
 
-      document.getElementById('cancelAllBtn').onclick = ()=>{ clearTimer(); routineExecutionEl.innerHTML = ''; };
+      document.getElementById('cancelAllBtn').onclick = ()=>{ clearTimer(); closeRoutineExec(); };
       document.getElementById('skipStepBtn').onclick = ()=>advance(false);
       document.getElementById('doneStepBtn').onclick = ()=>advance(true);
     }
@@ -1959,7 +1988,7 @@
           </div>
           <div id="execStatus" class="save-status"></div>
         </div>`;
-      document.getElementById('cancelExecBtn').onclick = ()=>{ routineExecutionEl.innerHTML = ''; };
+      document.getElementById('cancelExecBtn').onclick = closeRoutineExec;
       document.getElementById('finishExecBtn').onclick = async ()=>{
         const statusEl = document.getElementById('execStatus');
         statusEl.textContent = 'Speichere ...';
@@ -1971,7 +2000,7 @@
             'Offen': offen.join('\n')
           }, ROUTINEN_BASE_ID);
           statusEl.textContent = 'Gespeichert.';
-          setTimeout(()=>{ routineExecutionEl.innerHTML = ''; }, 900);
+          setTimeout(closeRoutineExec, 900);
           if(document.getElementById('routineLogList').style.display !== 'none') loadRoutineLog();
         }catch(e){
           statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
