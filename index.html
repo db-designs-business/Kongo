@@ -650,6 +650,7 @@
         <option value="Quartal">Quartal</option>
         <option value="Monat">Monat</option>
         <option value="Woche" selected>Woche</option>
+        <option value="Tag">Tag</option>
       </select>
 
       <div class="turn-title">Kategorie</div>
@@ -961,25 +962,202 @@
 
   const reflexionContent = document.getElementById('reflexionContent');
   const tagesreflexionContent = document.getElementById('tagesreflexionContent');
-  function showReflexionPlaceholder(label){
-    tagesreflexionContent.style.display = 'none';
+
+  let reflectionState = { timeframe: null, step: 0 };
+
+  function startReflectionFlow(tf){
+    reflectionState = { timeframe: tf, step: 0 };
     reflexionContent.style.display = 'block';
+    tagesreflexionContent.style.display = 'none';
+    renderReflectionStep();
+  }
+
+  function renderReflectionStep(){
+    const tf = reflectionState.timeframe;
+    if(reflectionState.step === 0){
+      renderGoalsReview(tf);
+    } else if(reflectionState.step === 1){
+      renderReflectionContentStep(tf);
+    } else if(reflectionState.step === 2){
+      renderGoalSetting(tf);
+    }
+  }
+
+  function renderGoalsReview(tf){
+    tagesreflexionContent.style.display = 'none';
+    const periodKey = getPeriodKey(tf, new Date());
+    const goals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey)
+      .sort((a,b)=> (a.prioritaet==='Hauptziel'?0:1) - (b.prioritaet==='Hauptziel'?0:1));
+
+    let bodyHtml;
+    if(goals.length === 0){
+      bodyHtml = `<div class="empty">Keine ${reflLabel(tf)}ziele für diesen Zeitraum gesetzt.</div>`;
+    } else {
+      bodyHtml = goals.map(g=>`
+        <div class="entry">
+          <div style="font-size:15px;">${escapeHtml(g.text)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin:4px 0 8px;">${escapeHtml(g.kategorie)} · ${escapeHtml(g.prioritaet)}</div>
+          <select class="goal-review-status" data-id="${g.id}" style="padding:8px 10px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:14px;">
+            ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===g.status?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <div class="goal-review-reason-wrap" data-id="${g.id}" style="display:${(g.status==='Teilweise'||g.status==='Nicht erreicht')?'block':'none'};margin-top:8px;">
+            <textarea class="goal-review-reason" data-id="${g.id}" placeholder="Warum nicht?" style="min-height:48px;">${escapeHtml(g.begruendung||'')}</textarea>
+          </div>
+        </div>`).join('');
+    }
+
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">${label}</div>
-        <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
+        <div class="step-label">Rückblick: ${reflLabel(tf)}ziele</div>
+        ${bodyHtml}
+        <div class="nav-row" style="justify-content:flex-end;">
+          <button class="primary" id="goalsReviewWeiterBtn">Weiter</button>
+        </div>
       </div>`;
+
+    reflexionContent.querySelectorAll('.goal-review-status').forEach(sel=>{
+      sel.onchange = ()=>{
+        const wrap = reflexionContent.querySelector('.goal-review-reason-wrap[data-id="'+sel.dataset.id+'"]');
+        if(wrap) wrap.style.display = (sel.value==='Teilweise'||sel.value==='Nicht erreicht') ? 'block' : 'none';
+      };
+    });
+
+    document.getElementById('goalsReviewWeiterBtn').onclick = async ()=>{
+      const btn = document.getElementById('goalsReviewWeiterBtn');
+      btn.disabled = true; btn.textContent = 'Speichere ...';
+      const updates = goals.map(g=>{
+        const sel = reflexionContent.querySelector('.goal-review-status[data-id="'+g.id+'"]');
+        const reasonEl = reflexionContent.querySelector('.goal-review-reason[data-id="'+g.id+'"]');
+        return { id: g.id, status: sel ? sel.value : g.status, reason: reasonEl ? reasonEl.value : '' };
+      });
+      try{
+        for(const u of updates){
+          await airtableFetch(TABLE_ZIELE + '/' + u.id, {
+            method: 'PATCH',
+            body: JSON.stringify({ fields: { 'Status': u.status, 'Begründung': u.reason } })
+          }, ZIELE_BASE_ID);
+        }
+      }catch(e){ /* nicht blockierend */ }
+      reflectionState.step = 1;
+      renderReflectionStep();
+    };
   }
-  function showTagesreflexion(){
-    reflexionContent.style.display = 'none';
-    reflexionContent.innerHTML = '';
-    tagesreflexionContent.style.display = 'block';
+
+  function renderReflectionContentStep(tf){
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">${reflLabel(tf)}reflexion</div>
+        <div class="hint" style="margin-bottom:0;">${tf === 'Tag' ? 'Fülle unten dein Abend-Journal aus.' : 'Inhalt folgt in Kürze.'}</div>
+      </div>
+      <div class="nav-row" style="justify-content:flex-end;">
+        <button class="primary" id="contentWeiterBtn">Weiter zu neuen Zielen</button>
+      </div>`;
+    tagesreflexionContent.style.display = (tf === 'Tag') ? 'block' : 'none';
+    document.getElementById('contentWeiterBtn').onclick = ()=>{
+      reflectionState.step = 2;
+      renderReflectionStep();
+    };
   }
-  document.getElementById('reflTagBtn').onclick = showTagesreflexion;
-  document.getElementById('reflWocheBtn').onclick = ()=>showReflexionPlaceholder('Wochenreflexion');
-  document.getElementById('reflMonatBtn').onclick = ()=>showReflexionPlaceholder('Monatsreflexion');
-  document.getElementById('reflQuartalBtn').onclick = ()=>showReflexionPlaceholder('Quartalsreflexion');
-  document.getElementById('reflJahrBtn').onclick = ()=>showReflexionPlaceholder('Jahresreflexion');
+
+  function renderGoalSetting(tf){
+    tagesreflexionContent.style.display = 'none';
+    const now = new Date();
+    const nextPeriodKey = getPeriodKey(tf, addPeriod(tf, now));
+    const parentTf = PARENT_TIMEFRAME[tf];
+    let parentHtml = '';
+    if(parentTf){
+      const parentKey = getPeriodKey(parentTf, now);
+      const parentGoals = zieleCache.filter(z=>z.zeitrahmen===parentTf && z.periodKey===parentKey);
+      parentHtml = `
+        <div class="example-box">
+          <div class="example-title">Zur Orientierung: aktuelle ${reflLabel(parentTf)}ziele</div>
+          ${parentGoals.length===0 ? '<div class="example-text">Keine gesetzt.</div>' : parentGoals.map(g=>`<div class="example-text">• ${escapeHtml(g.text)}</div>`).join('')}
+        </div>`;
+    }
+
+    let newGoalsDraft = [];
+
+    function renderDraftPreview(){
+      const el = document.getElementById('newGoalsPreview');
+      if(!el) return;
+      el.innerHTML = newGoalsDraft.length === 0 ? '' : newGoalsDraft.map((g,i)=>
+        `<div style="font-size:14px;padding:4px 0;">${i+1}. ${escapeHtml(g.text)} <span style="color:var(--ink-soft);font-size:12px;">(${escapeHtml(g.kategorie)} · ${escapeHtml(g.prioritaet)})</span></div>`
+      ).join('');
+    }
+
+    async function finishReflection(){
+      const statusEl = document.getElementById('reflectionFinishStatus');
+      statusEl.textContent = 'Speichere ...';
+      try{
+        for(const g of newGoalsDraft){
+          await airtableCreate(TABLE_ZIELE, {
+            'Zieltext': g.text,
+            'Zeitrahmen': tf,
+            'Kategorie': g.kategorie,
+            'Priorität': g.prioritaet,
+            'Status': 'Offen',
+            'Zeitraum-Kennung': nextPeriodKey,
+            'Erstellt am': new Date().toISOString()
+          }, ZIELE_BASE_ID);
+        }
+        statusEl.textContent = 'Reflexion abgeschlossen.';
+        loadZiele();
+        setTimeout(()=>{
+          reflexionContent.innerHTML = '<div class="card"><div class="hint" style="margin-bottom:0;">Reflexion abgeschlossen. Wähl oben einen neuen Zeitraum, oder schau bei Ziele vorbei.</div></div>';
+        }, 900);
+      }catch(e){
+        statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+      }
+    }
+
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">Neue ${reflLabel(tf)}ziele für ${escapeHtml(periodLabel(tf, nextPeriodKey))}</div>
+        ${parentHtml}
+        <div id="newGoalsPreview" style="margin-top:14px;"></div>
+        <div class="turn-title" style="margin-top:14px;">Kategorie</div>
+        <select id="newGoalKategorie" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:10px;">
+          <option value="Business/Karriere">Business/Karriere</option>
+          <option value="Gesundheit/Fitness">Gesundheit/Fitness</option>
+          <option value="Beziehungen/Soziales">Beziehungen/Soziales</option>
+          <option value="Persönliche Entwicklung">Persönliche Entwicklung</option>
+          <option value="Finanzen">Finanzen</option>
+        </select>
+        <div class="turn-title">Priorität</div>
+        <select id="newGoalPrioritaet" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:10px;">
+          <option value="Hauptziel">Hauptziel</option>
+          <option value="Nebenziel">Nebenziel</option>
+        </select>
+        <textarea id="newGoalText" placeholder="Zieltext ..." style="margin-bottom:10px;"></textarea>
+        <button type="button" class="add-item-btn" id="addDraftGoalBtn">+ Ziel hinzufügen</button>
+        <div class="nav-row">
+          <button class="ghost" id="skipGoalsBtn">Ohne neue Ziele abschließen</button>
+          <button class="primary" id="finishReflectionBtn">Abschließen</button>
+        </div>
+        <div id="reflectionFinishStatus" class="save-status"></div>
+      </div>`;
+    renderDraftPreview();
+
+    document.getElementById('addDraftGoalBtn').onclick = ()=>{
+      const text = document.getElementById('newGoalText').value.trim();
+      if(!text) return;
+      newGoalsDraft.push({
+        kategorie: document.getElementById('newGoalKategorie').value,
+        prioritaet: document.getElementById('newGoalPrioritaet').value,
+        text
+      });
+      document.getElementById('newGoalText').value = '';
+      renderDraftPreview();
+    };
+    document.getElementById('skipGoalsBtn').onclick = finishReflection;
+    document.getElementById('finishReflectionBtn').onclick = finishReflection;
+  }
+
+  document.getElementById('reflTagBtn').onclick = ()=>startReflectionFlow('Tag');
+  document.getElementById('reflWocheBtn').onclick = ()=>startReflectionFlow('Woche');
+  document.getElementById('reflMonatBtn').onclick = ()=>startReflectionFlow('Monat');
+  document.getElementById('reflQuartalBtn').onclick = ()=>startReflectionFlow('Quartal');
+  document.getElementById('reflJahrBtn').onclick = ()=>startReflectionFlow('Jahr');
 
   /* =========================================================
      THE WORK
@@ -2155,8 +2333,8 @@
   /* =========================================================
      ZIELE
      ========================================================= */
-  const TIMEFRAMES = ['Jahr','Quartal','Monat','Woche'];
-  const PARENT_TIMEFRAME = { Quartal:'Jahr', Monat:'Quartal', Woche:'Monat' };
+  const TIMEFRAMES = ['Jahr','Quartal','Monat','Woche','Tag'];
+  const PARENT_TIMEFRAME = { Quartal:'Jahr', Monat:'Quartal', Woche:'Monat', Tag:'Woche' };
   let zieleCache = [];
 
   function pad2(n){ return String(n).padStart(2,'0'); }
@@ -2178,12 +2356,27 @@
     if(zeitrahmen === 'Quartal') return year + '-Q' + (Math.floor(date.getMonth()/3)+1);
     if(zeitrahmen === 'Monat') return year + '-' + pad2(date.getMonth()+1);
     if(zeitrahmen === 'Woche') return isoWeekKey(date);
+    if(zeitrahmen === 'Tag') return year + '-' + pad2(date.getMonth()+1) + '-' + pad2(date.getDate());
     return '';
   }
 
+  function addPeriod(zeitrahmen, date){
+    const d = new Date(date);
+    if(zeitrahmen === 'Tag') d.setDate(d.getDate()+1);
+    else if(zeitrahmen === 'Woche') d.setDate(d.getDate()+7);
+    else if(zeitrahmen === 'Monat') d.setMonth(d.getMonth()+1);
+    else if(zeitrahmen === 'Quartal') d.setMonth(d.getMonth()+3);
+    else if(zeitrahmen === 'Jahr') d.setFullYear(d.getFullYear()+1);
+    return d;
+  }
+
   function periodLabel(zeitrahmen, key){
-    const labels = { Jahr:'Jahr '+key, Quartal:'Quartal '+key, Monat:'Monat '+key, Woche:'Woche '+key };
+    const labels = { Jahr:'Jahr '+key, Quartal:'Quartal '+key, Monat:'Monat '+key, Woche:'Woche '+key, Tag:'Tag '+key };
     return labels[zeitrahmen] || key;
+  }
+
+  function reflLabel(zeitrahmen){
+    return { Jahr:'Jahres', Quartal:'Quartals', Monat:'Monats', Woche:'Wochen', Tag:'Tages' }[zeitrahmen] || zeitrahmen;
   }
 
   const zielZeitrahmenSelect = document.getElementById('zielZeitrahmen');
@@ -2219,6 +2412,7 @@
           kategorie: f['Kategorie'] || '',
           prioritaet: f['Priorität'] || '',
           status: f['Status'] || 'Offen',
+          begruendung: f['Begründung'] || '',
           parent: f['Übergeordnetes Ziel'] || '',
           periodKey: f['Zeitraum-Kennung'] || '',
           createdAt: f['Erstellt am'] || new Date().toISOString()
