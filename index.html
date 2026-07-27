@@ -2688,6 +2688,45 @@
     }).join('');
   }
 
+  function zielDisplayHtml(z){
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div>
+          <div style="font-size:15px;">${escapeHtml(z.text)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
+            ${escapeHtml(z.kategorie)} · ${escapeHtml(z.prioritaet)}${z.parent ? ' · gehört zu: '+escapeHtml(z.parent.slice(0,40)) : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="entry-edit" data-id="${z.id}" style="font-size:12.5px;padding:6px 10px;border-radius:3px;border:1px solid var(--line);background:var(--paper);cursor:pointer;">Bearbeiten</button>
+          <button class="entry-delete" data-id="${z.id}" style="margin-top:0;">Löschen</button>
+        </div>
+      </div>
+      <select data-id="${z.id}" class="ziel-status-select" style="margin-top:8px;padding:6px 10px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:13px;">
+        ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===z.status?'selected':''}>${s}</option>`).join('')}
+      </select>`;
+  }
+
+  function zielEditHtml(z){
+    return `
+      <div class="turn-title">Zieltext</div>
+      <textarea id="zielEditText-${z.id}" style="margin-bottom:10px;">${escapeHtml(z.text)}</textarea>
+      <div class="turn-title">Kategorie</div>
+      <select id="zielEditKategorie-${z.id}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:15px;margin-bottom:10px;">
+        ${['Business/Karriere','Gesundheit/Fitness','Beziehungen/Soziales','Persönliche Entwicklung','Finanzen'].map(k=>`<option value="${k}" ${k===z.kategorie?'selected':''}>${k}</option>`).join('')}
+      </select>
+      <div class="turn-title">Priorität</div>
+      <select id="zielEditPrioritaet-${z.id}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:15px;margin-bottom:10px;">
+        <option value="Hauptziel" ${z.prioritaet==='Hauptziel'?'selected':''}>Hauptziel</option>
+        <option value="Nebenziel" ${z.prioritaet==='Nebenziel'?'selected':''}>Nebenziel</option>
+      </select>
+      <div class="nav-row">
+        <button class="ghost" data-id="${z.id}" data-action="cancel-edit">Abbrechen</button>
+        <button class="primary" data-id="${z.id}" data-action="save-edit">Speichern</button>
+      </div>
+      <div id="zielEditStatus-${z.id}" class="save-status"></div>`;
+  }
+
   function renderZieleListen(){
     const container = document.getElementById('zieleListen');
     if(zieleCache.length === 0){
@@ -2700,24 +2739,15 @@
       if(items.length === 0) return '';
       return `<div class="card">
         <div class="step-label">${tf}</div>
-        ${items.map(z=>`
-          <div class="entry">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-              <div>
-                <div style="font-size:15px;">${escapeHtml(z.text)}</div>
-                <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
-                  ${escapeHtml(z.kategorie)} · ${escapeHtml(z.prioritaet)}${z.parent ? ' · gehört zu: '+escapeHtml(z.parent.slice(0,40)) : ''}
-                </div>
-              </div>
-              <button class="entry-delete" data-id="${z.id}" style="margin-top:0;flex-shrink:0;">Löschen</button>
-            </div>
-            <select data-id="${z.id}" class="ziel-status-select" style="margin-top:8px;padding:6px 10px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:13px;">
-              ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===z.status?'selected':''}>${s}</option>`).join('')}
-            </select>
-          </div>`).join('')}
+        ${items.map(z=>`<div class="entry" id="ziel-entry-${z.id}">${zielDisplayHtml(z)}</div>`).join('')}
       </div>`;
     }).join('');
 
+    wireZieleListenEvents();
+  }
+
+  function wireZieleListenEvents(){
+    const container = document.getElementById('zieleListen');
     container.querySelectorAll('.entry-delete').forEach(btn=>{
       btn.onclick = async ()=>{
         btn.textContent = '...'; btn.disabled = true;
@@ -2733,6 +2763,42 @@
             body: JSON.stringify({ fields: { 'Status': sel.value } })
           }, ZIELE_BASE_ID);
         }catch(e){ /* silent */ }
+      };
+    });
+    container.querySelectorAll('.entry-edit').forEach(btn=>{
+      btn.onclick = ()=>{
+        const z = zieleCache.find(g=>g.id === btn.dataset.id);
+        if(!z) return;
+        document.getElementById('ziel-entry-'+z.id).innerHTML = zielEditHtml(z);
+        wireZieleListenEvents();
+      };
+    });
+    container.querySelectorAll('[data-action="cancel-edit"]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const z = zieleCache.find(g=>g.id === btn.dataset.id);
+        if(!z) return;
+        document.getElementById('ziel-entry-'+z.id).innerHTML = zielDisplayHtml(z);
+        wireZieleListenEvents();
+      };
+    });
+    container.querySelectorAll('[data-action="save-edit"]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.id;
+        const statusEl = document.getElementById('zielEditStatus-'+id);
+        const text = document.getElementById('zielEditText-'+id).value.trim();
+        const kategorie = document.getElementById('zielEditKategorie-'+id).value;
+        const prioritaet = document.getElementById('zielEditPrioritaet-'+id).value;
+        if(!text){ statusEl.textContent = 'Bitte einen Zieltext eingeben.'; return; }
+        statusEl.textContent = 'Speichere ...';
+        try{
+          await airtableFetch(TABLE_ZIELE + '/' + id, {
+            method: 'PATCH',
+            body: JSON.stringify({ fields: { 'Zieltext': text, 'Kategorie': kategorie, 'Priorität': prioritaet } })
+          }, ZIELE_BASE_ID);
+          loadZiele();
+        }catch(e){
+          statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+        }
       };
     });
   }
