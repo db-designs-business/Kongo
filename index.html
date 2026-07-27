@@ -703,9 +703,11 @@
   <div class="modal-card">
     <button class="modal-close" id="settingsModalCloseBtn" aria-label="Schließen">×</button>
     <div class="modal-title">Einstellungen</div>
-    <div class="modal-sub">Dein Airtable-Token wird nur in diesem Browser gespeichert – nie im Code oder auf GitHub.</div>
+    <div class="modal-sub">Beide Schlüssel werden nur in diesem Browser gespeichert – nie im Code oder auf GitHub.</div>
     <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Airtable Personal Access Token</div>
-    <input type="text" id="settingsTokenInput" placeholder="pat...">
+    <input type="text" id="settingsTokenInput" placeholder="pat..." style="margin-bottom:16px;">
+    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching)</div>
+    <input type="text" id="settingsAnthropicInput" placeholder="sk-ant-...">
     <div class="nav-row" style="margin-top:16px;">
       <span></span>
       <button class="primary" id="settingsSaveBtn">Speichern</button>
@@ -731,12 +733,44 @@
   const TABLE_ROUTINE_LOG = 'tbll8w2Ctc954GCgN';
   const ZIELE_BASE_ID = 'applIwXn4a9wcivpn';
   const TABLE_ZIELE = 'tbls9DvMzlCJiEtP1';
+  const COACHING_BASE_ID = 'appqRrxrudIdpcmY3';
+  const TABLE_COACHING = 'tblVhZcFVGaUs3ogQ';
+  const ANTHROPIC_TOKEN_KEY = 'kongrow_anthropic_token';
 
   function getAirtableToken(){
     try{ return localStorage.getItem(AIRTABLE_TOKEN_KEY) || ''; }catch(e){ return ''; }
   }
   function setAirtableToken(token){
     try{ localStorage.setItem(AIRTABLE_TOKEN_KEY, token); }catch(e){ /* ignore */ }
+  }
+  function getAnthropicToken(){
+    try{ return localStorage.getItem(ANTHROPIC_TOKEN_KEY) || ''; }catch(e){ return ''; }
+  }
+  function setAnthropicToken(token){
+    try{ localStorage.setItem(ANTHROPIC_TOKEN_KEY, token); }catch(e){ /* ignore */ }
+  }
+
+  async function callClaudeCoach(prompt){
+    const token = getAnthropicToken();
+    if(!token) throw new Error('Kein Anthropic API Key hinterlegt. Bitte in den Einstellungen eintragen.');
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': token,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || 'Anthropic-API-Fehler (' + res.status + ')');
+    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text);
+    return textBlocks.join('\n');
   }
 
   async function airtableFetch(path, options, baseId){
@@ -902,13 +936,15 @@
   document.getElementById('homeToRoutinen').onclick = ()=>switchTab('routinen');
   document.getElementById('homeToZiele').onclick = ()=>switchTab('ziele');
 
-  /* ---------- Einstellungen (Airtable-Token, nur lokal im Browser) ---------- */
+  /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
   const settingsTokenInput = document.getElementById('settingsTokenInput');
+  const settingsAnthropicInput = document.getElementById('settingsAnthropicInput');
   const settingsStatus = document.getElementById('settingsStatus');
 
   function openSettingsModal(){
     settingsTokenInput.value = getAirtableToken();
+    settingsAnthropicInput.value = getAnthropicToken();
     settingsStatus.textContent = '';
     settingsOverlay.style.display = 'flex';
   }
@@ -918,8 +954,8 @@
   document.getElementById('settingsModalCloseBtn').onclick = closeSettingsModal;
   settingsOverlay.addEventListener('click', (e)=>{ if(e.target === settingsOverlay) closeSettingsModal(); });
   document.getElementById('settingsSaveBtn').onclick = ()=>{
-    const val = settingsTokenInput.value.trim();
-    setAirtableToken(val);
+    setAirtableToken(settingsTokenInput.value.trim());
+    setAnthropicToken(settingsAnthropicInput.value.trim());
     settingsStatus.textContent = 'Gespeichert – nur in diesem Browser.';
     setTimeout(closeSettingsModal, 900);
   };
@@ -968,6 +1004,7 @@
   let reflectionState = { timeframe: null, step: 0 };
   let reflectionReviewGoals = [];
   let reflectionReviewIndex = 0;
+  let reflectionReviewResults = [];
 
   function closeReflexionOverlay(){
     reflexionOverlay.style.display = 'none';
@@ -988,6 +1025,7 @@
       reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey)
         .sort((a,b)=> (a.prioritaet==='Hauptziel'?0:1) - (b.prioritaet==='Hauptziel'?0:1));
       reflectionReviewIndex = 0;
+      reflectionReviewResults = [];
       renderGoalReviewStep();
     } else if(reflectionState.step === 1){
       renderReflectionContentStep(tf);
@@ -1051,12 +1089,15 @@
       const statusEl = document.getElementById('goalReviewStatus');
       statusEl.textContent = 'Speichere ...';
       const reasonInput = document.getElementById('goalReviewReasonInput');
+      const finalStatus = statusSel.value;
+      const finalReason = reasonInput ? reasonInput.value : '';
       try{
         await airtableFetch(TABLE_ZIELE + '/' + g.id, {
           method: 'PATCH',
-          body: JSON.stringify({ fields: { 'Status': statusSel.value, 'Begründung': reasonInput ? reasonInput.value : '' } })
+          body: JSON.stringify({ fields: { 'Status': finalStatus, 'Begründung': finalReason } })
         }, ZIELE_BASE_ID);
       }catch(e){ /* nicht blockierend */ }
+      reflectionReviewResults.push({ text: g.text, kategorie: g.kategorie, prioritaet: g.prioritaet, status: finalStatus, begruendung: finalReason });
       reflectionReviewIndex++;
       renderGoalReviewStep();
     };
@@ -1125,7 +1166,7 @@
         }
         statusEl.textContent = 'Reflexion abgeschlossen.';
         loadZiele();
-        setTimeout(closeReflexionOverlay, 900);
+        showCoachingScreen(tf, nextPeriodKey, newGoalsDraft);
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
       }
@@ -1172,6 +1213,130 @@
     };
     document.getElementById('skipGoalsBtn').onclick = finishReflection;
     document.getElementById('finishReflectionBtn').onclick = finishReflection;
+  }
+
+  function getPeriodRange(tf, date){
+    date = date || new Date();
+    let start, end;
+    if(tf === 'Tag'){
+      start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      end = new Date(start); end.setDate(end.getDate()+1);
+    } else if(tf === 'Woche'){
+      const day = (date.getDay()+6)%7;
+      start = new Date(date.getFullYear(), date.getMonth(), date.getDate()-day);
+      end = new Date(start); end.setDate(end.getDate()+7);
+    } else if(tf === 'Monat'){
+      start = new Date(date.getFullYear(), date.getMonth(), 1);
+      end = new Date(date.getFullYear(), date.getMonth()+1, 1);
+    } else if(tf === 'Quartal'){
+      const q = Math.floor(date.getMonth()/3);
+      start = new Date(date.getFullYear(), q*3, 1);
+      end = new Date(date.getFullYear(), q*3+3, 1);
+    } else if(tf === 'Jahr'){
+      start = new Date(date.getFullYear(), 0, 1);
+      end = new Date(date.getFullYear()+1, 0, 1);
+    }
+    return { start, end };
+  }
+
+  async function gatherCoachingContext(tf){
+    const { start, end } = getPeriodRange(tf, new Date());
+    let journalEntries = [];
+    let workEntries = [];
+    try{
+      const evRecords = await airtableList(TABLE_EVENING);
+      journalEntries = evRecords
+        .map(r=>mapEveningFieldsFromAirtable(r.fields))
+        .filter(e=>{ const d = new Date(e.date); return d >= start && d < end; });
+    }catch(e){ /* ignore */ }
+    try{
+      const workRecords = await airtableList(TABLE_WORK);
+      workEntries = workRecords
+        .map(r=>mapWorkFieldsFromAirtable(r.fields))
+        .filter(e=>{ const d = new Date(e.date); return d >= start && d < end; });
+    }catch(e){ /* ignore */ }
+    return { journalEntries, workEntries };
+  }
+
+  function buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context){
+    const lines = [];
+    lines.push(`Du bist ein einfühlsamer, aber ehrlicher persönlicher Coach. Die Person hat gerade ihre ${reflLabel(tf)}reflexion abgeschlossen. Schreib ihr einen ausführlichen Coaching-Bericht auf Deutsch mit konkreten Impulsfragen zum Weiterdenken. Sprich sie direkt an ("du").`);
+    lines.push('');
+    lines.push('## Rückblick auf die Ziele dieses Zeitraums');
+    if(reflectionReviewResults.length === 0){
+      lines.push('Keine Ziele für diesen Zeitraum gesetzt gewesen.');
+    } else {
+      reflectionReviewResults.forEach(g=>{
+        lines.push(`- "${g.text}" (${g.kategorie}, ${g.prioritaet}) – Status: ${g.status}${g.begruendung ? ' – Begründung: '+g.begruendung : ''}`);
+      });
+    }
+    lines.push('');
+    lines.push('## Neu gesetzte Ziele für den nächsten Zeitraum');
+    if(newGoalsDraft.length === 0){
+      lines.push('Keine neuen Ziele gesetzt.');
+    } else {
+      newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie}, ${g.prioritaet})`); });
+    }
+    if(context.journalEntries.length > 0){
+      lines.push('');
+      lines.push('## Abend-Journal-Einträge in diesem Zeitraum');
+      context.journalEntries.forEach(e=>{
+        lines.push(`- Erfolge: ${e.erfolge.join('; ')} | Schwierig: ${e.schwierig} | Dankbarkeit: ${e.dankbarkeit.join('; ')} | Morgen besser: ${e.morgenBesser} | Körperlich/mental: ${e.koerperlichMental}`);
+      });
+    }
+    if(context.workEntries.length > 0){
+      lines.push('');
+      lines.push('## The-Work-Einträge in diesem Zeitraum');
+      context.workEntries.forEach(e=>{
+        lines.push(`- Glaubenssatz: "${e.belief}" – Fünkchen Wahrheit: ${e.spark}`);
+      });
+    }
+    lines.push('');
+    lines.push('Gib eine ehrliche Einschätzung, benenne Muster, würdige Fortschritte, und stell am Ende 2-3 konkrete Impulsfragen für die kommende Zeit.');
+    return lines.join('\n');
+  }
+
+  async function showCoachingScreen(tf, nextPeriodKey, newGoalsDraft){
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">Dein Coaching-Bericht</div>
+        <div class="loading">Erstelle deinen Coaching-Bericht ...</div>
+      </div>`;
+    try{
+      const context = await gatherCoachingContext(tf);
+      const prompt = buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context);
+      const reportText = await callClaudeCoach(prompt);
+
+      reflexionContent.innerHTML = `
+        <div class="card">
+          <div class="step-label">Dein Coaching-Bericht</div>
+          <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(reportText)}</div>
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="primary" id="coachingDoneBtn">Fertig</button>
+          </div>
+          <div id="coachingSaveStatus" class="save-status"></div>
+        </div>`;
+      document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
+
+      try{
+        await airtableCreate(TABLE_COACHING, {
+          'Datum': new Date().toISOString(),
+          'Zeitrahmen': tf,
+          'Zeitraum-Kennung': getPeriodKey(tf, new Date()),
+          'Bericht': reportText
+        }, COACHING_BASE_ID);
+      }catch(e){ /* Bericht wird trotzdem angezeigt, auch wenn Speichern fehlschlägt */ }
+    }catch(e){
+      reflexionContent.innerHTML = `
+        <div class="card">
+          <div class="step-label">Dein Coaching-Bericht</div>
+          <div class="hint" style="margin-bottom:0;color:var(--danger);">Konnte nicht erstellt werden: ${escapeHtml(e.message)}</div>
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="primary" id="coachingDoneBtn">Schließen</button>
+          </div>
+        </div>`;
+      document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
+    }
   }
 
   document.getElementById('reflTagBtn').onclick = ()=>startReflectionFlow('Tag');
