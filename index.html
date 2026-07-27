@@ -560,9 +560,14 @@
       <button class="journal-toggle" id="eveningJournalToggle">Bisherige Tagesreflexionen anzeigen</button>
       <div id="eveningJournal" style="display:none;"></div>
     </div>
+
+    <div style="margin-top:14px;">
+      <button class="journal-toggle" id="coachingJournalToggle">Coachingberichte anzeigen</button>
+      <div id="coachingJournal" style="display:none;"></div>
+    </div>
   </div>
 
-  <div class="modal-overlay" id="reflexionOverlay" style="display:none; align-items:stretch; padding:0;">
+  <div class="modal-overlay" id="reflexionOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="reflexionOverlayCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="reflexionContent" style="margin-top:36px;"></div>
@@ -630,7 +635,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="routineExecOverlay" style="display:none; align-items:stretch; padding:0;">
+  <div class="modal-overlay" id="routineExecOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="routineExecCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="routineExecution" style="margin-top:36px;"></div>
@@ -1307,17 +1312,7 @@
       const prompt = buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context);
       const reportText = await callClaudeCoach(prompt);
 
-      reflexionContent.innerHTML = `
-        <div class="card">
-          <div class="step-label">Dein Coaching-Bericht</div>
-          <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(reportText)}</div>
-          <div class="nav-row" style="justify-content:flex-end;">
-            <button class="primary" id="coachingDoneBtn">Fertig</button>
-          </div>
-          <div id="coachingSaveStatus" class="save-status"></div>
-        </div>`;
-      document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
-
+      let saveNote = '';
       try{
         await airtableCreate(TABLE_COACHING, {
           'Datum': new Date().toISOString(),
@@ -1325,7 +1320,20 @@
           'Zeitraum-Kennung': getPeriodKey(tf, new Date()),
           'Bericht': reportText
         }, COACHING_BASE_ID);
-      }catch(e){ /* Bericht wird trotzdem angezeigt, auch wenn Speichern fehlschlägt */ }
+      }catch(e){
+        saveNote = '<div class="hint" style="color:var(--danger);margin-top:10px;">Konnte nicht gespeichert werden – lies ihn am besten jetzt fertig, bevor du schließt.</div>';
+      }
+
+      reflexionContent.innerHTML = `
+        <div class="card">
+          <div class="step-label">Dein Coaching-Bericht</div>
+          <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(reportText)}</div>
+          ${saveNote}
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="primary" id="coachingDoneBtn">Fertig</button>
+          </div>
+        </div>`;
+      document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
     }catch(e){
       reflexionContent.innerHTML = `
         <div class="card">
@@ -1344,6 +1352,65 @@
   document.getElementById('reflMonatBtn').onclick = ()=>startReflectionFlow('Monat');
   document.getElementById('reflQuartalBtn').onclick = ()=>startReflectionFlow('Quartal');
   document.getElementById('reflJahrBtn').onclick = ()=>startReflectionFlow('Jahr');
+
+  const coachingJournalToggle = document.getElementById('coachingJournalToggle');
+  const coachingJournalEl = document.getElementById('coachingJournal');
+
+  coachingJournalToggle.onclick = async ()=>{
+    const showing = coachingJournalEl.style.display !== 'none';
+    if(showing){
+      coachingJournalEl.style.display = 'none';
+      coachingJournalToggle.textContent = 'Coachingberichte anzeigen';
+    } else {
+      coachingJournalEl.style.display = 'block';
+      coachingJournalToggle.textContent = 'Coachingberichte ausblenden';
+      await loadCoachingJournal();
+    }
+  };
+
+  async function loadCoachingJournal(){
+    coachingJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_COACHING, COACHING_BASE_ID);
+      if(records.length === 0){
+        coachingJournalEl.innerHTML = '<div class="empty">Noch keine Coachingberichte.</div>';
+        return;
+      }
+      const entries = records.map(r=>{
+        const f = r.fields || {};
+        return { key: r.id, date: f['Datum'] || new Date().toISOString(), zeitrahmen: f['Zeitrahmen'] || '', bericht: f['Bericht'] || '' };
+      });
+      entries.sort((a,b)=> new Date(b.date) - new Date(a.date));
+      coachingJournalEl.innerHTML = entries.map(e=>{
+        const d = new Date(e.date);
+        const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
+        return `<div class="entry">
+          <div class="entry-head" data-key="${e.key}">
+            <div>
+              <div class="entry-date">${dateStr}</div>
+              <div class="entry-belief">${reflLabel(e.zeitrahmen)}reflexion</div>
+            </div>
+          </div>
+          <div class="entry-body" id="cbody-${cssSafe(e.key)}">
+            <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(e.bericht)}</div>
+            <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+          </div>
+        </div>`;
+      }).join('');
+      coachingJournalEl.querySelectorAll('.entry-head').forEach(h=>{
+        h.onclick = ()=>{ document.getElementById('cbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+      });
+      coachingJournalEl.querySelectorAll('.entry-delete').forEach(btn=>{
+        btn.onclick = async (ev)=>{
+          ev.stopPropagation();
+          try{ await airtableDelete(TABLE_COACHING, btn.dataset.key, COACHING_BASE_ID); loadCoachingJournal(); }
+          catch(e){ /* ignore */ }
+        };
+      });
+    }catch(e){
+      coachingJournalEl.innerHTML = '<div class="empty">Berichte konnten nicht geladen werden.</div>';
+    }
+  }
 
 
   /* =========================================================
