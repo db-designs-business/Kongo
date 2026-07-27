@@ -586,11 +586,8 @@
 
     <div class="card">
       <div class="step-label">Spontan ausführen</div>
-      <div class="hint">Wähl Gewohnheiten aus und starte direkt, ohne eine Routine zu speichern.</div>
-      <div id="adhocHabitChecks"></div>
-      <div class="nav-row" style="justify-content:flex-end;">
-        <button class="primary" id="startAdhocBtn">Jetzt starten</button>
-      </div>
+      <div class="hint">Wähl Gewohnheiten in der gewünschten Reihenfolge aus und starte direkt, ohne eine Routine zu speichern.</div>
+      <button type="button" class="add-item-btn" id="startAdhocBtn">Gewohnheiten auswählen &amp; starten</button>
     </div>
 
     <div id="routineBuilder"></div>
@@ -612,6 +609,22 @@
       <textarea id="newHabitDescInput" placeholder="Beschreibung (optional) – was genau machst du dabei?" style="margin-bottom:10px;min-height:52px;"></textarea>
       <input type="number" id="newHabitDurationInput" placeholder="Dauer in Minuten (optional)" min="0" step="0.5" style="margin-bottom:10px;">
       <button class="primary" id="addHabitBtn">Hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="habitPickerOverlay" style="display:none;">
+    <div class="modal-card">
+      <button class="modal-close" id="habitPickerCloseBtn" aria-label="Schließen">×</button>
+      <div class="modal-title">Gewohnheiten auswählen</div>
+      <div class="modal-sub">Tippe zum Hinzufügen. Reihenfolge mit den Pfeilen anpassen.</div>
+      <div class="turn-title">Verfügbar</div>
+      <div id="habitPickerAvailable"></div>
+      <div class="turn-title" style="margin-top:16px;">Ausgewählt (Reihenfolge)</div>
+      <div id="habitPickerSelected"></div>
+      <div class="nav-row" style="margin-top:16px;">
+        <span></span>
+        <button class="primary" id="habitPickerConfirmBtn">Fertig</button>
+      </div>
     </div>
   </div>
 
@@ -1699,29 +1712,81 @@
         };
       });
       renderHabits();
-      renderAdhocChecks();
     }catch(e){
       habitsListEl.innerHTML = '<div class="empty">Gewohnheiten konnten nicht geladen werden.</div>';
     }
   }
 
-  function renderAdhocChecks(){
-    const el = document.getElementById('adhocHabitChecks');
+  /* ---------- Gewohnheiten-Auswahl mit Reihenfolge (gemeinsames Pop-up) ---------- */
+  const habitPickerOverlay = document.getElementById('habitPickerOverlay');
+  let habitPickerSelection = [];
+  let habitPickerCallback = null;
+
+  function openHabitPicker(initialSelection, callback){
+    habitPickerSelection = (initialSelection || []).slice();
+    habitPickerCallback = callback;
+    renderHabitPicker();
+    habitPickerOverlay.style.display = 'flex';
+  }
+  function closeHabitPicker(){ habitPickerOverlay.style.display = 'none'; }
+
+  function renderHabitPicker(){
+    const availableEl = document.getElementById('habitPickerAvailable');
+    const selectedEl = document.getElementById('habitPickerSelected');
+    const available = habitsCache.filter(h => !habitPickerSelection.includes(h.name));
+
     if(habitsCache.length === 0){
-      el.innerHTML = '<div class="empty">Lege zuerst mindestens eine Gewohnheit an.</div>';
-      return;
+      availableEl.innerHTML = '<div class="empty">Noch keine Gewohnheiten angelegt.</div>';
+    } else if(available.length === 0){
+      availableEl.innerHTML = '<div class="empty">Alle Gewohnheiten ausgewählt.</div>';
+    } else {
+      availableEl.innerHTML = available.map(h=>`
+        <button type="button" class="add-item-btn" data-name="${escapeHtml(h.name)}" style="width:100%;text-align:left;margin-bottom:6px;">+ ${escapeHtml(h.name)}${h.duration ? ' ('+h.duration+' Min.)' : ''}</button>
+      `).join('');
+      availableEl.querySelectorAll('button').forEach(btn=>{
+        btn.onclick = ()=>{ habitPickerSelection.push(btn.dataset.name); renderHabitPicker(); };
+      });
     }
-    el.innerHTML = habitsCache.map(h=>`
-      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14.5px;">
-        <input type="checkbox" value="${escapeHtml(h.name)}" style="width:18px;height:18px;">
-        ${escapeHtml(h.name)}${h.duration ? ' <span style="color:var(--ink-soft);font-size:12px;">('+h.duration+' Min.)</span>' : ''}
-      </label>`).join('');
+
+    if(habitPickerSelection.length === 0){
+      selectedEl.innerHTML = '<div class="empty">Noch nichts ausgewählt.</div>';
+    } else {
+      selectedEl.innerHTML = habitPickerSelection.map((name,i)=>`
+        <div class="lib-item">
+          <div class="lib-item-text">${i+1}. ${escapeHtml(name)}</div>
+          <div class="lib-item-actions">
+            <button class="use" data-i="${i}" data-dir="up" ${i===0?'disabled':''}>↑</button>
+            <button class="use" data-i="${i}" data-dir="down" ${i===habitPickerSelection.length-1?'disabled':''}>↓</button>
+            <button class="del" data-i="${i}">×</button>
+          </div>
+        </div>`).join('');
+      selectedEl.querySelectorAll('.use').forEach(btn=>{
+        btn.onclick = ()=>{
+          const i = Number(btn.dataset.i);
+          const j = btn.dataset.dir === 'up' ? i-1 : i+1;
+          [habitPickerSelection[i], habitPickerSelection[j]] = [habitPickerSelection[j], habitPickerSelection[i]];
+          renderHabitPicker();
+        };
+      });
+      selectedEl.querySelectorAll('.del').forEach(btn=>{
+        btn.onclick = ()=>{ habitPickerSelection.splice(Number(btn.dataset.i),1); renderHabitPicker(); };
+      });
+    }
   }
 
+  document.getElementById('habitPickerCloseBtn').onclick = closeHabitPicker;
+  habitPickerOverlay.addEventListener('click', (e)=>{ if(e.target === habitPickerOverlay) closeHabitPicker(); });
+  document.getElementById('habitPickerConfirmBtn').onclick = ()=>{
+    const result = habitPickerSelection.slice();
+    closeHabitPicker();
+    if(habitPickerCallback) habitPickerCallback(result);
+  };
+
   document.getElementById('startAdhocBtn').onclick = ()=>{
-    const checked = Array.from(document.querySelectorAll('#adhocHabitChecks input:checked')).map(c=>c.value);
-    if(checked.length === 0) return;
-    startRoutineExecution({ name: 'Spontane Routine', habits: checked });
+    openHabitPicker([], (result)=>{
+      if(result.length === 0) return;
+      startRoutineExecution({ name: 'Spontane Routine', habits: result });
+    });
   };
 
   function renderHabits(){
@@ -1821,37 +1886,46 @@
       routineBuilderEl.innerHTML = '<div class="card"><div class="hint" style="margin-bottom:0;">Lege zuerst mindestens eine Gewohnheit an, bevor du eine Routine baust.</div></div>';
       return;
     }
+    let builderSelection = [];
+
+    function renderPreview(){
+      const el = document.getElementById('routineSelectedPreview');
+      if(!el) return;
+      el.innerHTML = builderSelection.length === 0
+        ? '<div class="empty">Noch keine Gewohnheiten ausgewählt.</div>'
+        : builderSelection.map((n,i)=>`<div style="font-size:14px;padding:4px 0;">${i+1}. ${escapeHtml(n)}</div>`).join('');
+    }
+
     routineBuilderEl.innerHTML = `
       <div class="card">
         <div class="step-label">Neue Routine</div>
         <div class="question" style="font-size:17px;">Name der Routine</div>
         <input type="text" id="routineNameInput" placeholder="z.B. Morgenroutine" style="margin-bottom:16px;">
-        <div class="turn-title">Welche Gewohnheiten gehören dazu?</div>
-        <div id="routineHabitChecks">
-          ${habitsCache.map(h=>`
-            <label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14.5px;">
-              <input type="checkbox" value="${escapeHtml(h.name)}" style="width:18px;height:18px;">
-              ${escapeHtml(h.name)}
-            </label>`).join('')}
-        </div>
-        <div class="nav-row">
+        <div class="turn-title">Gewohnheiten (Reihenfolge)</div>
+        <div id="routineSelectedPreview"></div>
+        <button type="button" class="add-item-btn" id="pickHabitsBtn" style="margin-top:8px;">Gewohnheiten auswählen</button>
+        <div class="nav-row" style="margin-top:18px;">
           <button class="ghost" id="cancelRoutineBtn">Abbrechen</button>
           <button class="primary" id="saveRoutineBtn">Routine speichern</button>
         </div>
         <div id="routineBuilderStatus" class="save-status"></div>
       </div>`;
+    renderPreview();
+
+    document.getElementById('pickHabitsBtn').onclick = ()=>{
+      openHabitPicker(builderSelection, (result)=>{ builderSelection = result; renderPreview(); });
+    };
     document.getElementById('cancelRoutineBtn').onclick = ()=>{ routineBuilderEl.innerHTML = ''; };
     document.getElementById('saveRoutineBtn').onclick = async ()=>{
       const name = document.getElementById('routineNameInput').value.trim();
-      const checked = Array.from(document.querySelectorAll('#routineHabitChecks input:checked')).map(c=>c.value);
       const statusEl = document.getElementById('routineBuilderStatus');
       if(!name){ statusEl.textContent = 'Bitte einen Namen eingeben.'; return; }
-      if(checked.length === 0){ statusEl.textContent = 'Bitte mindestens eine Gewohnheit auswählen.'; return; }
+      if(builderSelection.length === 0){ statusEl.textContent = 'Bitte mindestens eine Gewohnheit auswählen.'; return; }
       statusEl.textContent = 'Speichere ...';
       try{
         await airtableCreate(TABLE_ROUTINES, {
           'Name': name,
-          'Gewohnheiten': checked.join('\n'),
+          'Gewohnheiten': builderSelection.join('\n'),
           'Erstellt am': new Date().toISOString()
         }, ROUTINEN_BASE_ID);
         routineBuilderEl.innerHTML = '';
