@@ -556,14 +556,16 @@
       </div>
     </div>
 
-    <div id="reflexionContent"></div>
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="eveningJournalToggle">Bisherige Tagesreflexionen anzeigen</button>
+      <div id="eveningJournal" style="display:none;"></div>
+    </div>
+  </div>
 
-    <div id="tagesreflexionContent" style="display:none;">
-      <div id="eveningForm"></div>
-      <div style="margin-top:24px;">
-        <button class="journal-toggle" id="eveningJournalToggle">Bisherige Einträge anzeigen</button>
-        <div id="eveningJournal" style="display:none;"></div>
-      </div>
+  <div class="modal-overlay" id="reflexionOverlay" style="display:none; align-items:stretch; padding:0;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="reflexionOverlayCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="reflexionContent" style="margin-top:36px;"></div>
     </div>
   </div>
 
@@ -961,21 +963,32 @@
   renderHome();
 
   const reflexionContent = document.getElementById('reflexionContent');
-  const tagesreflexionContent = document.getElementById('tagesreflexionContent');
+  const reflexionOverlay = document.getElementById('reflexionOverlay');
 
   let reflectionState = { timeframe: null, step: 0 };
+  let reflectionReviewGoals = [];
+  let reflectionReviewIndex = 0;
+
+  function closeReflexionOverlay(){
+    reflexionOverlay.style.display = 'none';
+    reflexionContent.innerHTML = '';
+  }
+  document.getElementById('reflexionOverlayCloseBtn').onclick = closeReflexionOverlay;
 
   function startReflectionFlow(tf){
     reflectionState = { timeframe: tf, step: 0 };
-    reflexionContent.style.display = 'block';
-    tagesreflexionContent.style.display = 'none';
+    reflexionOverlay.style.display = 'flex';
     renderReflectionStep();
   }
 
   function renderReflectionStep(){
     const tf = reflectionState.timeframe;
     if(reflectionState.step === 0){
-      renderGoalsReview(tf);
+      const periodKey = getPeriodKey(tf, new Date());
+      reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey)
+        .sort((a,b)=> (a.prioritaet==='Hauptziel'?0:1) - (b.prioritaet==='Hauptziel'?0:1));
+      reflectionReviewIndex = 0;
+      renderGoalReviewStep();
     } else if(reflectionState.step === 1){
       renderReflectionContentStep(tf);
     } else if(reflectionState.step === 2){
@@ -983,76 +996,87 @@
     }
   }
 
-  function renderGoalsReview(tf){
-    tagesreflexionContent.style.display = 'none';
-    const periodKey = getPeriodKey(tf, new Date());
-    const goals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey)
-      .sort((a,b)=> (a.prioritaet==='Hauptziel'?0:1) - (b.prioritaet==='Hauptziel'?0:1));
+  function renderGoalReviewStep(){
+    const tf = reflectionState.timeframe;
 
-    let bodyHtml;
-    if(goals.length === 0){
-      bodyHtml = `<div class="empty">Keine ${reflLabel(tf)}ziele für diesen Zeitraum gesetzt.</div>`;
-    } else {
-      bodyHtml = goals.map(g=>`
-        <div class="entry">
-          <div style="font-size:15px;">${escapeHtml(g.text)}</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin:4px 0 8px;">${escapeHtml(g.kategorie)} · ${escapeHtml(g.prioritaet)}</div>
-          <select class="goal-review-status" data-id="${g.id}" style="padding:8px 10px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:14px;">
-            ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===g.status?'selected':''}>${s}</option>`).join('')}
-          </select>
-          <div class="goal-review-reason-wrap" data-id="${g.id}" style="display:${(g.status==='Teilweise'||g.status==='Nicht erreicht')?'block':'none'};margin-top:8px;">
-            <textarea class="goal-review-reason" data-id="${g.id}" placeholder="Warum nicht?" style="min-height:48px;">${escapeHtml(g.begruendung||'')}</textarea>
+    if(reflectionReviewGoals.length === 0){
+      reflexionContent.innerHTML = `
+        <div class="card">
+          <div class="step-label">Rückblick: ${reflLabel(tf)}ziele</div>
+          <div class="empty">Keine ${reflLabel(tf)}ziele für diesen Zeitraum gesetzt.</div>
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="ghost" id="reflexionCancelBtn">Abbrechen</button>
+            <button class="primary" id="goalsReviewWeiterBtn">Weiter</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      document.getElementById('reflexionCancelBtn').onclick = closeReflexionOverlay;
+      document.getElementById('goalsReviewWeiterBtn').onclick = ()=>{ reflectionState.step = 1; renderReflectionStep(); };
+      return;
     }
 
-    reflexionContent.innerHTML = `
-      <div class="card">
-        <div class="step-label">Rückblick: ${reflLabel(tf)}ziele</div>
-        ${bodyHtml}
-        <div class="nav-row" style="justify-content:flex-end;">
-          <button class="primary" id="goalsReviewWeiterBtn">Weiter</button>
-        </div>
-      </div>`;
-
-    reflexionContent.querySelectorAll('.goal-review-status').forEach(sel=>{
-      sel.onchange = ()=>{
-        const wrap = reflexionContent.querySelector('.goal-review-reason-wrap[data-id="'+sel.dataset.id+'"]');
-        if(wrap) wrap.style.display = (sel.value==='Teilweise'||sel.value==='Nicht erreicht') ? 'block' : 'none';
-      };
-    });
-
-    document.getElementById('goalsReviewWeiterBtn').onclick = async ()=>{
-      const btn = document.getElementById('goalsReviewWeiterBtn');
-      btn.disabled = true; btn.textContent = 'Speichere ...';
-      const updates = goals.map(g=>{
-        const sel = reflexionContent.querySelector('.goal-review-status[data-id="'+g.id+'"]');
-        const reasonEl = reflexionContent.querySelector('.goal-review-reason[data-id="'+g.id+'"]');
-        return { id: g.id, status: sel ? sel.value : g.status, reason: reasonEl ? reasonEl.value : '' };
-      });
-      try{
-        for(const u of updates){
-          await airtableFetch(TABLE_ZIELE + '/' + u.id, {
-            method: 'PATCH',
-            body: JSON.stringify({ fields: { 'Status': u.status, 'Begründung': u.reason } })
-          }, ZIELE_BASE_ID);
-        }
-      }catch(e){ /* nicht blockierend */ }
+    if(reflectionReviewIndex >= reflectionReviewGoals.length){
       reflectionState.step = 1;
       renderReflectionStep();
+      return;
+    }
+
+    const g = reflectionReviewGoals[reflectionReviewIndex];
+    const showReason = g.status === 'Teilweise' || g.status === 'Nicht erreicht';
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">Rückblick: ${reflLabel(tf)}ziele · ${reflectionReviewIndex+1} von ${reflectionReviewGoals.length}</div>
+        <div class="question" style="font-size:18px;">${escapeHtml(g.text)}</div>
+        <div class="hint">${escapeHtml(g.kategorie)} · ${escapeHtml(g.prioritaet)}</div>
+        <select id="goalReviewStatusSel" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-top:10px;">
+          ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===g.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <div id="goalReviewReasonWrap" style="display:${showReason?'block':'none'};margin-top:12px;">
+          <div class="turn-title">Warum nicht?</div>
+          <textarea id="goalReviewReasonInput" placeholder="Deine Antwort ...">${escapeHtml(g.begruendung||'')}</textarea>
+        </div>
+        <div class="nav-row">
+          <button class="ghost" id="goalReviewBackBtn" ${reflectionReviewIndex===0?'disabled':''}>Zurück</button>
+          <button class="primary" id="goalReviewNextBtn">Weiter</button>
+        </div>
+        <div id="goalReviewStatus" class="save-status"></div>
+      </div>`;
+
+    const statusSel = document.getElementById('goalReviewStatusSel');
+    statusSel.onchange = ()=>{
+      document.getElementById('goalReviewReasonWrap').style.display =
+        (statusSel.value === 'Teilweise' || statusSel.value === 'Nicht erreicht') ? 'block' : 'none';
+    };
+    document.getElementById('goalReviewBackBtn').onclick = ()=>{ reflectionReviewIndex--; renderGoalReviewStep(); };
+    document.getElementById('goalReviewNextBtn').onclick = async ()=>{
+      const statusEl = document.getElementById('goalReviewStatus');
+      statusEl.textContent = 'Speichere ...';
+      const reasonInput = document.getElementById('goalReviewReasonInput');
+      try{
+        await airtableFetch(TABLE_ZIELE + '/' + g.id, {
+          method: 'PATCH',
+          body: JSON.stringify({ fields: { 'Status': statusSel.value, 'Begründung': reasonInput ? reasonInput.value : '' } })
+        }, ZIELE_BASE_ID);
+      }catch(e){ /* nicht blockierend */ }
+      reflectionReviewIndex++;
+      renderGoalReviewStep();
     };
   }
 
   function renderReflectionContentStep(tf){
+    if(tf === 'Tag'){
+      eveningStepIndex = 0;
+      eveningData = { erfolge:["","",""], schwierig:"", dankbarkeit:["","",""], morgenBesser:"", koerperlichMental:"", tunBesser:"", freitext:"" };
+      renderEveningStep();
+      return;
+    }
     reflexionContent.innerHTML = `
       <div class="card">
         <div class="step-label">${reflLabel(tf)}reflexion</div>
-        <div class="hint" style="margin-bottom:0;">${tf === 'Tag' ? 'Fülle unten dein Abend-Journal aus.' : 'Inhalt folgt in Kürze.'}</div>
+        <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
       </div>
       <div class="nav-row" style="justify-content:flex-end;">
         <button class="primary" id="contentWeiterBtn">Weiter zu neuen Zielen</button>
       </div>`;
-    tagesreflexionContent.style.display = (tf === 'Tag') ? 'block' : 'none';
     document.getElementById('contentWeiterBtn').onclick = ()=>{
       reflectionState.step = 2;
       renderReflectionStep();
@@ -1060,7 +1084,6 @@
   }
 
   function renderGoalSetting(tf){
-    tagesreflexionContent.style.display = 'none';
     const now = new Date();
     const nextPeriodKey = getPeriodKey(tf, addPeriod(tf, now));
     const parentTf = PARENT_TIMEFRAME[tf];
@@ -1102,9 +1125,7 @@
         }
         statusEl.textContent = 'Reflexion abgeschlossen.';
         loadZiele();
-        setTimeout(()=>{
-          reflexionContent.innerHTML = '<div class="card"><div class="hint" style="margin-bottom:0;">Reflexion abgeschlossen. Wähl oben einen neuen Zeitraum, oder schau bei Ziele vorbei.</div></div>';
-        }, 900);
+        setTimeout(closeReflexionOverlay, 900);
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
       }
@@ -1158,6 +1179,7 @@
   document.getElementById('reflMonatBtn').onclick = ()=>startReflectionFlow('Monat');
   document.getElementById('reflQuartalBtn').onclick = ()=>startReflectionFlow('Quartal');
   document.getElementById('reflJahrBtn').onclick = ()=>startReflectionFlow('Jahr');
+
 
   /* =========================================================
      THE WORK
@@ -1634,7 +1656,7 @@
   }
 
   /* =========================================================
-     ABEND-JOURNAL
+     ABEND-JOURNAL (Tagesreflexion, Frage für Frage)
      ========================================================= */
   let eveningData = {
     erfolge: ["", "", ""],
@@ -1645,72 +1667,57 @@
     tunBesser: "",
     freitext: ""
   };
+  const EVENING_STEPS = ['erfolge','schwierig','dankbarkeit','morgen','koerperlich','freitext'];
+  let eveningStepIndex = 0;
 
-  const eveningForm = document.getElementById('eveningForm');
+  function renderEveningStep(){
+    const key = EVENING_STEPS[eveningStepIndex];
+    const total = EVENING_STEPS.length;
+    const idx = eveningStepIndex + 1;
+    let bodyHtml = '';
 
-  function renderEveningForm(){
-    eveningForm.innerHTML = `
-      <div class="card">
-        <div class="step-label">1</div>
-        <div class="question">Erfolge von heute</div>
-        <div class="hint">Mindestens 3 – auch Kleinigkeiten zählen.</div>
-        <div id="erfolgeList"></div>
-      </div>
-
-      <div class="card">
-        <div class="step-label">2</div>
-        <div class="question">Was war heute schwierig?</div>
-        <textarea id="schwierigInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.schwierig)}</textarea>
-      </div>
-
-      <div class="card">
-        <div class="step-label">3</div>
-        <div class="question">Wofür bin ich dankbar?</div>
-        <div class="hint">Mindestens 3.</div>
-        <div id="dankbarkeitList"></div>
-      </div>
-
-      <div class="card">
-        <div class="step-label">4</div>
-        <div class="question">Was kann ich morgen besser machen?</div>
-        <textarea id="morgenInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.morgenBesser)}</textarea>
-      </div>
-
-      <div class="card">
-        <div class="step-label">5</div>
-        <div class="question">Wie fühle ich mich gerade körperlich und mental?</div>
-        <textarea id="koerperlichInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.koerperlichMental)}</textarea>
+    if(key === 'erfolge'){
+      bodyHtml = `<div class="question">Erfolge von heute</div><div class="hint">Mindestens 3 – auch Kleinigkeiten zählen.</div><div id="erfolgeList"></div>`;
+    } else if(key === 'schwierig'){
+      bodyHtml = `<div class="question">Was war heute schwierig?</div><textarea id="schwierigInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.schwierig)}</textarea>`;
+    } else if(key === 'dankbarkeit'){
+      bodyHtml = `<div class="question">Wofür bin ich dankbar?</div><div class="hint">Mindestens 3.</div><div id="dankbarkeitList"></div>`;
+    } else if(key === 'morgen'){
+      bodyHtml = `<div class="question">Was kann ich morgen besser machen?</div><textarea id="morgenInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.morgenBesser)}</textarea>`;
+    } else if(key === 'koerperlich'){
+      bodyHtml = `<div class="question">Wie fühle ich mich gerade körperlich und mental?</div><textarea id="koerperlichInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.koerperlichMental)}</textarea>
         <div class="turn-title" style="margin-top:14px;">Was kann ich tun, um mich besser zu fühlen?</div>
-        <textarea id="tunBesserInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.tunBesser)}</textarea>
-      </div>
+        <textarea id="tunBesserInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.tunBesser)}</textarea>`;
+    } else if(key === 'freitext'){
+      bodyHtml = `<div class="question">Freitext</div><textarea id="freitextInput" placeholder="Was dich sonst noch beschäftigt ...">${escapeHtml(eveningData.freitext)}</textarea>`;
+    }
 
+    reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">6</div>
-        <div class="question">Freitext</div>
-        <textarea id="freitextInput" placeholder="Was dich sonst noch beschäftigt ...">${escapeHtml(eveningData.freitext)}</textarea>
-      </div>
+        <div class="step-label">Tagesreflexion · Frage ${idx} von ${total}</div>
+        ${bodyHtml}
+        <div class="nav-row">
+          <button class="ghost" id="eveningBackBtn" ${eveningStepIndex===0?'disabled':''}>Zurück</button>
+          <button class="primary" id="eveningNextBtn">${eveningStepIndex === total-1 ? 'Speichern & weiter' : 'Weiter'}</button>
+        </div>
+        <div id="eveningStepStatus" class="save-status"></div>
+      </div>`;
 
-      <div class="nav-row" style="justify-content:flex-end;">
-        <button class="ghost" id="resetEveningBtn">Zurücksetzen</button>
-        <button class="primary" id="saveEveningBtn">Eintrag speichern</button>
-      </div>
-      <div id="saveEveningStatus" class="save-status"></div>
-    `;
+    if(key === 'erfolge') setupList('erfolgeList', eveningData.erfolge, 'Erfolg');
+    if(key === 'dankbarkeit') setupList('dankbarkeitList', eveningData.dankbarkeit, 'Punkt');
+    if(key === 'schwierig') document.getElementById('schwierigInput').addEventListener('input', e=>{ eveningData.schwierig = e.target.value; });
+    if(key === 'morgen') document.getElementById('morgenInput').addEventListener('input', e=>{ eveningData.morgenBesser = e.target.value; });
+    if(key === 'koerperlich'){
+      document.getElementById('koerperlichInput').addEventListener('input', e=>{ eveningData.koerperlichMental = e.target.value; });
+      document.getElementById('tunBesserInput').addEventListener('input', e=>{ eveningData.tunBesser = e.target.value; });
+    }
+    if(key === 'freitext') document.getElementById('freitextInput').addEventListener('input', e=>{ eveningData.freitext = e.target.value; });
 
-    setupList('erfolgeList', eveningData.erfolge, 'Erfolg');
-    setupList('dankbarkeitList', eveningData.dankbarkeit, 'Punkt');
-
-    document.getElementById('schwierigInput').addEventListener('input', e=>{ eveningData.schwierig = e.target.value; });
-    document.getElementById('morgenInput').addEventListener('input', e=>{ eveningData.morgenBesser = e.target.value; });
-    document.getElementById('koerperlichInput').addEventListener('input', e=>{ eveningData.koerperlichMental = e.target.value; });
-    document.getElementById('tunBesserInput').addEventListener('input', e=>{ eveningData.tunBesser = e.target.value; });
-    document.getElementById('freitextInput').addEventListener('input', e=>{ eveningData.freitext = e.target.value; });
-
-    document.getElementById('resetEveningBtn').onclick = ()=>{
-      eveningData = { erfolge:["","",""], schwierig:"", dankbarkeit:["","",""], morgenBesser:"", koerperlichMental:"", tunBesser:"", freitext:"" };
-      renderEveningForm();
+    document.getElementById('eveningBackBtn').onclick = ()=>{ eveningStepIndex--; renderEveningStep(); };
+    document.getElementById('eveningNextBtn').onclick = ()=>{
+      if(eveningStepIndex < total-1){ eveningStepIndex++; renderEveningStep(); return; }
+      saveEveningEntryAndContinue();
     };
-    document.getElementById('saveEveningBtn').onclick = saveEveningEntry;
   }
 
   function setupList(containerId, arr, label){
@@ -1734,8 +1741,8 @@
     draw();
   }
 
-  async function saveEveningEntry(){
-    const statusEl = document.getElementById('saveEveningStatus');
+  async function saveEveningEntryAndContinue(){
+    const statusEl = document.getElementById('eveningStepStatus');
     statusEl.innerHTML = 'Speichere in Airtable ...';
     const entry = Object.assign({}, eveningData, {
       erfolge: eveningData.erfolge.filter(x=>x.trim().length>0),
@@ -1754,10 +1761,11 @@
     };
     try{
       await airtableCreate(TABLE_EVENING, fields);
-      statusEl.textContent = 'In Airtable gespeichert.';
       loadEveningJournal();
+      reflectionState.step = 2;
+      renderReflectionStep();
     }catch(e){
-      showSaveFailure(statusEl, saveEveningEntry, formatEveningEntryText(entry));
+      showSaveFailure(statusEl, saveEveningEntryAndContinue, formatEveningEntryText(entry));
     }
   }
 
@@ -2527,7 +2535,6 @@
 
   // init
   render();
-  renderEveningForm();
 })();
 </script>
 </body>
