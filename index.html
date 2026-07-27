@@ -768,14 +768,18 @@
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        max_tokens: 3000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await res.json();
     if(!res.ok) throw new Error((data.error && data.error.message) || 'Anthropic-API-Fehler (' + res.status + ')');
     const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text);
-    return textBlocks.join('\n');
+    let text = textBlocks.join('\n');
+    if(data.stop_reason === 'max_tokens'){
+      text += '\n\n[Hinweis: Der Bericht wurde an dieser Stelle abgeschnitten, da das Textlimit erreicht wurde.]';
+    }
+    return text;
   }
 
   async function airtableFetch(path, options, baseId){
