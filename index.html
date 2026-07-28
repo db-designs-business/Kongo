@@ -524,6 +524,10 @@
         <span class="home-link-title">Ziele</span>
         <span class="home-link-sub">Ziele anlegen und verfolgen</span>
       </button>
+      <button type="button" class="home-link" id="homeToAffirmationen">
+        <span class="home-link-title">Affirmationen</span>
+        <span class="home-link-sub">Deine Affirmationen durchgehen</span>
+      </button>
     </div>
   </div>
 
@@ -976,6 +980,7 @@
   document.getElementById('homeToReflexion').onclick = ()=>switchTab('reflexion');
   document.getElementById('homeToRoutinen').onclick = ()=>switchTab('routinen');
   document.getElementById('homeToZiele').onclick = ()=>switchTab('ziele');
+  document.getElementById('homeToAffirmationen').onclick = ()=>switchTab('affirmationen');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
