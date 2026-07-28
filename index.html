@@ -669,14 +669,6 @@
         <option value="Finanzen">Finanzen</option>
       </select>
 
-      <div class="turn-title">Priorität</div>
-      <select id="zielPrioritaet" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:14px;">
-        <option value="Hauptziel">Hauptziel</option>
-        <option value="Nebenziel">Nebenziel</option>
-      </select>
-
-      <div id="zielParentRow"></div>
-
       <div class="turn-title">Zieltext</div>
       <textarea id="zielTextInput" placeholder="Was willst du erreichen?"></textarea>
 
@@ -1033,8 +1025,7 @@
     const tf = reflectionState.timeframe;
     if(reflectionState.step === 0){
       const periodKey = getPeriodKey(tf, new Date());
-      reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey)
-        .sort((a,b)=> (a.prioritaet==='Hauptziel'?0:1) - (b.prioritaet==='Hauptziel'?0:1));
+      reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey);
       reflectionReviewIndex = 0;
       reflectionReviewResults = [];
       renderGoalReviewStep();
@@ -1075,7 +1066,7 @@
       <div class="card">
         <div class="step-label">Rückblick: ${reflLabel(tf)}ziele · ${reflectionReviewIndex+1} von ${reflectionReviewGoals.length}</div>
         <div class="question" style="font-size:18px;">${escapeHtml(g.text)}</div>
-        <div class="hint">${escapeHtml(g.kategorie)} · ${escapeHtml(g.prioritaet)}</div>
+        <div class="hint">${escapeHtml(g.kategorie)}</div>
         <select id="goalReviewStatusSel" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-top:10px;">
           ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===g.status?'selected':''}>${s}</option>`).join('')}
         </select>
@@ -1108,7 +1099,7 @@
           body: JSON.stringify({ fields: { 'Status': finalStatus, 'Begründung': finalReason } })
         }, ZIELE_BASE_ID);
       }catch(e){ /* nicht blockierend */ }
-      reflectionReviewResults.push({ text: g.text, kategorie: g.kategorie, prioritaet: g.prioritaet, status: finalStatus, begruendung: finalReason });
+      reflectionReviewResults.push({ text: g.text, kategorie: g.kategorie, status: finalStatus, begruendung: finalReason });
       reflectionReviewIndex++;
       renderGoalReviewStep();
     };
@@ -1139,95 +1130,79 @@
     };
   }
 
+  const GOAL_CATEGORIES = ['Business/Karriere','Gesundheit/Fitness','Beziehungen/Soziales','Persönliche Entwicklung','Finanzen'];
+
   function renderGoalSetting(tf){
     const now = new Date();
     const nextPeriodKey = getPeriodKey(tf, addPeriod(tf, now));
     const parentTf = PARENT_TIMEFRAME[tf];
-    let parentHtml = '';
+    let parentGoalsAll = [];
     if(parentTf){
       const parentKey = getPeriodKey(parentTf, now);
-      const parentGoals = zieleCache.filter(z=>z.zeitrahmen===parentTf && z.periodKey===parentKey);
-      parentHtml = `
+      parentGoalsAll = zieleCache.filter(z=>z.zeitrahmen===parentTf && z.periodKey===parentKey);
+    }
+
+    let catIndex = 0;
+    const goalDrafts = {};
+    GOAL_CATEGORIES.forEach(c=>{ goalDrafts[c] = ''; });
+
+    function renderCategoryStep(){
+      const cat = GOAL_CATEGORIES[catIndex];
+      const parentForCat = parentGoalsAll.filter(g=>g.kategorie === cat);
+      const parentHtml = parentTf ? `
         <div class="example-box">
-          <div class="example-title">Zur Orientierung: aktuelle ${reflLabel(parentTf)}ziele</div>
-          ${parentGoals.length===0 ? '<div class="example-text">Keine gesetzt.</div>' : parentGoals.map(g=>`<div class="example-text">• ${escapeHtml(g.text)}</div>`).join('')}
+          <div class="example-title">Zur Orientierung: aktuelle ${reflLabel(parentTf)}ziele in ${escapeHtml(cat)}</div>
+          ${parentForCat.length===0 ? '<div class="example-text">Keine gesetzt.</div>' : parentForCat.map(g=>`<div class="example-text">• ${escapeHtml(g.text)}</div>`).join('')}
+        </div>` : '';
+      const isLast = catIndex === GOAL_CATEGORIES.length - 1;
+
+      reflexionContent.innerHTML = `
+        <div class="card">
+          <div class="step-label">Neue ${reflLabel(tf)}ziele · ${catIndex+1} von ${GOAL_CATEGORIES.length}</div>
+          <div class="question" style="font-size:19px;">${escapeHtml(cat)}</div>
+          ${parentHtml}
+          <div class="turn-title" style="margin-top:14px;">Dein Ziel für diesen Bereich (optional)</div>
+          <textarea id="goalCategoryText" placeholder="Zieltext ...">${escapeHtml(goalDrafts[cat])}</textarea>
+          <div class="nav-row">
+            <button class="ghost" id="goalCatBackBtn" ${catIndex===0?'disabled':''}>Zurück</button>
+            <button class="primary" id="goalCatNextBtn">${isLast ? 'Abschließen' : 'Weiter'}</button>
+          </div>
+          <div id="goalCatStatus" class="save-status"></div>
         </div>`;
+
+      document.getElementById('goalCategoryText').addEventListener('input', e=>{ goalDrafts[cat] = e.target.value; });
+      document.getElementById('goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
+      document.getElementById('goalCatNextBtn').onclick = ()=>{
+        if(!isLast){ catIndex++; renderCategoryStep(); return; }
+        finishGoalSetting();
+      };
     }
 
-    let newGoalsDraft = [];
-
-    function renderDraftPreview(){
-      const el = document.getElementById('newGoalsPreview');
-      if(!el) return;
-      el.innerHTML = newGoalsDraft.length === 0 ? '' : newGoalsDraft.map((g,i)=>
-        `<div style="font-size:14px;padding:4px 0;">${i+1}. ${escapeHtml(g.text)} <span style="color:var(--ink-soft);font-size:12px;">(${escapeHtml(g.kategorie)} · ${escapeHtml(g.prioritaet)})</span></div>`
-      ).join('');
-    }
-
-    async function finishReflection(){
-      const statusEl = document.getElementById('reflectionFinishStatus');
+    async function finishGoalSetting(){
+      const statusEl = document.getElementById('goalCatStatus');
       statusEl.textContent = 'Speichere ...';
+      const goalsToSave = GOAL_CATEGORIES
+        .filter(c => goalDrafts[c].trim().length > 0)
+        .map(c => ({ kategorie: c, text: goalDrafts[c].trim() }));
       try{
-        for(const g of newGoalsDraft){
+        for(const g of goalsToSave){
           await airtableCreate(TABLE_ZIELE, {
             'Zieltext': g.text,
             'Zeitrahmen': tf,
             'Kategorie': g.kategorie,
-            'Priorität': g.prioritaet,
             'Status': 'Offen',
             'Zeitraum-Kennung': nextPeriodKey,
             'Erstellt am': new Date().toISOString()
           }, ZIELE_BASE_ID);
         }
-        statusEl.textContent = 'Reflexion abgeschlossen.';
         loadZiele();
-        showCoachingScreen(tf, nextPeriodKey, newGoalsDraft);
+        showCoachingScreen(tf, nextPeriodKey, goalsToSave);
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
       }
     }
 
-    reflexionContent.innerHTML = `
-      <div class="card">
-        <div class="step-label">Neue ${reflLabel(tf)}ziele für ${escapeHtml(periodLabel(tf, nextPeriodKey))}</div>
-        ${parentHtml}
-        <div id="newGoalsPreview" style="margin-top:14px;"></div>
-        <div class="turn-title" style="margin-top:14px;">Kategorie</div>
-        <select id="newGoalKategorie" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:10px;">
-          <option value="Business/Karriere">Business/Karriere</option>
-          <option value="Gesundheit/Fitness">Gesundheit/Fitness</option>
-          <option value="Beziehungen/Soziales">Beziehungen/Soziales</option>
-          <option value="Persönliche Entwicklung">Persönliche Entwicklung</option>
-          <option value="Finanzen">Finanzen</option>
-        </select>
-        <div class="turn-title">Priorität</div>
-        <select id="newGoalPrioritaet" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:10px;">
-          <option value="Hauptziel">Hauptziel</option>
-          <option value="Nebenziel">Nebenziel</option>
-        </select>
-        <textarea id="newGoalText" placeholder="Zieltext ..." style="margin-bottom:10px;"></textarea>
-        <button type="button" class="add-item-btn" id="addDraftGoalBtn">+ Ziel hinzufügen</button>
-        <div class="nav-row">
-          <button class="ghost" id="skipGoalsBtn">Ohne neue Ziele abschließen</button>
-          <button class="primary" id="finishReflectionBtn">Abschließen</button>
-        </div>
-        <div id="reflectionFinishStatus" class="save-status"></div>
-      </div>`;
-    renderDraftPreview();
-
-    document.getElementById('addDraftGoalBtn').onclick = ()=>{
-      const text = document.getElementById('newGoalText').value.trim();
-      if(!text) return;
-      newGoalsDraft.push({
-        kategorie: document.getElementById('newGoalKategorie').value,
-        prioritaet: document.getElementById('newGoalPrioritaet').value,
-        text
-      });
-      document.getElementById('newGoalText').value = '';
-      renderDraftPreview();
-    };
-    document.getElementById('skipGoalsBtn').onclick = finishReflection;
-    document.getElementById('finishReflectionBtn').onclick = finishReflection;
+    renderCategoryStep();
   }
 
   function getPeriodRange(tf, date){
@@ -1282,7 +1257,7 @@
       lines.push('Keine Ziele für diesen Zeitraum gesetzt gewesen.');
     } else {
       reflectionReviewResults.forEach(g=>{
-        lines.push(`- "${g.text}" (${g.kategorie}, ${g.prioritaet}) – Status: ${g.status}${g.begruendung ? ' – Begründung: '+g.begruendung : ''}`);
+        lines.push(`- "${g.text}" (${g.kategorie}) – Status: ${g.status}${g.begruendung ? ' – Begründung: '+g.begruendung : ''}`);
       });
     }
     lines.push('');
@@ -1290,7 +1265,7 @@
     if(newGoalsDraft.length === 0){
       lines.push('Keine neuen Ziele gesetzt.');
     } else {
-      newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie}, ${g.prioritaet})`); });
+      newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie})`); });
     }
     if(context.journalEntries.length > 0){
       lines.push('');
@@ -2779,25 +2754,6 @@
   }
 
   const zielZeitrahmenSelect = document.getElementById('zielZeitrahmen');
-  const zielParentRow = document.getElementById('zielParentRow');
-
-  function renderParentRow(){
-    const tf = zielZeitrahmenSelect.value;
-    const parentTf = PARENT_TIMEFRAME[tf];
-    if(!parentTf){
-      zielParentRow.innerHTML = '';
-      return;
-    }
-    const parentGoals = zieleCache.filter(z=>z.zeitrahmen === parentTf)
-      .sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
-    zielParentRow.innerHTML = `
-      <div class="turn-title">Übergeordnetes Ziel (optional)</div>
-      <select id="zielParentSelect" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:14px;">
-        <option value="">Kein übergeordnetes Ziel</option>
-        ${parentGoals.map(g=>`<option value="${escapeHtml(g.text)}">${escapeHtml(g.text.slice(0,60))}</option>`).join('')}
-      </select>`;
-  }
-  zielZeitrahmenSelect.addEventListener('change', renderParentRow);
 
   async function loadZiele(){
     try{
@@ -2809,7 +2765,6 @@
           text: f['Zieltext'] || '',
           zeitrahmen: f['Zeitrahmen'] || '',
           kategorie: f['Kategorie'] || '',
-          prioritaet: f['Priorität'] || '',
           status: f['Status'] || 'Offen',
           begruendung: f['Begründung'] || '',
           parent: f['Übergeordnetes Ziel'] || '',
@@ -2817,7 +2772,6 @@
           createdAt: f['Erstellt am'] || new Date().toISOString()
         };
       });
-      renderParentRow();
       renderZieleReminders();
       renderZieleListen();
     }catch(e){
@@ -2849,7 +2803,7 @@
         <div>
           <div style="font-size:15px;">${escapeHtml(z.text)}</div>
           <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
-            ${escapeHtml(z.kategorie)} · ${escapeHtml(z.prioritaet)}${z.parent ? ' · gehört zu: '+escapeHtml(z.parent.slice(0,40)) : ''}
+            ${escapeHtml(z.kategorie)}
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -2869,11 +2823,6 @@
       <div class="turn-title">Kategorie</div>
       <select id="zielEditKategorie-${z.id}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:15px;margin-bottom:10px;">
         ${['Business/Karriere','Gesundheit/Fitness','Beziehungen/Soziales','Persönliche Entwicklung','Finanzen'].map(k=>`<option value="${k}" ${k===z.kategorie?'selected':''}>${k}</option>`).join('')}
-      </select>
-      <div class="turn-title">Priorität</div>
-      <select id="zielEditPrioritaet-${z.id}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:15px;margin-bottom:10px;">
-        <option value="Hauptziel" ${z.prioritaet==='Hauptziel'?'selected':''}>Hauptziel</option>
-        <option value="Nebenziel" ${z.prioritaet==='Nebenziel'?'selected':''}>Nebenziel</option>
       </select>
       <div class="nav-row">
         <button class="ghost" data-id="${z.id}" data-action="cancel-edit">Abbrechen</button>
@@ -2942,13 +2891,12 @@
         const statusEl = document.getElementById('zielEditStatus-'+id);
         const text = document.getElementById('zielEditText-'+id).value.trim();
         const kategorie = document.getElementById('zielEditKategorie-'+id).value;
-        const prioritaet = document.getElementById('zielEditPrioritaet-'+id).value;
         if(!text){ statusEl.textContent = 'Bitte einen Zieltext eingeben.'; return; }
         statusEl.textContent = 'Speichere ...';
         try{
           await airtableFetch(TABLE_ZIELE + '/' + id, {
             method: 'PATCH',
-            body: JSON.stringify({ fields: { 'Zieltext': text, 'Kategorie': kategorie, 'Priorität': prioritaet } })
+            body: JSON.stringify({ fields: { 'Zieltext': text, 'Kategorie': kategorie } })
           }, ZIELE_BASE_ID);
           loadZiele();
         }catch(e){
@@ -2962,9 +2910,6 @@
     const statusEl = document.getElementById('zielSaveStatus');
     const zeitrahmen = zielZeitrahmenSelect.value;
     const kategorie = document.getElementById('zielKategorie').value;
-    const prioritaet = document.getElementById('zielPrioritaet').value;
-    const parentSelect = document.getElementById('zielParentSelect');
-    const parent = parentSelect ? parentSelect.value : '';
     const text = document.getElementById('zielTextInput').value.trim();
     if(!text){ statusEl.textContent = 'Bitte einen Zieltext eingeben.'; return; }
     statusEl.textContent = 'Speichere ...';
@@ -2973,9 +2918,7 @@
         'Zieltext': text,
         'Zeitrahmen': zeitrahmen,
         'Kategorie': kategorie,
-        'Priorität': prioritaet,
         'Status': 'Offen',
-        'Übergeordnetes Ziel': parent,
         'Zeitraum-Kennung': getPeriodKey(zeitrahmen),
         'Erstellt am': new Date().toISOString()
       }, ZIELE_BASE_ID);
@@ -2987,7 +2930,6 @@
     }
   };
 
-  renderParentRow();
   loadZiele();
 
   // init
