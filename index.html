@@ -492,6 +492,7 @@
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
+      <button type="button" class="nav-menu-item" data-tab="affirmationen">Affirmationen</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -642,6 +643,26 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="affirmationenModalOverlay" style="display:none;">
+    <div class="modal-card">
+      <button class="modal-close" id="affirmationenModalCloseBtn" aria-label="Schließen">×</button>
+      <div class="modal-title">Deine Affirmationen</div>
+      <div class="modal-sub">Sätze, die du dir immer wieder vor Augen führen willst.</div>
+      <div id="affirmationenList"></div>
+      <div class="lib-add-row">
+        <input type="text" id="newAffirmationInput" placeholder="Neue Affirmation hinzufügen ...">
+        <button class="primary" id="addAffirmationBtn">Hinzufügen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="affirmationenExecOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="affirmationenExecCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="affirmationenExecution" style="margin-top:36px;"></div>
+    </div>
+  </div>
+
   <div id="panelZiele" style="display:none;">
     <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
     <h1>Deine Ziele</h1>
@@ -679,6 +700,20 @@
     </div>
 
     <div id="zieleListen"></div>
+  </div>
+
+  <div id="panelAffirmationen" style="display:none;">
+    <div class="eyebrow">Affirmationen <span class="data-badge">Airtable</span></div>
+    <h1>Deine Affirmationen</h1>
+    <div class="sub">Lege dir eine Liste an und geh sie durch, wann immer du magst.</div>
+
+    <div class="card">
+      <div class="step-label">Affirmationen</div>
+      <div class="hint" style="margin-bottom:0;">Deine gesammelten Sätze.</div>
+      <button type="button" class="lib-link" id="openAffirmationenBtn">📖 Meine Affirmationen verwalten</button>
+    </div>
+
+    <button type="button" class="add-item-btn" id="startAffirmationenBtn" style="width:100%;">Affirmationen durchgehen</button>
   </div>
 
 </div>
@@ -734,6 +769,8 @@
   const TABLE_COACHING = 'tblVhZcFVGaUs3ogQ';
   const WOCHENREFLEXION_BASE_ID = 'app5noyNqCeKHbBLT';
   const TABLE_WOCHENREFLEXION = 'tblfs1sZRt5htoLgf';
+  const AFFIRMATIONEN_BASE_ID = 'appxNywjTPthjPhc2';
+  const TABLE_AFFIRMATIONEN = 'tbl94eDCVRNkrtQAC';
   const ANTHROPIC_TOKEN_KEY = 'kongrow_anthropic_token';
 
   function getAirtableToken(){
@@ -910,8 +947,9 @@
   const panelReflexion = document.getElementById('panelReflexion');
   const panelRoutinen = document.getElementById('panelRoutinen');
   const panelZiele = document.getElementById('panelZiele');
+  const panelAffirmationen = document.getElementById('panelAffirmationen');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -2931,6 +2969,102 @@
   };
 
   loadZiele();
+
+  /* =========================================================
+     AFFIRMATIONEN
+     ========================================================= */
+  let affirmationenCache = [];
+
+  const affirmationenModalOverlay = document.getElementById('affirmationenModalOverlay');
+  const affirmationenListEl = document.getElementById('affirmationenList');
+  const affirmationenExecOverlay = document.getElementById('affirmationenExecOverlay');
+  const affirmationenExecutionEl = document.getElementById('affirmationenExecution');
+
+  document.getElementById('openAffirmationenBtn').onclick = ()=>{
+    affirmationenModalOverlay.style.display = 'flex';
+    loadAffirmationen();
+  };
+  document.getElementById('affirmationenModalCloseBtn').onclick = ()=>{ affirmationenModalOverlay.style.display = 'none'; };
+  affirmationenModalOverlay.addEventListener('click', (e)=>{ if(e.target === affirmationenModalOverlay) affirmationenModalOverlay.style.display = 'none'; });
+
+  async function loadAffirmationen(){
+    affirmationenListEl.innerHTML = '<div class="loading">Lade ...</div>';
+    try{
+      const records = await airtableList(TABLE_AFFIRMATIONEN, AFFIRMATIONEN_BASE_ID);
+      affirmationenCache = records.map(r=>({ id: r.id, text: (r.fields||{})['Text'] || '', createdAt: (r.fields||{})['Erstellt am'] || new Date().toISOString() }));
+      affirmationenCache.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+      renderAffirmationenList();
+    }catch(e){
+      affirmationenListEl.innerHTML = '<div class="empty">Affirmationen konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderAffirmationenList(){
+    if(affirmationenCache.length === 0){
+      affirmationenListEl.innerHTML = '<div class="empty">Noch keine Affirmationen angelegt.</div>';
+      return;
+    }
+    affirmationenListEl.innerHTML = affirmationenCache.map(a=>`
+      <div class="lib-item">
+        <div class="lib-item-text">${escapeHtml(a.text)}</div>
+        <div class="lib-item-actions">
+          <button class="del" data-id="${a.id}">Löschen</button>
+        </div>
+      </div>`).join('');
+    affirmationenListEl.querySelectorAll('.del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.textContent = '...'; btn.disabled = true;
+        try{ await airtableDelete(TABLE_AFFIRMATIONEN, btn.dataset.id, AFFIRMATIONEN_BASE_ID); loadAffirmationen(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+  }
+
+  document.getElementById('addAffirmationBtn').onclick = async ()=>{
+    const input = document.getElementById('newAffirmationInput');
+    const text = input.value.trim();
+    if(!text) return;
+    try{
+      await airtableCreate(TABLE_AFFIRMATIONEN, { 'Text': text, 'Erstellt am': new Date().toISOString() }, AFFIRMATIONEN_BASE_ID);
+      input.value = '';
+      loadAffirmationen();
+    }catch(e){ /* silent */ }
+  };
+
+  document.getElementById('startAffirmationenBtn').onclick = async ()=>{
+    affirmationenExecOverlay.style.display = 'flex';
+    affirmationenExecutionEl.innerHTML = '<div class="card"><div class="loading">Lade Affirmationen ...</div></div>';
+    try{
+      const records = await airtableList(TABLE_AFFIRMATIONEN, AFFIRMATIONEN_BASE_ID);
+      const list = records.map(r=>(r.fields||{})['Text'] || '').filter(t=>t.trim().length>0);
+      if(list.length === 0){
+        affirmationenExecutionEl.innerHTML = '<div class="card"><div class="empty">Noch keine Affirmationen angelegt.</div><div class="nav-row" style="justify-content:flex-end;"><button class="primary" id="affirmationenCloseBtn2">Schließen</button></div></div>';
+        document.getElementById('affirmationenCloseBtn2').onclick = ()=>{ affirmationenExecOverlay.style.display = 'none'; };
+        return;
+      }
+      let idx = 0;
+      function renderAffStep(){
+        affirmationenExecutionEl.innerHTML = `
+          <div class="card" style="text-align:center;padding:48px 24px;">
+            <div class="step-label">Affirmation ${idx+1} von ${list.length}</div>
+            <div class="question" style="font-size:22px;line-height:1.5;margin-top:20px;">${escapeHtml(list[idx])}</div>
+            <div class="nav-row" style="margin-top:32px;">
+              <button class="ghost" id="affBackBtn" ${idx===0?'disabled':''}>Zurück</button>
+              <button class="primary" id="affNextBtn">${idx===list.length-1 ? 'Fertig' : 'Weiter'}</button>
+            </div>
+          </div>`;
+        document.getElementById('affBackBtn').onclick = ()=>{ idx--; renderAffStep(); };
+        document.getElementById('affNextBtn').onclick = ()=>{
+          if(idx < list.length-1){ idx++; renderAffStep(); return; }
+          affirmationenExecOverlay.style.display = 'none';
+        };
+      }
+      renderAffStep();
+    }catch(e){
+      affirmationenExecutionEl.innerHTML = '<div class="card"><div class="empty">Affirmationen konnten nicht geladen werden.</div></div>';
+    }
+  };
+  document.getElementById('affirmationenExecCloseBtn').onclick = ()=>{ affirmationenExecOverlay.style.display = 'none'; };
 
   // init
   render();
