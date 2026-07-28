@@ -740,6 +740,8 @@
   const TABLE_ZIELE = 'tbls9DvMzlCJiEtP1';
   const COACHING_BASE_ID = 'appqRrxrudIdpcmY3';
   const TABLE_COACHING = 'tblVhZcFVGaUs3ogQ';
+  const WOCHENREFLEXION_BASE_ID = 'app5noyNqCeKHbBLT';
+  const TABLE_WOCHENREFLEXION = 'tblfs1sZRt5htoLgf';
   const ANTHROPIC_TOKEN_KEY = 'kongrow_anthropic_token';
 
   function getAirtableToken(){
@@ -1119,6 +1121,10 @@
       renderEveningStep();
       return;
     }
+    if(tf === 'Woche'){
+      startWeeklyReflection();
+      return;
+    }
     reflexionContent.innerHTML = `
       <div class="card">
         <div class="step-label">${reflLabel(tf)}reflexion</div>
@@ -1298,6 +1304,20 @@
       lines.push('## The-Work-Einträge in diesem Zeitraum');
       context.workEntries.forEach(e=>{
         lines.push(`- Glaubenssatz: "${e.belief}" – Fünkchen Wahrheit: ${e.spark}`);
+      });
+    }
+    if(tf === 'Woche'){
+      lines.push('');
+      lines.push('## Wochenreflexion – Antworten');
+      WEEKLY_TEXT_QUESTIONS.forEach(q=>{
+        if(weeklyData[q.key]) lines.push(`- ${q.label}: ${weeklyData[q.key]}`);
+      });
+      lines.push('');
+      lines.push('## Lebensbereiche (1-10, mit Vorwoche-Vergleich wo vorhanden)');
+      WEEKLY_SCALES.forEach(s=>{
+        const entry = weeklyData.scales[s.key];
+        const prevVal = weeklyPrevious ? weeklyPrevious[s.field + ' (Wert)'] : null;
+        lines.push(`- ${s.label}: ${entry.wert}/10${(prevVal!==null&&prevVal!==undefined) ? ' (Vorwoche: '+prevVal+'/10)' : ''}${entry.begruendung ? ' – Begründung: '+entry.begruendung : ''}${entry.massnahme ? ' – Maßnahme: '+entry.massnahme : ''}`);
       });
     }
     lines.push('');
@@ -1891,6 +1911,138 @@
       loadLibraryList();
     }catch(e){
       libList.innerHTML = '<div class="empty">Speichern fehlgeschlagen, bitte erneut versuchen.</div>' + libList.innerHTML;
+    }
+  }
+
+  /* =========================================================
+     WOCHENREFLEXION (Frage für Frage + 10 Lebensbereiche)
+     ========================================================= */
+  const WEEKLY_TEXT_QUESTIONS = [
+    { key:'erfolge', label:'Gibt es positive Ereignisse, Erfolge oder Fortschritte?', field:'Erfolge' },
+    { key:'rueckschlaege', label:'Gab es Rückschläge, Belastungen oder schwierige Momente?', field:'Rueckschlaege' },
+    { key:'hilfe', label:'Gibt es etwas, wobei Hilfe gebraucht wird oder was schwerfällt?', field:'Hilfe' },
+    { key:'verbesserung', label:'Was möchtest du in den nächsten 7 Tagen verbessern oder bewusst anders machen?', field:'Verbesserung' },
+    { key:'zwischenmenschlich', label:'Gab es diese Woche eine wichtige zwischenmenschliche Situation, die du festhalten willst?', field:'Zwischenmenschlich' },
+    { key:'fehler', label:'Hast du diese Woche Fehler gemacht – strategisch, in einer Entscheidung, oder im Umgang mit jemandem? Wenn ja, welche?', field:'Fehler' }
+  ];
+  const WEEKLY_SCALES = [
+    { key:'wohlbefinden', label:'Persönliches Wohlbefinden', field:'Wohlbefinden' },
+    { key:'selbstfuehrung', label:'Selbstführung und innere Disziplin', field:'Selbstführung' },
+    { key:'ordnung', label:'Ordnung in Alltag und Umgebung', field:'Ordnung' },
+    { key:'ernaehrung', label:'Ernährung', field:'Ernährung' },
+    { key:'fitness', label:'Fitness und Gesundheit', field:'Fitness' },
+    { key:'styling', label:'Styling und äußere Erscheinung', field:'Styling' },
+    { key:'soziales', label:'Aktivität im sozialen Umfeld', field:'Soziales Umfeld' },
+    { key:'hobbys', label:'Hobbys und Selbstverwirklichung', field:'Hobbys' },
+    { key:'beruflich', label:'Berufliche Situation und finanzielle Ordnung', field:'Beruf & Finanzen' },
+    { key:'gefuehle', label:'Umgang mit Gefühlen und inneren Zuständen', field:'Gefühle' }
+  ];
+  let weeklyStepIndex = 0;
+  let weeklyData = {};
+  let weeklyPrevious = null;
+
+  function resetWeeklyData(){
+    weeklyData = { scales: {} };
+    WEEKLY_TEXT_QUESTIONS.forEach(q=>{ weeklyData[q.key] = ''; });
+    WEEKLY_SCALES.forEach(s=>{ weeklyData.scales[s.key] = { wert: 5, begruendung: '', massnahme: '' }; });
+  }
+
+  async function loadPreviousWeekly(){
+    try{
+      const records = await airtableList(TABLE_WOCHENREFLEXION, WOCHENREFLEXION_BASE_ID);
+      const currentKey = getPeriodKey('Woche', new Date());
+      const past = records
+        .map(r=>({ key: (r.fields||{})['Zeitraum-Kennung'] || '', fields: r.fields || {} }))
+        .filter(r=> r.key && r.key < currentKey)
+        .sort((a,b)=> b.key.localeCompare(a.key));
+      return past.length ? past[0].fields : null;
+    }catch(e){ return null; }
+  }
+
+  async function startWeeklyReflection(){
+    weeklyStepIndex = 0;
+    resetWeeklyData();
+    reflexionContent.innerHTML = '<div class="card"><div class="loading">Lade Vorwoche zum Vergleich ...</div></div>';
+    weeklyPrevious = await loadPreviousWeekly();
+    renderWeeklyStep();
+  }
+
+  function renderWeeklyStep(){
+    const totalSteps = WEEKLY_TEXT_QUESTIONS.length + WEEKLY_SCALES.length;
+    const idx = weeklyStepIndex + 1;
+
+    if(weeklyStepIndex < WEEKLY_TEXT_QUESTIONS.length){
+      const q = WEEKLY_TEXT_QUESTIONS[weeklyStepIndex];
+      reflexionContent.innerHTML = `
+        <div class="card">
+          <div class="step-label">Wochenreflexion · Frage ${idx} von ${totalSteps}</div>
+          <div class="question">${escapeHtml(q.label)}</div>
+          <textarea id="weeklyTextInput" placeholder="Deine Antwort ...">${escapeHtml(weeklyData[q.key])}</textarea>
+          <div class="nav-row">
+            <button class="ghost" id="weeklyBackBtn" ${weeklyStepIndex===0?'disabled':''}>Zurück</button>
+            <button class="primary" id="weeklyNextBtn">Weiter</button>
+          </div>
+        </div>`;
+      document.getElementById('weeklyTextInput').addEventListener('input', e=>{ weeklyData[q.key] = e.target.value; });
+      document.getElementById('weeklyBackBtn').onclick = ()=>{ weeklyStepIndex--; renderWeeklyStep(); };
+      document.getElementById('weeklyNextBtn').onclick = ()=>{ weeklyStepIndex++; renderWeeklyStep(); };
+      return;
+    }
+
+    const scaleIdx = weeklyStepIndex - WEEKLY_TEXT_QUESTIONS.length;
+    const s = WEEKLY_SCALES[scaleIdx];
+    const entry = weeklyData.scales[s.key];
+    const prevVal = weeklyPrevious ? weeklyPrevious[s.field + ' (Wert)'] : null;
+    const isLast = weeklyStepIndex === totalSteps - 1;
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">Wochenreflexion · Frage ${idx} von ${totalSteps}</div>
+        <div class="question">${escapeHtml(s.label)}</div>
+        ${(prevVal !== null && prevVal !== undefined) ? `<div class="hint">Letzte Woche: ${prevVal}/10</div>` : '<div class="hint">Noch kein Vergleichswert aus der Vorwoche.</div>'}
+        <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
+          <input type="range" id="weeklyScaleInput" min="1" max="10" step="1" value="${entry.wert}" style="flex:1;">
+          <div id="weeklyScaleValue" style="font-family:Georgia,'Iowan Old Style',serif;font-size:22px;font-weight:700;color:var(--forest-deep);min-width:32px;text-align:center;">${entry.wert}</div>
+        </div>
+        <div class="turn-title">Warum steht es gerade so?</div>
+        <textarea id="weeklyBegruendungInput" placeholder="Begründung ...">${escapeHtml(entry.begruendung)}</textarea>
+        <div class="turn-title" style="margin-top:14px;">Was kannst du tun, um es zu verbessern (oder zu halten)?</div>
+        <textarea id="weeklyMassnahmeInput" placeholder="Maßnahme ...">${escapeHtml(entry.massnahme)}</textarea>
+        <div class="nav-row">
+          <button class="ghost" id="weeklyBackBtn">Zurück</button>
+          <button class="primary" id="weeklyNextBtn">${isLast ? 'Speichern & weiter' : 'Weiter'}</button>
+        </div>
+        <div id="weeklyStepStatus" class="save-status"></div>
+      </div>`;
+
+    const rangeInput = document.getElementById('weeklyScaleInput');
+    const valueDisplay = document.getElementById('weeklyScaleValue');
+    rangeInput.addEventListener('input', ()=>{ entry.wert = Number(rangeInput.value); valueDisplay.textContent = entry.wert; });
+    document.getElementById('weeklyBegruendungInput').addEventListener('input', e=>{ entry.begruendung = e.target.value; });
+    document.getElementById('weeklyMassnahmeInput').addEventListener('input', e=>{ entry.massnahme = e.target.value; });
+    document.getElementById('weeklyBackBtn').onclick = ()=>{ weeklyStepIndex--; renderWeeklyStep(); };
+    document.getElementById('weeklyNextBtn').onclick = ()=>{
+      if(!isLast){ weeklyStepIndex++; renderWeeklyStep(); return; }
+      saveWeeklyReflectionAndContinue();
+    };
+  }
+
+  async function saveWeeklyReflectionAndContinue(){
+    const statusEl = document.getElementById('weeklyStepStatus');
+    statusEl.innerHTML = 'Speichere in Airtable ...';
+    const fields = { 'Datum': new Date().toISOString(), 'Zeitraum-Kennung': getPeriodKey('Woche', new Date()) };
+    WEEKLY_TEXT_QUESTIONS.forEach(q=>{ fields[q.field] = weeklyData[q.key]; });
+    WEEKLY_SCALES.forEach(s=>{
+      const entry = weeklyData.scales[s.key];
+      fields[s.field + ' (Wert)'] = entry.wert;
+      fields[s.field + ' (Begründung)'] = entry.begruendung;
+      fields[s.field + ' (Maßnahme)'] = entry.massnahme;
+    });
+    try{
+      await airtableCreate(TABLE_WOCHENREFLEXION, fields, WOCHENREFLEXION_BASE_ID);
+      reflectionState.step = 2;
+      renderReflectionStep();
+    }catch(e){
+      showSaveFailure(statusEl, saveWeeklyReflectionAndContinue, 'Wochenreflexion vom ' + new Date().toLocaleDateString('de-DE'));
     }
   }
 
