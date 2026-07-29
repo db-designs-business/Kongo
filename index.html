@@ -493,6 +493,7 @@
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="affirmationen">Affirmationen</button>
+      <button type="button" class="nav-menu-item" data-tab="wutjournal">Wut-Journal</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -667,6 +668,13 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="wutjournalOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="wutjournalCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="wutjournalExecution" style="margin-top:36px;"></div>
+    </div>
+  </div>
+
   <div id="panelZiele" style="display:none;">
     <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
     <h1>Deine Ziele</h1>
@@ -718,6 +726,19 @@
     </div>
 
     <button type="button" class="add-item-btn" id="startAffirmationenBtn" style="width:100%;">Affirmationen durchgehen</button>
+  </div>
+
+  <div id="panelWutjournal" style="display:none;">
+    <div class="eyebrow">Wut-Journal <span class="data-badge">Airtable</span></div>
+    <h1>Wut als Antrieb nutzen</h1>
+    <div class="sub">Ein kurzes Morgen-Journal, um deine Wut gezielt in Richtung zu lenken.</div>
+
+    <button type="button" class="add-item-btn" id="startWutjournalBtn" style="width:100%;">Wut-Journal starten</button>
+
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="wutjournalToggle">Bisherige Einträge anzeigen</button>
+      <div id="wutjournalList" style="display:none;"></div>
+    </div>
   </div>
 
 </div>
@@ -775,6 +796,8 @@
   const TABLE_WOCHENREFLEXION = 'tblfs1sZRt5htoLgf';
   const AFFIRMATIONEN_BASE_ID = 'appxNywjTPthjPhc2';
   const TABLE_AFFIRMATIONEN = 'tbl94eDCVRNkrtQAC';
+  const WUTJOURNAL_BASE_ID = 'apppAAnwKDLks5oDb';
+  const TABLE_WUTJOURNAL = 'tblHJML6lcHcYeCvq';
   const ANTHROPIC_TOKEN_KEY = 'kongrow_anthropic_token';
 
   function getAirtableToken(){
@@ -952,8 +975,9 @@
   const panelRoutinen = document.getElementById('panelRoutinen');
   const panelZiele = document.getElementById('panelZiele');
   const panelAffirmationen = document.getElementById('panelAffirmationen');
+  const panelWutjournal = document.getElementById('panelWutjournal');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -3116,6 +3140,129 @@
     }
   };
   document.getElementById('affirmationenExecCloseBtn').onclick = ()=>{ affirmationenExecOverlay.style.display = 'none'; };
+
+  /* =========================================================
+     WUT-JOURNAL
+     ========================================================= */
+  const WUT_STEPS = [
+    { key:'stoert', label:'Woran störst du dich gerade? (2-3 Dinge)', field:'Stört mich gerade' },
+    { key:'kostet', label:'Was hat dich das bisher gekostet?', field:'Kostet mich das' },
+    { key:'jahr', label:'Wo stehst du in einem Jahr, wenn sich nichts ändert?', field:'In einem Jahr ohne Änderung' },
+    { key:'beweisen', label:'Was willst du beweisen?', field:'Will ich beweisen' },
+    { key:'handlung', label:'Die eine Sache, die du heute erledigst, um das zu widerlegen', field:'Heutige Handlung' },
+    { key:'anker', label:'Dein Anker-Satz für heute', field:'Anker-Satz' }
+  ];
+
+  const wutjournalOverlay = document.getElementById('wutjournalOverlay');
+  const wutjournalExecutionEl = document.getElementById('wutjournalExecution');
+  let wutStepIndex = 0;
+  let wutData = {};
+
+  document.getElementById('startWutjournalBtn').onclick = ()=>{
+    wutStepIndex = 0;
+    wutData = {};
+    WUT_STEPS.forEach(s=>{ wutData[s.key] = ''; });
+    wutjournalOverlay.style.display = 'flex';
+    renderWutStep();
+  };
+  document.getElementById('wutjournalCloseBtn').onclick = ()=>{ wutjournalOverlay.style.display = 'none'; };
+
+  function renderWutStep(){
+    const total = WUT_STEPS.length;
+    const s = WUT_STEPS[wutStepIndex];
+    const isLast = wutStepIndex === total - 1;
+    wutjournalExecutionEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">Wut-Journal · Frage ${wutStepIndex+1} von ${total}</div>
+        <div class="question">${escapeHtml(s.label)}</div>
+        <textarea id="wutInput" placeholder="Deine Antwort ...">${escapeHtml(wutData[s.key])}</textarea>
+        <div class="nav-row">
+          <button class="ghost" id="wutBackBtn" ${wutStepIndex===0?'disabled':''}>Zurück</button>
+          <button class="primary" id="wutNextBtn">${isLast ? 'Speichern' : 'Weiter'}</button>
+        </div>
+        <div id="wutStepStatus" class="save-status"></div>
+      </div>`;
+    document.getElementById('wutInput').addEventListener('input', e=>{ wutData[s.key] = e.target.value; });
+    document.getElementById('wutBackBtn').onclick = ()=>{ wutStepIndex--; renderWutStep(); };
+    document.getElementById('wutNextBtn').onclick = ()=>{
+      if(!isLast){ wutStepIndex++; renderWutStep(); return; }
+      saveWutjournalEntry();
+    };
+  }
+
+  async function saveWutjournalEntry(){
+    const statusEl = document.getElementById('wutStepStatus');
+    statusEl.innerHTML = 'Speichere in Airtable ...';
+    const fields = { 'Datum': new Date().toISOString().slice(0,10) };
+    WUT_STEPS.forEach(s=>{ fields[s.field] = wutData[s.key]; });
+    try{
+      await airtableCreate(TABLE_WUTJOURNAL, fields, WUTJOURNAL_BASE_ID);
+      statusEl.textContent = 'Gespeichert.';
+      setTimeout(()=>{ wutjournalOverlay.style.display = 'none'; }, 900);
+      if(document.getElementById('wutjournalList').style.display !== 'none') loadWutjournal();
+    }catch(e){
+      showSaveFailure(statusEl, saveWutjournalEntry, 'Wut-Journal vom ' + new Date().toLocaleDateString('de-DE'));
+    }
+  }
+
+  const wutjournalToggle = document.getElementById('wutjournalToggle');
+  const wutjournalListEl = document.getElementById('wutjournalList');
+  wutjournalToggle.onclick = async ()=>{
+    const showing = wutjournalListEl.style.display !== 'none';
+    if(showing){
+      wutjournalListEl.style.display = 'none';
+      wutjournalToggle.textContent = 'Bisherige Einträge anzeigen';
+    } else {
+      wutjournalListEl.style.display = 'block';
+      wutjournalToggle.textContent = 'Einträge ausblenden';
+      await loadWutjournal();
+    }
+  };
+
+  async function loadWutjournal(){
+    wutjournalListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_WUTJOURNAL, WUTJOURNAL_BASE_ID);
+      if(records.length === 0){
+        wutjournalListEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>';
+        return;
+      }
+      const entries = records.map(r=>{
+        const f = r.fields || {};
+        return { key: r.id, datum: f['Datum'] || '', fields: f };
+      });
+      entries.sort((a,b)=> b.datum.localeCompare(a.datum));
+      wutjournalListEl.innerHTML = entries.map(e=>{
+        const f = e.fields;
+        return `<div class="entry">
+          <div class="entry-head" data-key="${e.key}">
+            <div>
+              <div class="entry-date">${escapeHtml(e.datum)}</div>
+              <div class="entry-belief">${escapeHtml((f['Anker-Satz']||'').slice(0,60))}</div>
+            </div>
+          </div>
+          <div class="entry-body" id="wjbody-${cssSafe(e.key)}">
+            ${WUT_STEPS.map(s=>`
+              <div class="summary-q">${escapeHtml(s.label)}</div>
+              <div class="summary-a">${escapeHtml(f[s.field] || '') || '–'}</div>`).join('')}
+            <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+          </div>
+        </div>`;
+      }).join('');
+      wutjournalListEl.querySelectorAll('.entry-head').forEach(h=>{
+        h.onclick = ()=>{ document.getElementById('wjbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+      });
+      wutjournalListEl.querySelectorAll('.entry-delete').forEach(btn=>{
+        btn.onclick = async (ev)=>{
+          ev.stopPropagation();
+          try{ await airtableDelete(TABLE_WUTJOURNAL, btn.dataset.key, WUTJOURNAL_BASE_ID); loadWutjournal(); }
+          catch(e){ /* ignore */ }
+        };
+      });
+    }catch(e){
+      wutjournalListEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
+    }
+  }
 
   // init
   render();
