@@ -529,6 +529,10 @@
         <span class="home-link-title">Affirmationen</span>
         <span class="home-link-sub">Deine Affirmationen durchgehen</span>
       </button>
+      <button type="button" class="home-link" id="homeToWutjournal">
+        <span class="home-link-title">Wut-Journal</span>
+        <span class="home-link-sub">Wut als Antrieb nutzen</span>
+      </button>
     </div>
   </div>
 
@@ -1005,6 +1009,7 @@
   document.getElementById('homeToRoutinen').onclick = ()=>switchTab('routinen');
   document.getElementById('homeToZiele').onclick = ()=>switchTab('ziele');
   document.getElementById('homeToAffirmationen').onclick = ()=>switchTab('affirmationen');
+  document.getElementById('homeToWutjournal').onclick = ()=>switchTab('wutjournal');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
