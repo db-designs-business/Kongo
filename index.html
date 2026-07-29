@@ -1047,7 +1047,7 @@
   const reflexionContent = document.getElementById('reflexionContent');
   const reflexionOverlay = document.getElementById('reflexionOverlay');
 
-  let reflectionState = { timeframe: null, step: 0 };
+  let reflectionState = { timeframe: null, step: 0, periodOffset: 0 };
   let reflectionReviewGoals = [];
   let reflectionReviewIndex = 0;
   let reflectionReviewResults = [];
@@ -1058,16 +1058,60 @@
   }
   document.getElementById('reflexionOverlayCloseBtn').onclick = closeReflexionOverlay;
 
+  function getOffsetDate(tf, offset){
+    const d = new Date();
+    if(offset === 0) return d;
+    if(tf === 'Tag') d.setDate(d.getDate() + offset);
+    else if(tf === 'Woche') d.setDate(d.getDate() + offset*7);
+    else if(tf === 'Monat') d.setMonth(d.getMonth() + offset);
+    else if(tf === 'Quartal') d.setMonth(d.getMonth() + offset*3);
+    else if(tf === 'Jahr') d.setFullYear(d.getFullYear() + offset);
+    return d;
+  }
+
+  function getReflectionDate(){
+    return getOffsetDate(reflectionState.timeframe, reflectionState.periodOffset);
+  }
+
   function startReflectionFlow(tf){
-    reflectionState = { timeframe: tf, step: 0 };
+    reflectionState = { timeframe: tf, step: -1, periodOffset: 0 };
     reflexionOverlay.style.display = 'flex';
-    renderReflectionStep();
+    renderPeriodChoiceStep();
+  }
+
+  function renderPeriodChoiceStep(){
+    const tf = reflectionState.timeframe;
+    const currentKey = getPeriodKey(tf, getOffsetDate(tf, 0));
+    const previousKey = getPeriodKey(tf, getOffsetDate(tf, -1));
+    reflexionContent.innerHTML = `
+      <div class="card">
+        <div class="step-label">${reflLabel(tf)}reflexion</div>
+        <div class="question" style="font-size:18px;">Für welchen Zeitraum?</div>
+        <div class="reflex-grid" style="margin-top:14px;">
+          <button class="ghost" id="periodCurrentBtn" style="padding:16px;">Jetzigen<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, currentKey))}</span></button>
+          <button class="ghost" id="periodPreviousBtn" style="padding:16px;">Letzten<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, previousKey))}</span></button>
+        </div>
+        <div class="nav-row" style="justify-content:flex-start;">
+          <button class="ghost" id="periodCancelBtn">Abbrechen</button>
+        </div>
+      </div>`;
+    document.getElementById('periodCancelBtn').onclick = closeReflexionOverlay;
+    document.getElementById('periodCurrentBtn').onclick = ()=>{
+      reflectionState.periodOffset = 0;
+      reflectionState.step = 0;
+      renderReflectionStep();
+    };
+    document.getElementById('periodPreviousBtn').onclick = ()=>{
+      reflectionState.periodOffset = -1;
+      reflectionState.step = 0;
+      renderReflectionStep();
+    };
   }
 
   function renderReflectionStep(){
     const tf = reflectionState.timeframe;
     if(reflectionState.step === 0){
-      const periodKey = getPeriodKey(tf, new Date());
+      const periodKey = getPeriodKey(tf, getReflectionDate());
       reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey);
       reflectionReviewIndex = 0;
       reflectionReviewResults = [];
@@ -1081,11 +1125,12 @@
 
   function renderGoalReviewStep(){
     const tf = reflectionState.timeframe;
+    const periodText = periodLabel(tf, getPeriodKey(tf, getReflectionDate()));
 
     if(reflectionReviewGoals.length === 0){
       reflexionContent.innerHTML = `
         <div class="card">
-          <div class="step-label">Rückblick: ${reflLabel(tf)}ziele</div>
+          <div class="step-label">Rückblick: ${reflLabel(tf)}ziele · ${escapeHtml(periodText)}</div>
           <div class="empty">Keine ${reflLabel(tf)}ziele für diesen Zeitraum gesetzt.</div>
           <div class="nav-row" style="justify-content:flex-end;">
             <button class="ghost" id="reflexionCancelBtn">Abbrechen</button>
@@ -1107,7 +1152,7 @@
     const showReason = g.status === 'Teilweise' || g.status === 'Nicht erreicht';
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">Rückblick: ${reflLabel(tf)}ziele · ${reflectionReviewIndex+1} von ${reflectionReviewGoals.length}</div>
+        <div class="step-label">Rückblick ${reflectionReviewIndex+1} von ${reflectionReviewGoals.length} · ${escapeHtml(periodText)}</div>
         <div class="question" style="font-size:18px;">${escapeHtml(g.text)}</div>
         <div class="hint">${escapeHtml(g.kategorie)}</div>
         <select id="goalReviewStatusSel" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-top:10px;">
@@ -1161,7 +1206,7 @@
     }
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">${reflLabel(tf)}reflexion</div>
+        <div class="step-label">${reflLabel(tf)}reflexion · ${escapeHtml(periodLabel(tf, getPeriodKey(tf, getReflectionDate())))}</div>
         <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
       </div>
       <div class="nav-row" style="justify-content:flex-end;">
@@ -1176,12 +1221,12 @@
   const GOAL_CATEGORIES = ['Business/Karriere','Gesundheit/Fitness','Beziehungen/Soziales','Persönliche Entwicklung','Finanzen'];
 
   function renderGoalSetting(tf){
-    const now = new Date();
-    const nextPeriodKey = getPeriodKey(tf, addPeriod(tf, now));
+    const refDate = getReflectionDate();
+    const nextPeriodKey = getPeriodKey(tf, addPeriod(tf, refDate));
     const parentTf = PARENT_TIMEFRAME[tf];
     let parentGoalsAll = [];
     if(parentTf){
-      const parentKey = getPeriodKey(parentTf, now);
+      const parentKey = getPeriodKey(parentTf, refDate);
       parentGoalsAll = zieleCache.filter(z=>z.zeitrahmen===parentTf && z.periodKey===parentKey);
     }
 
@@ -1273,7 +1318,7 @@
   }
 
   async function gatherCoachingContext(tf){
-    const { start, end } = getPeriodRange(tf, new Date());
+    const { start, end } = getPeriodRange(tf, getReflectionDate());
     let journalEntries = [];
     let workEntries = [];
     try{
@@ -1359,7 +1404,7 @@
         await airtableCreate(TABLE_COACHING, {
           'Datum': new Date().toISOString(),
           'Zeitrahmen': tf,
-          'Zeitraum-Kennung': getPeriodKey(tf, new Date()),
+          'Zeitraum-Kennung': getPeriodKey(tf, getReflectionDate()),
           'Bericht': reportText
         }, COACHING_BASE_ID);
       }catch(e){
@@ -1968,7 +2013,7 @@
   async function loadPreviousWeekly(){
     try{
       const records = await airtableList(TABLE_WOCHENREFLEXION, WOCHENREFLEXION_BASE_ID);
-      const currentKey = getPeriodKey('Woche', new Date());
+      const currentKey = getPeriodKey('Woche', getReflectionDate());
       const past = records
         .map(r=>({ key: (r.fields||{})['Zeitraum-Kennung'] || '', fields: r.fields || {} }))
         .filter(r=> r.key && r.key < currentKey)
@@ -1988,12 +2033,13 @@
   function renderWeeklyStep(){
     const totalSteps = WEEKLY_TEXT_QUESTIONS.length + WEEKLY_SCALES.length;
     const idx = weeklyStepIndex + 1;
+    const periodText = periodLabel('Woche', getPeriodKey('Woche', getReflectionDate()));
 
     if(weeklyStepIndex < WEEKLY_TEXT_QUESTIONS.length){
       const q = WEEKLY_TEXT_QUESTIONS[weeklyStepIndex];
       reflexionContent.innerHTML = `
         <div class="card">
-          <div class="step-label">Wochenreflexion · Frage ${idx} von ${totalSteps}</div>
+          <div class="step-label">Wochenreflexion · Frage ${idx} von ${totalSteps} · ${escapeHtml(periodText)}</div>
           <div class="question">${escapeHtml(q.label)}</div>
           <textarea id="weeklyTextInput" placeholder="Deine Antwort ...">${escapeHtml(weeklyData[q.key])}</textarea>
           <div class="nav-row">
@@ -2014,7 +2060,7 @@
     const isLast = weeklyStepIndex === totalSteps - 1;
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">Wochenreflexion · Frage ${idx} von ${totalSteps}</div>
+        <div class="step-label">Wochenreflexion · Frage ${idx} von ${totalSteps} · ${escapeHtml(periodText)}</div>
         <div class="question">${escapeHtml(s.label)}</div>
         ${(prevVal !== null && prevVal !== undefined) ? `<div class="hint">Letzte Woche: ${prevVal}/10</div>` : '<div class="hint">Noch kein Vergleichswert aus der Vorwoche.</div>'}
         <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
@@ -2047,7 +2093,7 @@
   async function saveWeeklyReflectionAndContinue(){
     const statusEl = document.getElementById('weeklyStepStatus');
     statusEl.innerHTML = 'Speichere in Airtable ...';
-    const fields = { 'Datum': new Date().toISOString(), 'Zeitraum-Kennung': getPeriodKey('Woche', new Date()) };
+    const fields = { 'Datum': getReflectionDate().toISOString(), 'Zeitraum-Kennung': getPeriodKey('Woche', getReflectionDate()) };
     WEEKLY_TEXT_QUESTIONS.forEach(q=>{ fields[q.field] = weeklyData[q.key]; });
     WEEKLY_SCALES.forEach(s=>{
       const entry = weeklyData.scales[s.key];
@@ -2103,7 +2149,7 @@
 
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">Tagesreflexion · Frage ${idx} von ${total}</div>
+        <div class="step-label">Tagesreflexion · Frage ${idx} von ${total} · ${escapeHtml(periodLabel('Tag', getPeriodKey('Tag', getReflectionDate())))}</div>
         ${bodyHtml}
         <div class="nav-row">
           <button class="ghost" id="eveningBackBtn" ${eveningStepIndex===0?'disabled':''}>Zurück</button>
@@ -2156,7 +2202,7 @@
     const entry = Object.assign({}, eveningData, {
       erfolge: eveningData.erfolge.filter(x=>x.trim().length>0),
       dankbarkeit: eveningData.dankbarkeit.filter(x=>x.trim().length>0),
-      date: new Date().toISOString()
+      date: getReflectionDate().toISOString()
     });
     const fields = {
       'Datum': entry.date,
