@@ -879,10 +879,15 @@
     Object.keys(fields).forEach(k=>{
       if(fields[k] !== null && fields[k] !== undefined && fields[k] !== '') cleanFields[k] = fields[k];
     });
-    const data = await withRetry(()=>airtableFetch(tableId, {
+    // Kein automatischer Retry hier: POST ist nicht idempotent - ein Retry nach
+    // einem Netzwerkfehler könnte einen Datensatz doppelt anlegen, obwohl der
+    // erste Versuch beim Server bereits angekommen war. Fehler werden stattdessen
+    // an den Aufrufer weitergereicht, der dem Nutzer einen manuellen "erneut
+    // versuchen"-Button anbietet.
+    const data = await airtableFetch(tableId, {
       method: 'POST',
       body: JSON.stringify({ fields: cleanFields, typecast: true })
-    }, baseId));
+    }, baseId);
     return data.id;
   }
 
@@ -1303,14 +1308,22 @@
         .map(c => ({ kategorie: c, text: goalDrafts[c].trim() }));
       try{
         for(const g of goalsToSave){
-          await airtableCreate(TABLE_ZIELE, {
-            'Zieltext': g.text,
-            'Zeitrahmen': tf,
-            'Kategorie': g.kategorie,
-            'Status': 'Offen',
-            'Zeitraum-Kennung': nextPeriodKey,
-            'Erstellt am': new Date().toISOString()
-          }, ZIELE_BASE_ID);
+          const existing = zieleCache.find(z => z.zeitrahmen === tf && z.periodKey === nextPeriodKey && z.kategorie === g.kategorie);
+          if(existing){
+            await airtableFetch(TABLE_ZIELE + '/' + existing.id, {
+              method: 'PATCH',
+              body: JSON.stringify({ fields: { 'Zieltext': g.text } })
+            }, ZIELE_BASE_ID);
+          } else {
+            await airtableCreate(TABLE_ZIELE, {
+              'Zieltext': g.text,
+              'Zeitrahmen': tf,
+              'Kategorie': g.kategorie,
+              'Status': 'Offen',
+              'Zeitraum-Kennung': nextPeriodKey,
+              'Erstellt am': new Date().toISOString()
+            }, ZIELE_BASE_ID);
+          }
         }
         loadZiele();
         showCoachingScreen(tf, nextPeriodKey, goalsToSave);
