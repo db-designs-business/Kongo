@@ -1432,8 +1432,23 @@
       });
     }
     lines.push('');
-    lines.push('Gib eine ehrliche Einschätzung, benenne Muster, würdige Fortschritte, und stell am Ende 2-3 konkrete Impulsfragen für die kommende Zeit.');
+    lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Schließe deine Antwort exakt mit diesem Abschnitt ab, wortwörtlich mit dieser Überschrift und als nummerierte Liste mit genau 3 Punkten, und nichts danach:');
+    lines.push('## Impulsfragen');
+    lines.push('1. ...');
+    lines.push('2. ...');
+    lines.push('3. ...');
     return lines.join('\n');
+  }
+
+  function extractImpulseQuestions(text){
+    const lines = text.split('\n');
+    const re = /^\s*\d+\.\s+(.+)$/;
+    const matches = [];
+    lines.forEach(line=>{
+      const m = line.match(re);
+      if(m) matches.push(m[1].trim());
+    });
+    return matches.slice(-3);
   }
 
   async function showCoachingScreen(tf, nextPeriodKey, newGoalsDraft){
@@ -1446,10 +1461,12 @@
       const context = await gatherCoachingContext(tf);
       const prompt = buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context);
       const reportText = await callClaudeCoach(prompt);
+      const questions = extractImpulseQuestions(reportText);
 
       let saveNote = '';
+      let coachingRecordId = null;
       try{
-        await airtableCreate(TABLE_COACHING, {
+        coachingRecordId = await airtableCreate(TABLE_COACHING, {
           'Datum': new Date().toISOString(),
           'Zeitrahmen': tf,
           'Zeitraum-Kennung': getPeriodKey(tf, getReflectionDate()),
@@ -1459,16 +1476,50 @@
         saveNote = '<div class="hint" style="color:var(--danger);margin-top:10px;">Konnte nicht gespeichert werden – lies ihn am besten jetzt fertig, bevor du schließt.</div>';
       }
 
+      const answersHtml = questions.length === 3 ? `
+        <div class="card">
+          <div class="step-label">Deine Antworten auf die Impulsfragen</div>
+          ${questions.map((q,i)=>`
+            <div class="turn-title" style="margin-top:${i===0?'0':'16px'};">${escapeHtml(q)}</div>
+            <textarea id="coachAnswer${i}" placeholder="Deine Antwort ..."></textarea>`).join('')}
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="primary" id="saveCoachAnswersBtn">Antworten speichern</button>
+          </div>
+          <div id="coachAnswersStatus" class="save-status"></div>
+        </div>` : '';
+
       reflexionContent.innerHTML = `
         <div class="card">
           <div class="step-label">Dein Coaching-Bericht</div>
           <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(reportText)}</div>
           ${saveNote}
-          <div class="nav-row" style="justify-content:flex-end;">
-            <button class="primary" id="coachingDoneBtn">Fertig</button>
-          </div>
+        </div>
+        ${answersHtml}
+        <div class="nav-row" style="justify-content:flex-end;">
+          <button class="primary" id="coachingDoneBtn">Fertig</button>
         </div>`;
       document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
+
+      if(questions.length === 3 && coachingRecordId){
+        document.getElementById('saveCoachAnswersBtn').onclick = async ()=>{
+          const btn = document.getElementById('saveCoachAnswersBtn');
+          if(btn.disabled) return;
+          btn.disabled = true;
+          const statusEl = document.getElementById('coachAnswersStatus');
+          statusEl.textContent = 'Speichere ...';
+          const combined = questions.map((q,i)=> q + '\n' + (document.getElementById('coachAnswer'+i).value.trim())).join('\n\n');
+          try{
+            await airtableFetch(TABLE_COACHING + '/' + coachingRecordId, {
+              method: 'PATCH',
+              body: JSON.stringify({ fields: { 'Antworten': combined } })
+            }, COACHING_BASE_ID);
+            statusEl.textContent = 'Gespeichert.';
+          }catch(e){
+            statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+            btn.disabled = false;
+          }
+        };
+      }
     }catch(e){
       reflexionContent.innerHTML = `
         <div class="card">
@@ -1513,7 +1564,7 @@
       }
       const entries = records.map(r=>{
         const f = r.fields || {};
-        return { key: r.id, date: f['Datum'] || new Date().toISOString(), zeitrahmen: f['Zeitrahmen'] || '', bericht: f['Bericht'] || '' };
+        return { key: r.id, date: f['Datum'] || new Date().toISOString(), zeitrahmen: f['Zeitrahmen'] || '', bericht: f['Bericht'] || '', antworten: f['Antworten'] || '' };
       });
       entries.sort((a,b)=> new Date(b.date) - new Date(a.date));
       coachingJournalEl.innerHTML = entries.map(e=>{
@@ -1528,6 +1579,7 @@
           </div>
           <div class="entry-body" id="cbody-${cssSafe(e.key)}">
             <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(e.bericht)}</div>
+            ${e.antworten ? `<div class="summary-q">Deine Antworten</div><div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(e.antworten)}</div>` : ''}
             <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
           </div>
         </div>`;
@@ -3019,14 +3071,20 @@
       <div id="zielEditStatus-${z.id}" class="save-status"></div>`;
   }
 
+  let showAllZiele = false;
+
   function renderZieleListen(){
     const container = document.getElementById('zieleListen');
     if(zieleCache.length === 0){
       container.innerHTML = '<div class="card"><div class="empty">Noch keine Ziele angelegt.</div></div>';
       return;
     }
-    container.innerHTML = TIMEFRAMES.map(tf=>{
-      const items = zieleCache.filter(z=>z.zeitrahmen === tf)
+    const now = new Date();
+    const toggleHtml = `<button type="button" class="lib-link" id="toggleAllZieleBtn" style="margin-bottom:12px;">${showAllZiele ? 'Nur aktuelle Ziele anzeigen' : 'Alle Ziele anzeigen (inkl. vergangene)'}</button>`;
+
+    const cardsHtml = TIMEFRAMES.map(tf=>{
+      const currentPeriodKey = getPeriodKey(tf, now);
+      const items = zieleCache.filter(z=> z.zeitrahmen === tf && (showAllZiele || z.periodKey === currentPeriodKey))
         .sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
       if(items.length === 0) return '';
       return `<div class="card">
@@ -3034,6 +3092,10 @@
         ${items.map(z=>`<div class="entry" id="ziel-entry-${z.id}">${zielDisplayHtml(z)}</div>`).join('')}
       </div>`;
     }).join('');
+
+    container.innerHTML = toggleHtml + (cardsHtml || '<div class="card"><div class="empty">Keine aktuellen Ziele. Leg welche an oder schau dir alle Ziele an.</div></div>');
+
+    document.getElementById('toggleAllZieleBtn').onclick = ()=>{ showAllZiele = !showAllZiele; renderZieleListen(); };
 
     wireZieleListenEvents();
   }
