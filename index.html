@@ -969,6 +969,7 @@
       'Schwierig: ' + entry.schwierig,
       'Dankbarkeit: ' + (entry.dankbarkeit || []).join('; '),
       'Morgen besser machen: ' + entry.morgenBesser,
+      'Schachzüge für morgen: ' + entry.schachzuege,
       'Körperlich & mental: ' + entry.koerperlichMental,
       'Was hilft, mich besser zu fühlen: ' + entry.tunBesser,
       'Freitext: ' + entry.freitext
@@ -1230,7 +1231,7 @@
   function renderReflectionContentStep(tf){
     if(tf === 'Tag'){
       eveningStepIndex = 0;
-      eveningData = { erfolge:["","",""], schwierig:"", dankbarkeit:["","",""], morgenBesser:"", koerperlichMental:"", tunBesser:"", freitext:"" };
+      eveningData = { erfolge:["","",""], schwierig:"", dankbarkeit:["","",""], morgenBesser:"", schachzuege:"", koerperlichMental:"", tunBesser:"", freitext:"" };
       renderEveningStep();
       return;
     }
@@ -1406,7 +1407,7 @@
       lines.push('');
       lines.push('## Abend-Journal-Einträge in diesem Zeitraum');
       context.journalEntries.forEach(e=>{
-        lines.push(`- Erfolge: ${e.erfolge.join('; ')} | Schwierig: ${e.schwierig} | Dankbarkeit: ${e.dankbarkeit.join('; ')} | Morgen besser: ${e.morgenBesser} | Körperlich/mental: ${e.koerperlichMental}`);
+        lines.push(`- Erfolge: ${e.erfolge.join('; ')} | Schwierig: ${e.schwierig} | Dankbarkeit: ${e.dankbarkeit.join('; ')} | Morgen besser: ${e.morgenBesser} | Schachzüge für morgen: ${e.schachzuege} | Körperlich/mental: ${e.koerperlichMental}`);
       });
     }
     if(context.workEntries.length > 0){
@@ -2178,11 +2179,12 @@
     schwierig: "",
     dankbarkeit: ["", "", ""],
     morgenBesser: "",
+    schachzuege: "",
     koerperlichMental: "",
     tunBesser: "",
     freitext: ""
   };
-  const EVENING_STEPS = ['erfolge','schwierig','dankbarkeit','morgen','koerperlich','freitext'];
+  const EVENING_STEPS = ['erfolge','schwierig','dankbarkeit','morgen','schachzuege','koerperlich','freitext'];
   let eveningStepIndex = 0;
 
   function renderEveningStep(){
@@ -2199,6 +2201,8 @@
       bodyHtml = `<div class="question">Wofür bin ich dankbar?</div><div class="hint">Mindestens 3.</div><div id="dankbarkeitList"></div>`;
     } else if(key === 'morgen'){
       bodyHtml = `<div class="question">Was kann ich morgen besser machen?</div><textarea id="morgenInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.morgenBesser)}</textarea>`;
+    } else if(key === 'schachzuege'){
+      bodyHtml = `<div class="question">Was sind die besten Schachzüge, die ich morgen in aktuell relevanten Bereichen meines Lebens tun kann?</div><textarea id="schachzuegeInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.schachzuege)}</textarea>`;
     } else if(key === 'koerperlich'){
       bodyHtml = `<div class="question">Wie fühle ich mich gerade körperlich und mental?</div><textarea id="koerperlichInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.koerperlichMental)}</textarea>
         <div class="turn-title" style="margin-top:14px;">Was kann ich tun, um mich besser zu fühlen?</div>
@@ -2222,6 +2226,7 @@
     if(key === 'dankbarkeit') setupList('dankbarkeitList', eveningData.dankbarkeit, 'Punkt');
     if(key === 'schwierig') document.getElementById('schwierigInput').addEventListener('input', e=>{ eveningData.schwierig = e.target.value; });
     if(key === 'morgen') document.getElementById('morgenInput').addEventListener('input', e=>{ eveningData.morgenBesser = e.target.value; });
+    if(key === 'schachzuege') document.getElementById('schachzuegeInput').addEventListener('input', e=>{ eveningData.schachzuege = e.target.value; });
     if(key === 'koerperlich'){
       document.getElementById('koerperlichInput').addEventListener('input', e=>{ eveningData.koerperlichMental = e.target.value; });
       document.getElementById('tunBesserInput').addEventListener('input', e=>{ eveningData.tunBesser = e.target.value; });
@@ -2273,6 +2278,7 @@
       'Schwierig': entry.schwierig,
       'Dankbarkeit': entry.dankbarkeit.join('\n'),
       'Morgen besser machen': entry.morgenBesser,
+      'Schachzüge': entry.schachzuege,
       'Körperlich und mental': entry.koerperlichMental,
       'Was hilft': entry.tunBesser,
       'Freitext': entry.freitext
@@ -2297,6 +2303,7 @@
       schwierig: f['Schwierig'] || '',
       dankbarkeit: (f['Dankbarkeit'] || '').split('\n').filter(x=>x.trim().length>0),
       morgenBesser: f['Morgen besser machen'] || '',
+      schachzuege: f['Schachzüge'] || '',
       koerperlichMental: f['Körperlich und mental'] || '',
       tunBesser: f['Was hilft'] || '',
       freitext: f['Freitext'] || ''
@@ -2355,6 +2362,8 @@
           <div class="summary-a">${(e.data.dankbarkeit||[]).map(escapeHtml).join(' · ') || '–'}</div>
           <div class="summary-q">Morgen besser machen</div>
           <div class="summary-a">${escapeHtml(e.data.morgenBesser) || '–'}</div>
+          <div class="summary-q">Schachzüge für morgen</div>
+          <div class="summary-a">${escapeHtml(e.data.schachzuege) || '–'}</div>
           <div class="summary-q">Körperlich &amp; mental</div>
           <div class="summary-a">${escapeHtml(e.data.koerperlichMental) || '–'}</div>
           <div class="summary-q">Was hilft, mich besser zu fühlen</div>
