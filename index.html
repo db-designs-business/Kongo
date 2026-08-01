@@ -1296,6 +1296,9 @@
       document.getElementById('goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
       document.getElementById('goalCatNextBtn').onclick = ()=>{
         if(!isLast){ catIndex++; renderCategoryStep(); return; }
+        const btn = document.getElementById('goalCatNextBtn');
+        if(btn.disabled) return;
+        btn.disabled = true;
         finishGoalSetting();
       };
     }
@@ -1329,6 +1332,8 @@
         showCoachingScreen(tf, nextPeriodKey, goalsToSave);
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+        const btn = document.getElementById('goalCatNextBtn');
+        if(btn) btn.disabled = false;
       }
     }
 
@@ -1815,6 +1820,9 @@
   }
 
   async function saveWorkEntry(){
+    const btn = document.getElementById('saveWorkBtn');
+    if(btn && btn.disabled) return;
+    if(btn) btn.disabled = true;
     const statusEl = document.getElementById('saveWorkStatus');
     statusEl.innerHTML = 'Speichere in Airtable ...';
     const entry = Object.assign({}, data, { date: new Date().toISOString() });
@@ -1839,6 +1847,7 @@
       loadWorkJournal();
     }catch(e){
       showSaveFailure(statusEl, saveWorkEntry, formatWorkEntryText(entry));
+      if(btn) btn.disabled = false;
     }
   }
 
@@ -2006,9 +2015,12 @@
     });
   }
 
+  let libAddInFlight = false;
   async function addLibraryEntry(){
+    if(libAddInFlight) return;
     const text = libNewInput.value.trim();
     if(!text) return;
+    libAddInFlight = true;
     libList.innerHTML = '<div class="loading">Speichere ...</div>' + libList.innerHTML;
     try{
       await airtableCreate(TABLE_LIBRARY, { 'Glaubenssatz': text, 'Hinzugefügt am': new Date().toISOString() });
@@ -2017,6 +2029,7 @@
     }catch(e){
       libList.innerHTML = '<div class="empty">Speichern fehlgeschlagen, bitte erneut versuchen.</div>' + libList.innerHTML;
     }
+    libAddInFlight = false;
   }
 
   /* =========================================================
@@ -2128,6 +2141,9 @@
     document.getElementById('weeklyBackBtn').onclick = ()=>{ weeklyStepIndex--; renderWeeklyStep(); };
     document.getElementById('weeklyNextBtn').onclick = ()=>{
       if(!isLast){ weeklyStepIndex++; renderWeeklyStep(); return; }
+      const btn = document.getElementById('weeklyNextBtn');
+      if(btn.disabled) return;
+      btn.disabled = true;
       saveWeeklyReflectionAndContinue();
     };
   }
@@ -2149,6 +2165,8 @@
       renderReflectionStep();
     }catch(e){
       showSaveFailure(statusEl, saveWeeklyReflectionAndContinue, 'Wochenreflexion vom ' + new Date().toLocaleDateString('de-DE'));
+      const btn = document.getElementById('weeklyNextBtn');
+      if(btn) btn.disabled = false;
     }
   }
 
@@ -2213,6 +2231,9 @@
     document.getElementById('eveningBackBtn').onclick = ()=>{ eveningStepIndex--; renderEveningStep(); };
     document.getElementById('eveningNextBtn').onclick = ()=>{
       if(eveningStepIndex < total-1){ eveningStepIndex++; renderEveningStep(); return; }
+      const btn = document.getElementById('eveningNextBtn');
+      if(btn.disabled) return;
+      btn.disabled = true;
       saveEveningEntryAndContinue();
     };
   }
@@ -2263,6 +2284,8 @@
       renderReflectionStep();
     }catch(e){
       showSaveFailure(statusEl, saveEveningEntryAndContinue, formatEveningEntryText(entry));
+      const btn = document.getElementById('eveningNextBtn');
+      if(btn) btn.disabled = false;
     }
   }
 
@@ -2499,11 +2522,14 @@
   }
 
   document.getElementById('addHabitBtn').onclick = async ()=>{
+    const btn = document.getElementById('addHabitBtn');
+    if(btn.disabled) return;
     const input = document.getElementById('newHabitInput');
     const descInput = document.getElementById('newHabitDescInput');
     const durationInput = document.getElementById('newHabitDurationInput');
     const name = input.value.trim();
     if(!name) return;
+    btn.disabled = true;
     try{
       await airtableCreate(TABLE_HABITS, {
         'Name': name,
@@ -2516,6 +2542,7 @@
       durationInput.value = '';
       loadHabits();
     }catch(e){ /* silent, list refresh will show current state */ }
+    btn.disabled = false;
   };
 
   async function loadRoutines(){
@@ -2610,10 +2637,13 @@
     };
     document.getElementById('cancelRoutineBtn').onclick = ()=>{ routineBuilderEl.innerHTML = ''; };
     document.getElementById('saveRoutineBtn').onclick = async ()=>{
+      const btn = document.getElementById('saveRoutineBtn');
+      if(btn.disabled) return;
       const name = document.getElementById('routineNameInput').value.trim();
       const statusEl = document.getElementById('routineBuilderStatus');
       if(!name){ statusEl.textContent = 'Bitte einen Namen eingeben.'; return; }
       if(builderSelection.length === 0){ statusEl.textContent = 'Bitte mindestens eine Gewohnheit auswählen.'; return; }
+      btn.disabled = true;
       statusEl.textContent = 'Speichere ...';
       try{
         if(isEdit){
@@ -2632,6 +2662,7 @@
         loadRoutines();
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+        btn.disabled = false;
       }
     };
   };
@@ -3055,11 +3086,14 @@
   }
 
   document.getElementById('saveZielBtn').onclick = async ()=>{
+    const btn = document.getElementById('saveZielBtn');
+    if(btn.disabled) return;
     const statusEl = document.getElementById('zielSaveStatus');
     const zeitrahmen = zielZeitrahmenSelect.value;
     const kategorie = document.getElementById('zielKategorie').value;
     const text = document.getElementById('zielTextInput').value.trim();
     if(!text){ statusEl.textContent = 'Bitte einen Zieltext eingeben.'; return; }
+    btn.disabled = true;
     statusEl.textContent = 'Speichere ...';
     try{
       await airtableCreate(TABLE_ZIELE, {
@@ -3076,6 +3110,7 @@
     }catch(e){
       statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
     }
+    btn.disabled = false;
   };
 
   loadZiele();
@@ -3131,14 +3166,18 @@
   }
 
   document.getElementById('addAffirmationBtn').onclick = async ()=>{
+    const btn = document.getElementById('addAffirmationBtn');
+    if(btn.disabled) return;
     const input = document.getElementById('newAffirmationInput');
     const text = input.value.trim();
     if(!text) return;
+    btn.disabled = true;
     try{
       await airtableCreate(TABLE_AFFIRMATIONEN, { 'Text': text, 'Erstellt am': new Date().toISOString() }, AFFIRMATIONEN_BASE_ID);
       input.value = '';
       loadAffirmationen();
     }catch(e){ /* silent */ }
+    btn.disabled = false;
   };
 
   document.getElementById('startAffirmationenBtn').onclick = async ()=>{
@@ -3221,6 +3260,9 @@
     document.getElementById('wutBackBtn').onclick = ()=>{ wutStepIndex--; renderWutStep(); };
     document.getElementById('wutNextBtn').onclick = ()=>{
       if(!isLast){ wutStepIndex++; renderWutStep(); return; }
+      const btn = document.getElementById('wutNextBtn');
+      if(btn.disabled) return;
+      btn.disabled = true;
       saveWutjournalEntry();
     };
   }
@@ -3237,6 +3279,8 @@
       if(document.getElementById('wutjournalList').style.display !== 'none') loadWutjournal();
     }catch(e){
       showSaveFailure(statusEl, saveWutjournalEntry, 'Wut-Journal vom ' + new Date().toLocaleDateString('de-DE'));
+      const btn = document.getElementById('wutNextBtn');
+      if(btn) btn.disabled = false;
     }
   }
 
