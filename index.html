@@ -1435,12 +1435,27 @@
       });
     }
     lines.push('');
-    lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Schließe deine Antwort exakt mit diesem Abschnitt ab, wortwörtlich mit dieser Überschrift und als nummerierte Liste mit genau 3 Punkten, und nichts danach:');
+    lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Schließe deine Antwort danach mit genau diesen zwei Abschnitten ab, in dieser Reihenfolge, wortwörtlich mit diesen Überschriften, und nichts danach:');
+    lines.push('');
+    lines.push('## Mögliche Glaubenssätze für The Work');
+    lines.push('(2-4 Bullet-Punkte mit "-", als kurze Ich-Aussagen formuliert, die als limitierende Glaubenssätze aus dem oben Geschriebenen erkennbar sind und sich direkt mit The Work bearbeiten lassen, z.B. "- Ich bin nicht gut genug.")');
+    lines.push('');
     lines.push('## Impulsfragen');
     lines.push('1. ...');
     lines.push('2. ...');
     lines.push('3. ...');
     return lines.join('\n');
+  }
+
+  function extractCandidateBeliefs(text){
+    const match = text.match(/## Mögliche Glaubenssätze[^\n]*\n([\s\S]*?)(?=\n##|$)/);
+    if(!match) return [];
+    const beliefs = [];
+    match[1].split('\n').forEach(line=>{
+      const m = line.match(/^\s*[-•]\s+(.+)$/);
+      if(m) beliefs.push(m[1].trim());
+    });
+    return beliefs.slice(0, 4);
   }
 
   function extractImpulseQuestions(text){
@@ -1465,6 +1480,7 @@
       const prompt = buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context);
       const reportText = await callClaudeCoach(prompt);
       const questions = extractImpulseQuestions(reportText);
+      const candidateBeliefs = extractCandidateBeliefs(reportText);
 
       let saveNote = '';
       let coachingRecordId = null;
@@ -1478,6 +1494,20 @@
       }catch(e){
         saveNote = '<div class="hint" style="color:var(--danger);margin-top:10px;">Konnte nicht gespeichert werden – lies ihn am besten jetzt fertig, bevor du schließt.</div>';
       }
+
+      const beliefsHtml = candidateBeliefs.length > 0 ? `
+        <div class="card">
+          <div class="step-label">Mögliche Glaubenssätze für The Work</div>
+          <div id="candidateBeliefsList">
+            ${candidateBeliefs.map((b,i)=>`
+              <div class="lib-item">
+                <div class="lib-item-text">${escapeHtml(b)}</div>
+                <div class="lib-item-actions">
+                  <button class="use" data-belief="${escapeHtml(b)}" id="addBeliefBtn${i}">+ Zur Bibliothek</button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : '';
 
       const answersHtml = questions.length === 3 ? `
         <div class="card">
@@ -1497,11 +1527,29 @@
           <div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(reportText)}</div>
           ${saveNote}
         </div>
+        ${beliefsHtml}
         ${answersHtml}
         <div class="nav-row" style="justify-content:flex-end;">
           <button class="primary" id="coachingDoneBtn">Fertig</button>
         </div>`;
       document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
+
+      candidateBeliefs.forEach((b,i)=>{
+        const btn = document.getElementById('addBeliefBtn'+i);
+        if(!btn) return;
+        btn.onclick = async ()=>{
+          if(btn.disabled) return;
+          btn.disabled = true;
+          btn.textContent = '...';
+          try{
+            await airtableCreate(TABLE_LIBRARY, { 'Glaubenssatz': b, 'Hinzugefügt am': new Date().toISOString() });
+            btn.textContent = 'Hinzugefügt ✓';
+          }catch(e){
+            btn.textContent = 'Fehler – erneut versuchen';
+            btn.disabled = false;
+          }
+        };
+      });
 
       if(questions.length === 3 && coachingRecordId){
         document.getElementById('saveCoachAnswersBtn').onclick = async ()=>{
