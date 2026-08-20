@@ -1297,7 +1297,15 @@
 
     let catIndex = 0;
     const goalDrafts = {};
-    GOAL_CATEGORIES.forEach(c=>{ goalDrafts[c] = { main: ['','',''], side: ['','',''] }; });
+    GOAL_CATEGORIES.forEach(c=>{
+      const existing = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey && z.kategorie===c);
+      const existingMain = existing.filter(z=>z.prioritaet==='Hauptziel').sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
+      const existingSide = existing.filter(z=>z.prioritaet==='Nebenziel').sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
+      goalDrafts[c] = {
+        main: [0,1,2].map(i=> ({ id: existingMain[i] ? existingMain[i].id : null, text: existingMain[i] ? existingMain[i].text : '' })),
+        side: [0,1,2].map(i=> ({ id: existingSide[i] ? existingSide[i].id : null, text: existingSide[i] ? existingSide[i].text : '' }))
+      };
+    });
 
     function renderCategoryStep(){
       const cat = GOAL_CATEGORIES[catIndex];
@@ -1315,15 +1323,15 @@
           <div class="question" style="font-size:19px;">${escapeHtml(cat)}</div>
           ${parentHtml}
           <div class="turn-title" style="margin-top:14px;">Hauptziele (Main Quests)</div>
-          <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional.</div>
-          <input type="text" id="mainQuest0" class="main-quest-input" placeholder="Hauptziel 1" value="${escapeHtml(goalDrafts[cat].main[0])}" style="margin-bottom:8px;">
-          <input type="text" id="mainQuest1" class="main-quest-input" placeholder="Hauptziel 2" value="${escapeHtml(goalDrafts[cat].main[1])}" style="margin-bottom:8px;">
-          <input type="text" id="mainQuest2" class="main-quest-input" placeholder="Hauptziel 3" value="${escapeHtml(goalDrafts[cat].main[2])}">
+          <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional. Bereits gesetzte Ziele werden hier angezeigt und beim Speichern aktualisiert statt dupliziert.</div>
+          <input type="text" id="mainQuest0" class="main-quest-input" placeholder="Hauptziel 1" value="${escapeHtml(goalDrafts[cat].main[0].text)}" style="margin-bottom:8px;">
+          <input type="text" id="mainQuest1" class="main-quest-input" placeholder="Hauptziel 2" value="${escapeHtml(goalDrafts[cat].main[1].text)}" style="margin-bottom:8px;">
+          <input type="text" id="mainQuest2" class="main-quest-input" placeholder="Hauptziel 3" value="${escapeHtml(goalDrafts[cat].main[2].text)}">
           <div class="turn-title" style="margin-top:16px;">Nebenziele (Sidequests)</div>
           <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional.</div>
-          <input type="text" id="sideQuest0" class="side-quest-input" placeholder="Nebenziel 1" value="${escapeHtml(goalDrafts[cat].side[0])}" style="margin-bottom:8px;">
-          <input type="text" id="sideQuest1" class="side-quest-input" placeholder="Nebenziel 2" value="${escapeHtml(goalDrafts[cat].side[1])}" style="margin-bottom:8px;">
-          <input type="text" id="sideQuest2" class="side-quest-input" placeholder="Nebenziel 3" value="${escapeHtml(goalDrafts[cat].side[2])}">
+          <input type="text" id="sideQuest0" class="side-quest-input" placeholder="Nebenziel 1" value="${escapeHtml(goalDrafts[cat].side[0].text)}" style="margin-bottom:8px;">
+          <input type="text" id="sideQuest1" class="side-quest-input" placeholder="Nebenziel 2" value="${escapeHtml(goalDrafts[cat].side[1].text)}" style="margin-bottom:8px;">
+          <input type="text" id="sideQuest2" class="side-quest-input" placeholder="Nebenziel 3" value="${escapeHtml(goalDrafts[cat].side[2].text)}">
           <div class="nav-row">
             <button class="ghost" id="goalCatBackBtn" ${catIndex===0?'disabled':''}>Zurück</button>
             <button class="primary" id="goalCatNextBtn">${isLast ? 'Abschließen' : 'Weiter'}</button>
@@ -1332,8 +1340,8 @@
         </div>`;
 
       [0,1,2].forEach(i=>{
-        container.querySelector('#mainQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].main[i] = e.target.value; });
-        container.querySelector('#sideQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].side[i] = e.target.value; });
+        container.querySelector('#mainQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].main[i].text = e.target.value; });
+        container.querySelector('#sideQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].side[i].text = e.target.value; });
       });
       container.querySelector('#goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
       container.querySelector('#goalCatNextBtn').onclick = ()=>{
@@ -1349,12 +1357,28 @@
       const statusEl = container.querySelector('#goalCatStatus');
       statusEl.textContent = 'Speichere ...';
       const goalsToSave = [];
+      const updates = [];
+      const creates = [];
       GOAL_CATEGORIES.forEach(cat=>{
-        goalDrafts[cat].main.forEach(t=>{ if(t.trim()) goalsToSave.push({ kategorie: cat, text: t.trim(), prioritaet: 'Hauptziel' }); });
-        goalDrafts[cat].side.forEach(t=>{ if(t.trim()) goalsToSave.push({ kategorie: cat, text: t.trim(), prioritaet: 'Nebenziel' }); });
+        ['main','side'].forEach(kind=>{
+          const prioritaet = kind === 'main' ? 'Hauptziel' : 'Nebenziel';
+          goalDrafts[cat][kind].forEach(slot=>{
+            const text = slot.text.trim();
+            if(!text) return;
+            goalsToSave.push({ kategorie: cat, text, prioritaet });
+            if(slot.id){ updates.push({ id: slot.id, text }); }
+            else { creates.push({ kategorie: cat, text, prioritaet }); }
+          });
+        });
       });
       try{
-        for(const g of goalsToSave){
+        for(const u of updates){
+          await airtableFetch(TABLE_ZIELE + '/' + u.id, {
+            method: 'PATCH',
+            body: JSON.stringify({ fields: { 'Zieltext': u.text } })
+          }, ZIELE_BASE_ID);
+        }
+        for(const g of creates){
           await airtableCreate(TABLE_ZIELE, {
             'Zieltext': g.text,
             'Zeitrahmen': tf,
