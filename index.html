@@ -1170,7 +1170,8 @@
     const tf = reflectionState.timeframe;
     if(reflectionState.step === 0){
       const periodKey = getPeriodKey(tf, getReflectionDate());
-      reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey);
+      reflectionReviewGoals = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey)
+        .sort((a,b)=> (a.prioritaet==='Hauptziel'?0:1) - (b.prioritaet==='Hauptziel'?0:1));
       reflectionReviewIndex = 0;
       reflectionReviewResults = [];
       renderGoalReviewStep();
@@ -1212,7 +1213,7 @@
       <div class="card">
         <div class="step-label">Rückblick ${reflectionReviewIndex+1} von ${reflectionReviewGoals.length} · ${escapeHtml(periodText)}</div>
         <div class="question" style="font-size:18px;">${escapeHtml(g.text)}</div>
-        <div class="hint">${escapeHtml(g.kategorie)}</div>
+        <div class="hint">${escapeHtml(g.kategorie)}${g.prioritaet ? ' · '+escapeHtml(g.prioritaet) : ''}</div>
         <select id="goalReviewStatusSel" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-top:10px;">
           ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===g.status?'selected':''}>${s}</option>`).join('')}
         </select>
@@ -1245,7 +1246,7 @@
           body: JSON.stringify({ fields: { 'Status': finalStatus, 'Begründung': finalReason } })
         }, ZIELE_BASE_ID);
       }catch(e){ /* nicht blockierend */ }
-      reflectionReviewResults.push({ text: g.text, kategorie: g.kategorie, status: finalStatus, begruendung: finalReason });
+      reflectionReviewResults.push({ text: g.text, kategorie: g.kategorie, prioritaet: g.prioritaet, status: finalStatus, begruendung: finalReason });
       reflectionReviewIndex++;
       renderGoalReviewStep();
     };
@@ -1296,7 +1297,7 @@
 
     let catIndex = 0;
     const goalDrafts = {};
-    GOAL_CATEGORIES.forEach(c=>{ goalDrafts[c] = ''; });
+    GOAL_CATEGORIES.forEach(c=>{ goalDrafts[c] = { main: ['','',''], side: ['','',''] }; });
 
     function renderCategoryStep(){
       const cat = GOAL_CATEGORIES[catIndex];
@@ -1304,7 +1305,7 @@
       const parentHtml = parentTf ? `
         <div class="example-box">
           <div class="example-title">Zur Orientierung: aktuelle ${reflLabel(parentTf)}ziele in ${escapeHtml(cat)}</div>
-          ${parentForCat.length===0 ? '<div class="example-text">Keine gesetzt.</div>' : parentForCat.map(g=>`<div class="example-text">• ${escapeHtml(g.text)}</div>`).join('')}
+          ${parentForCat.length===0 ? '<div class="example-text">Keine gesetzt.</div>' : parentForCat.map(g=>`<div class="example-text">• ${escapeHtml(g.text)}${g.prioritaet?' ('+g.prioritaet+')':''}</div>`).join('')}
         </div>` : '';
       const isLast = catIndex === GOAL_CATEGORIES.length - 1;
 
@@ -1313,8 +1314,16 @@
           <div class="step-label">${reflLabel(tf)}ziele · ${catIndex+1} von ${GOAL_CATEGORIES.length} · ${escapeHtml(periodLabel(tf, periodKey))}</div>
           <div class="question" style="font-size:19px;">${escapeHtml(cat)}</div>
           ${parentHtml}
-          <div class="turn-title" style="margin-top:14px;">Dein Ziel für diesen Bereich (optional)</div>
-          <textarea id="goalCategoryText" placeholder="Zieltext ...">${escapeHtml(goalDrafts[cat])}</textarea>
+          <div class="turn-title" style="margin-top:14px;">Hauptziele (Main Quests)</div>
+          <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional.</div>
+          <input type="text" id="mainQuest0" class="main-quest-input" placeholder="Hauptziel 1" value="${escapeHtml(goalDrafts[cat].main[0])}" style="margin-bottom:8px;">
+          <input type="text" id="mainQuest1" class="main-quest-input" placeholder="Hauptziel 2" value="${escapeHtml(goalDrafts[cat].main[1])}" style="margin-bottom:8px;">
+          <input type="text" id="mainQuest2" class="main-quest-input" placeholder="Hauptziel 3" value="${escapeHtml(goalDrafts[cat].main[2])}">
+          <div class="turn-title" style="margin-top:16px;">Nebenziele (Sidequests)</div>
+          <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional.</div>
+          <input type="text" id="sideQuest0" class="side-quest-input" placeholder="Nebenziel 1" value="${escapeHtml(goalDrafts[cat].side[0])}" style="margin-bottom:8px;">
+          <input type="text" id="sideQuest1" class="side-quest-input" placeholder="Nebenziel 2" value="${escapeHtml(goalDrafts[cat].side[1])}" style="margin-bottom:8px;">
+          <input type="text" id="sideQuest2" class="side-quest-input" placeholder="Nebenziel 3" value="${escapeHtml(goalDrafts[cat].side[2])}">
           <div class="nav-row">
             <button class="ghost" id="goalCatBackBtn" ${catIndex===0?'disabled':''}>Zurück</button>
             <button class="primary" id="goalCatNextBtn">${isLast ? 'Abschließen' : 'Weiter'}</button>
@@ -1322,7 +1331,10 @@
           <div id="goalCatStatus" class="save-status"></div>
         </div>`;
 
-      document.getElementById('goalCategoryText').addEventListener('input', e=>{ goalDrafts[cat] = e.target.value; });
+      [0,1,2].forEach(i=>{
+        document.getElementById('mainQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].main[i] = e.target.value; });
+        document.getElementById('sideQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].side[i] = e.target.value; });
+      });
       document.getElementById('goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
       document.getElementById('goalCatNextBtn').onclick = ()=>{
         if(!isLast){ catIndex++; renderCategoryStep(); return; }
@@ -1336,27 +1348,22 @@
     async function finishGoalSetting(){
       const statusEl = document.getElementById('goalCatStatus');
       statusEl.textContent = 'Speichere ...';
-      const goalsToSave = GOAL_CATEGORIES
-        .filter(c => goalDrafts[c].trim().length > 0)
-        .map(c => ({ kategorie: c, text: goalDrafts[c].trim() }));
+      const goalsToSave = [];
+      GOAL_CATEGORIES.forEach(cat=>{
+        goalDrafts[cat].main.forEach(t=>{ if(t.trim()) goalsToSave.push({ kategorie: cat, text: t.trim(), prioritaet: 'Hauptziel' }); });
+        goalDrafts[cat].side.forEach(t=>{ if(t.trim()) goalsToSave.push({ kategorie: cat, text: t.trim(), prioritaet: 'Nebenziel' }); });
+      });
       try{
         for(const g of goalsToSave){
-          const existing = zieleCache.find(z => z.zeitrahmen === tf && z.periodKey === periodKey && z.kategorie === g.kategorie);
-          if(existing){
-            await airtableFetch(TABLE_ZIELE + '/' + existing.id, {
-              method: 'PATCH',
-              body: JSON.stringify({ fields: { 'Zieltext': g.text } })
-            }, ZIELE_BASE_ID);
-          } else {
-            await airtableCreate(TABLE_ZIELE, {
-              'Zieltext': g.text,
-              'Zeitrahmen': tf,
-              'Kategorie': g.kategorie,
-              'Status': 'Offen',
-              'Zeitraum-Kennung': periodKey,
-              'Erstellt am': new Date().toISOString()
-            }, ZIELE_BASE_ID);
-          }
+          await airtableCreate(TABLE_ZIELE, {
+            'Zieltext': g.text,
+            'Zeitrahmen': tf,
+            'Kategorie': g.kategorie,
+            'Priorität': g.prioritaet,
+            'Status': 'Offen',
+            'Zeitraum-Kennung': periodKey,
+            'Erstellt am': new Date().toISOString()
+          }, ZIELE_BASE_ID);
         }
         loadZiele();
         onDone(goalsToSave);
@@ -1422,7 +1429,7 @@
       lines.push('Keine Ziele für diesen Zeitraum gesetzt gewesen.');
     } else {
       reflectionReviewResults.forEach(g=>{
-        lines.push(`- "${g.text}" (${g.kategorie}) – Status: ${g.status}${g.begruendung ? ' – Begründung: '+g.begruendung : ''}`);
+        lines.push(`- "${g.text}" (${g.kategorie}${g.prioritaet ? ', '+g.prioritaet : ''}) – Status: ${g.status}${g.begruendung ? ' – Begründung: '+g.begruendung : ''}`);
       });
     }
     lines.push('');
@@ -1430,7 +1437,7 @@
     if(newGoalsDraft.length === 0){
       lines.push('Keine neuen Ziele gesetzt.');
     } else {
-      newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie})`); });
+      newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie}${g.prioritaet ? ', '+g.prioritaet : ''})`); });
     }
     if(context.journalEntries.length > 0){
       lines.push('');
@@ -3134,6 +3141,7 @@
           text: f['Zieltext'] || '',
           zeitrahmen: f['Zeitrahmen'] || '',
           kategorie: f['Kategorie'] || '',
+          prioritaet: f['Priorität'] || '',
           status: f['Status'] || 'Offen',
           begruendung: f['Begründung'] || '',
           parent: f['Übergeordnetes Ziel'] || '',
@@ -3172,7 +3180,7 @@
         <div>
           <div style="font-size:15px;">${escapeHtml(z.text)}</div>
           <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
-            ${escapeHtml(z.kategorie)}
+            ${escapeHtml(z.kategorie)}${z.prioritaet ? ' · '+escapeHtml(z.prioritaet) : ''}
           </div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -3192,6 +3200,11 @@
       <div class="turn-title">Kategorie</div>
       <select id="zielEditKategorie-${z.id}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:15px;margin-bottom:10px;">
         ${['Business/Karriere','Gesundheit/Fitness','Beziehungen/Soziales','Persönliche Entwicklung','Finanzen'].map(k=>`<option value="${k}" ${k===z.kategorie?'selected':''}>${k}</option>`).join('')}
+      </select>
+      <div class="turn-title">Priorität</div>
+      <select id="zielEditPrioritaet-${z.id}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:15px;margin-bottom:10px;">
+        <option value="Hauptziel" ${z.prioritaet==='Hauptziel'?'selected':''}>Hauptziel (Main Quest)</option>
+        <option value="Nebenziel" ${z.prioritaet==='Nebenziel'?'selected':''}>Nebenziel (Sidequest)</option>
       </select>
       <div class="nav-row">
         <button class="ghost" data-id="${z.id}" data-action="cancel-edit">Abbrechen</button>
@@ -3270,12 +3283,13 @@
         const statusEl = document.getElementById('zielEditStatus-'+id);
         const text = document.getElementById('zielEditText-'+id).value.trim();
         const kategorie = document.getElementById('zielEditKategorie-'+id).value;
+        const prioritaet = document.getElementById('zielEditPrioritaet-'+id).value;
         if(!text){ statusEl.textContent = 'Bitte einen Zieltext eingeben.'; return; }
         statusEl.textContent = 'Speichere ...';
         try{
           await airtableFetch(TABLE_ZIELE + '/' + id, {
             method: 'PATCH',
-            body: JSON.stringify({ fields: { 'Zieltext': text, 'Kategorie': kategorie } })
+            body: JSON.stringify({ fields: { 'Zieltext': text, 'Kategorie': kategorie, 'Priorität': prioritaet } })
           }, ZIELE_BASE_ID);
           loadZiele();
         }catch(e){
