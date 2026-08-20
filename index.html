@@ -1332,13 +1332,13 @@
         </div>`;
 
       [0,1,2].forEach(i=>{
-        document.getElementById('mainQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].main[i] = e.target.value; });
-        document.getElementById('sideQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].side[i] = e.target.value; });
+        container.querySelector('#mainQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].main[i] = e.target.value; });
+        container.querySelector('#sideQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].side[i] = e.target.value; });
       });
-      document.getElementById('goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
-      document.getElementById('goalCatNextBtn').onclick = ()=>{
+      container.querySelector('#goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
+      container.querySelector('#goalCatNextBtn').onclick = ()=>{
         if(!isLast){ catIndex++; renderCategoryStep(); return; }
-        const btn = document.getElementById('goalCatNextBtn');
+        const btn = container.querySelector('#goalCatNextBtn');
         if(btn.disabled) return;
         btn.disabled = true;
         finishGoalSetting();
@@ -1346,7 +1346,7 @@
     }
 
     async function finishGoalSetting(){
-      const statusEl = document.getElementById('goalCatStatus');
+      const statusEl = container.querySelector('#goalCatStatus');
       statusEl.textContent = 'Speichere ...';
       const goalsToSave = [];
       GOAL_CATEGORIES.forEach(cat=>{
@@ -1369,7 +1369,7 @@
         onDone(goalsToSave);
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
-        const btn = document.getElementById('goalCatNextBtn');
+        const btn = container.querySelector('#goalCatNextBtn');
         if(btn) btn.disabled = false;
       }
     }
