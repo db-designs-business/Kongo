@@ -682,12 +682,32 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="quickGoalsOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="quickGoalsCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="quickGoalsExecution" style="margin-top:36px;"></div>
+    </div>
+  </div>
+
   <div id="panelZiele" style="display:none;">
     <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
     <h1>Deine Ziele</h1>
     <div class="sub">Denk rückwärts: erst das Jahresziel, dann Quartal, Monat, Woche.</div>
 
     <div id="zieleReminders"></div>
+
+    <div class="card">
+      <div class="step-label">Alle 5 Bereiche auf einmal</div>
+      <div class="hint" style="margin-bottom:12px;">Geh Schritt für Schritt durch alle Lebensbereiche und leg direkt für jeden ein Ziel fest.</div>
+      <select id="quickGoalZeitrahmen" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:16px;margin-bottom:12px;">
+        <option value="Jahr">Jahr</option>
+        <option value="Quartal">Quartal</option>
+        <option value="Monat">Monat</option>
+        <option value="Woche">Woche</option>
+        <option value="Tag">Tag</option>
+      </select>
+      <button type="button" class="add-item-btn" id="startQuickGoalsBtn" style="width:100%;">Ziele festlegen</button>
+    </div>
 
     <div class="card">
       <div class="step-label">Neues Ziel</div>
@@ -1261,10 +1281,16 @@
   function renderGoalSetting(tf){
     const refDate = getReflectionDate();
     const nextPeriodKey = getPeriodKey(tf, addPeriod(tf, refDate));
+    runGoalCategoryStepper(reflexionContent, tf, nextPeriodKey, refDate, (goalsToSave)=>{
+      showCoachingScreen(tf, nextPeriodKey, goalsToSave);
+    });
+  }
+
+  function runGoalCategoryStepper(container, tf, periodKey, parentDate, onDone){
     const parentTf = PARENT_TIMEFRAME[tf];
     let parentGoalsAll = [];
     if(parentTf){
-      const parentKey = getPeriodKey(parentTf, refDate);
+      const parentKey = getPeriodKey(parentTf, parentDate);
       parentGoalsAll = zieleCache.filter(z=>z.zeitrahmen===parentTf && z.periodKey===parentKey);
     }
 
@@ -1282,9 +1308,9 @@
         </div>` : '';
       const isLast = catIndex === GOAL_CATEGORIES.length - 1;
 
-      reflexionContent.innerHTML = `
+      container.innerHTML = `
         <div class="card">
-          <div class="step-label">Neue ${reflLabel(tf)}ziele · ${catIndex+1} von ${GOAL_CATEGORIES.length}</div>
+          <div class="step-label">${reflLabel(tf)}ziele · ${catIndex+1} von ${GOAL_CATEGORIES.length} · ${escapeHtml(periodLabel(tf, periodKey))}</div>
           <div class="question" style="font-size:19px;">${escapeHtml(cat)}</div>
           ${parentHtml}
           <div class="turn-title" style="margin-top:14px;">Dein Ziel für diesen Bereich (optional)</div>
@@ -1315,7 +1341,7 @@
         .map(c => ({ kategorie: c, text: goalDrafts[c].trim() }));
       try{
         for(const g of goalsToSave){
-          const existing = zieleCache.find(z => z.zeitrahmen === tf && z.periodKey === nextPeriodKey && z.kategorie === g.kategorie);
+          const existing = zieleCache.find(z => z.zeitrahmen === tf && z.periodKey === periodKey && z.kategorie === g.kategorie);
           if(existing){
             await airtableFetch(TABLE_ZIELE + '/' + existing.id, {
               method: 'PATCH',
@@ -1327,13 +1353,13 @@
               'Zeitrahmen': tf,
               'Kategorie': g.kategorie,
               'Status': 'Offen',
-              'Zeitraum-Kennung': nextPeriodKey,
+              'Zeitraum-Kennung': periodKey,
               'Erstellt am': new Date().toISOString()
             }, ZIELE_BASE_ID);
           }
         }
         loadZiele();
-        showCoachingScreen(tf, nextPeriodKey, goalsToSave);
+        onDone(goalsToSave);
       }catch(e){
         statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
         const btn = document.getElementById('goalCatNextBtn');
@@ -3258,6 +3284,26 @@
       };
     });
   }
+
+  const quickGoalsOverlay = document.getElementById('quickGoalsOverlay');
+  const quickGoalsExecutionEl = document.getElementById('quickGoalsExecution');
+  document.getElementById('quickGoalsCloseBtn').onclick = ()=>{ quickGoalsOverlay.style.display = 'none'; };
+  document.getElementById('startQuickGoalsBtn').onclick = ()=>{
+    const tf = document.getElementById('quickGoalZeitrahmen').value;
+    const periodKey = getPeriodKey(tf, new Date());
+    quickGoalsOverlay.style.display = 'flex';
+    runGoalCategoryStepper(quickGoalsExecutionEl, tf, periodKey, new Date(), (goalsToSave)=>{
+      quickGoalsExecutionEl.innerHTML = `
+        <div class="card">
+          <div class="step-label">Fertig</div>
+          <div class="hint" style="margin-bottom:0;">${goalsToSave.length} ${goalsToSave.length===1?'Ziel':'Ziele'} gespeichert.</div>
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="primary" id="quickGoalsDoneBtn">Schließen</button>
+          </div>
+        </div>`;
+      document.getElementById('quickGoalsDoneBtn').onclick = ()=>{ quickGoalsOverlay.style.display = 'none'; };
+    });
+  };
 
   document.getElementById('saveZielBtn').onclick = async ()=>{
     const btn = document.getElementById('saveZielBtn');
