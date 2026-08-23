@@ -1301,7 +1301,7 @@
     const goalDrafts = {};
     GOAL_CATEGORIES.forEach(c=>{
       const existing = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey && z.kategorie===c);
-      const existingMain = existing.filter(z=>z.prioritaet==='Hauptziel').sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
+      const existingMain = existing.filter(z=>z.prioritaet==='Hauptziel' || !z.prioritaet).sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
       const existingSide = existing.filter(z=>z.prioritaet==='Nebenziel').sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
       goalDrafts[c] = {
         main: [0,1,2].map(i=> ({ id: existingMain[i] ? existingMain[i].id : null, text: existingMain[i] ? existingMain[i].text : '' })),
