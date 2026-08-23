@@ -495,6 +495,7 @@
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="affirmationen">Affirmationen</button>
       <button type="button" class="nav-menu-item" data-tab="wutjournal">Wut-Journal</button>
+      <button type="button" class="nav-menu-item" data-tab="satzergaenzung">Satzergänzung</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -689,6 +690,26 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="satzanfaengeModalOverlay" style="display:none;">
+    <div class="modal-card">
+      <button class="modal-close" id="satzanfaengeModalCloseBtn" aria-label="Schließen">×</button>
+      <div class="modal-title">Satzanfänge dieser Woche</div>
+      <div class="modal-sub">Legst du jede Woche neu fest.</div>
+      <div id="satzanfaengeList"></div>
+      <div class="turn-title" style="margin-top:16px;">Neuer Satzanfang</div>
+      <input type="text" id="newSatzanfangInput" placeholder="z.B. Wenn ich heute 5% mehr Bewusstheit ..." style="margin-bottom:10px;">
+      <input type="number" id="newSatzanfangDauerInput" placeholder="Dauer in Minuten, z.B. 2.5" min="0" step="0.5" style="margin-bottom:10px;">
+      <button class="primary" id="addSatzanfangBtn">Hinzufügen</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="satzergaenzungOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="satzergaenzungCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="satzergaenzungExecution" style="margin-top:36px;"></div>
+    </div>
+  </div>
+
   <div id="panelZiele" style="display:none;">
     <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
     <h1>Deine Ziele</h1>
@@ -770,6 +791,26 @@
     </div>
   </div>
 
+  <div id="panelSatzergaenzung" style="display:none;">
+    <div class="eyebrow">Satzergänzung <span class="data-badge">Airtable</span></div>
+    <h1>Satzergänzungsübung</h1>
+    <div class="sub">Nach Nathaniel Branden – Mo bis Fr üben, am Wochenende zurückblicken.</div>
+
+    <div class="card">
+      <div class="step-label">Satzanfänge dieser Woche</div>
+      <div class="hint" style="margin-bottom:0;">Ändern sich wöchentlich – hier verwalten.</div>
+      <button type="button" class="lib-link" id="openSatzanfaengeBtn">📖 Meine Satzanfänge verwalten</button>
+    </div>
+
+    <button type="button" class="add-item-btn" id="startSatzergaenzungBtn" style="width:100%;">Übung starten (Mo–Fr)</button>
+    <button type="button" class="add-item-btn" id="startWochenrueckblickBtn" style="width:100%;margin-top:10px;">Wochen-Rückblick (Wochenende)</button>
+
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="satzergaenzungToggle">Bisherige Einträge anzeigen</button>
+      <div id="satzergaenzungList" style="display:none;"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="libModalOverlay" style="display:none;">
@@ -827,6 +868,9 @@
   const TABLE_AFFIRMATIONEN = 'tbl94eDCVRNkrtQAC';
   const WUTJOURNAL_BASE_ID = 'apppAAnwKDLks5oDb';
   const TABLE_WUTJOURNAL = 'tblHJML6lcHcYeCvq';
+  const SATZ_BASE_ID = 'appgXlKSZGE011EfE';
+  const TABLE_SATZANFAENGE = 'tblrGArnd45Nm44ZK';
+  const TABLE_SATZ_ANTWORTEN = 'tblBAYntDe3msMpkc';
   const ANTHROPIC_TOKEN_KEY = 'kongrow_anthropic_token';
 
   function getAirtableToken(){
@@ -1011,8 +1055,9 @@
   const panelZiele = document.getElementById('panelZiele');
   const panelAffirmationen = document.getElementById('panelAffirmationen');
   const panelWutjournal = document.getElementById('panelWutjournal');
+  const panelSatzergaenzung = document.getElementById('panelSatzergaenzung');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -3607,6 +3652,291 @@
       });
     }catch(e){
       wutjournalListEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
+    }
+  }
+
+  /* =========================================================
+     SATZERGÄNZUNG
+     ========================================================= */
+  const WOCHENRUECKBLICK_STEM = 'Wenn irgendetwas von dem, was ich diese Woche geschrieben habe, wahr ist, dann wäre es hilfreich, wenn ich...';
+  let satzanfaengeCache = [];
+
+  const satzanfaengeModalOverlay = document.getElementById('satzanfaengeModalOverlay');
+  const satzanfaengeListEl = document.getElementById('satzanfaengeList');
+  const satzergaenzungOverlay = document.getElementById('satzergaenzungOverlay');
+  const satzergaenzungExecutionEl = document.getElementById('satzergaenzungExecution');
+
+  document.getElementById('openSatzanfaengeBtn').onclick = ()=>{
+    satzanfaengeModalOverlay.style.display = 'flex';
+    loadSatzanfaenge();
+  };
+  document.getElementById('satzanfaengeModalCloseBtn').onclick = ()=>{ satzanfaengeModalOverlay.style.display = 'none'; };
+  satzanfaengeModalOverlay.addEventListener('click', (e)=>{ if(e.target === satzanfaengeModalOverlay) satzanfaengeModalOverlay.style.display = 'none'; });
+
+  async function loadSatzanfaenge(){
+    satzanfaengeListEl.innerHTML = '<div class="loading">Lade ...</div>';
+    try{
+      const records = await airtableList(TABLE_SATZANFAENGE, SATZ_BASE_ID);
+      satzanfaengeCache = records.map(r=>({
+        id: r.id,
+        text: (r.fields||{})['Satzanfang'] || '',
+        dauer: (r.fields||{})['Dauer (Minuten)'] || 2.5,
+        createdAt: (r.fields||{})['Erstellt am'] || new Date().toISOString()
+      })).sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
+      renderSatzanfaengeList();
+    }catch(e){
+      satzanfaengeListEl.innerHTML = '<div class="empty">Satzanfänge konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderSatzanfaengeList(){
+    if(satzanfaengeCache.length === 0){
+      satzanfaengeListEl.innerHTML = '<div class="empty">Noch keine Satzanfänge für diese Woche.</div>';
+      return;
+    }
+    satzanfaengeListEl.innerHTML = satzanfaengeCache.map(s=>`
+      <div class="lib-item">
+        <div class="lib-item-text">${escapeHtml(s.text)} <span style="color:var(--ink-soft);font-size:12px;">(${s.dauer} Min.)</span></div>
+        <div class="lib-item-actions">
+          <button class="del" data-id="${s.id}">Löschen</button>
+        </div>
+      </div>`).join('');
+    satzanfaengeListEl.querySelectorAll('.del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.textContent = '...'; btn.disabled = true;
+        try{ await airtableDelete(TABLE_SATZANFAENGE, btn.dataset.id, SATZ_BASE_ID); loadSatzanfaenge(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+  }
+
+  document.getElementById('addSatzanfangBtn').onclick = async ()=>{
+    const btn = document.getElementById('addSatzanfangBtn');
+    if(btn.disabled) return;
+    const input = document.getElementById('newSatzanfangInput');
+    const dauerInput = document.getElementById('newSatzanfangDauerInput');
+    const text = input.value.trim();
+    if(!text) return;
+    btn.disabled = true;
+    try{
+      await airtableCreate(TABLE_SATZANFAENGE, {
+        'Satzanfang': text,
+        'Dauer (Minuten)': dauerInput.value ? Number(dauerInput.value) : 2.5,
+        'Erstellt am': new Date().toISOString()
+      }, SATZ_BASE_ID);
+      input.value = '';
+      dauerInput.value = '';
+      loadSatzanfaenge();
+    }catch(e){ /* silent */ }
+    btn.disabled = false;
+  };
+
+  function countCompletions(text){
+    return text.split('\n').map(l=>l.trim()).filter(l=>l.length>0).length;
+  }
+
+  document.getElementById('startSatzergaenzungBtn').onclick = async ()=>{
+    satzergaenzungOverlay.style.display = 'flex';
+    satzergaenzungExecutionEl.innerHTML = '<div class="card"><div class="loading">Lade Satzanfänge ...</div></div>';
+    try{
+      const records = await airtableList(TABLE_SATZANFAENGE, SATZ_BASE_ID);
+      const stems = records.map(r=>({
+        text: (r.fields||{})['Satzanfang'] || '',
+        dauer: (r.fields||{})['Dauer (Minuten)'] || 2.5
+      })).filter(s=>s.text.trim().length>0);
+      if(stems.length === 0){
+        satzergaenzungExecutionEl.innerHTML = '<div class="card"><div class="empty">Noch keine Satzanfänge für diese Woche angelegt.</div><div class="nav-row" style="justify-content:flex-end;"><button class="primary" id="satzExecCloseBtn2">Schließen</button></div></div>';
+        document.getElementById('satzExecCloseBtn2').onclick = ()=>{ satzergaenzungOverlay.style.display = 'none'; };
+        return;
+      }
+      runSentenceCompletionFlow(satzergaenzungExecutionEl, stems, ()=>{ satzergaenzungOverlay.style.display = 'none'; });
+    }catch(e){
+      satzergaenzungExecutionEl.innerHTML = '<div class="card"><div class="empty">Satzanfänge konnten nicht geladen werden.</div></div>';
+    }
+  };
+  document.getElementById('satzergaenzungCloseBtn').onclick = ()=>{ satzergaenzungOverlay.style.display = 'none'; };
+
+  function runSentenceCompletionFlow(container, stems, onAllDone){
+    let idx = 0;
+
+    function renderStemStep(){
+      const stem = stems[idx];
+      const total = stems.length;
+      const isLast = idx === total - 1;
+      let remaining = Math.round(stem.dauer * 60);
+
+      container.innerHTML = `
+        <div class="card">
+          <div class="step-label">Satzergänzung · ${idx+1} von ${total}</div>
+          <div class="question" style="font-size:19px;">${escapeHtml(stem.text)}</div>
+          <div class="hint">Ergänze schnell, ohne nachzudenken. Mindestens 6, bis zu 10 Ergänzungen – eine pro Zeile.</div>
+          <div style="text-align:center;margin:16px 0;">
+            <div id="satzTimerDisplay" style="font-family:Georgia,'Iowan Old Style',serif;font-size:38px;font-weight:700;color:var(--forest-deep);">${formatTime(remaining)}</div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+              <button class="ghost" id="satzTimerStartBtn">Start</button>
+              <button class="ghost" id="satzTimerPauseBtn" disabled>Pause</button>
+            </div>
+          </div>
+          <textarea id="satzAnswerInput" placeholder="${escapeHtml(stem.text)}" style="min-height:180px;"></textarea>
+          <div id="satzCountHint" class="hint" style="margin-top:6px;margin-bottom:0;">0 von mindestens 6 Ergänzungen</div>
+          <div class="nav-row">
+            <button class="ghost" id="satzBackBtn" ${idx===0?'disabled':''}>Zurück</button>
+            <button class="primary" id="satzNextBtn">${isLast ? 'Fertig' : 'Weiter'}</button>
+          </div>
+          <div id="satzStepStatus" class="save-status"></div>
+        </div>`;
+
+      let timerInterval = null;
+      function clearSatzTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval = null; } }
+      const display = container.querySelector('#satzTimerDisplay');
+      const startBtn = container.querySelector('#satzTimerStartBtn');
+      const pauseBtn = container.querySelector('#satzTimerPauseBtn');
+      startBtn.onclick = ()=>{
+        startBtn.disabled = true; pauseBtn.disabled = false;
+        timerInterval = setInterval(()=>{
+          remaining--;
+          if(remaining <= 0){
+            clearSatzTimer();
+            display.textContent = 'Zeit abgelaufen!';
+            display.style.color = 'var(--spark)';
+            startBtn.disabled = true; pauseBtn.disabled = true;
+            vibrateDevice(); playBeep();
+          } else {
+            display.textContent = formatTime(remaining);
+          }
+        }, 1000);
+      };
+      pauseBtn.onclick = ()=>{ clearSatzTimer(); startBtn.disabled = false; pauseBtn.disabled = true; };
+
+      const answerInput = container.querySelector('#satzAnswerInput');
+      const countHint = container.querySelector('#satzCountHint');
+      answerInput.addEventListener('input', ()=>{
+        const n = countCompletions(answerInput.value);
+        countHint.textContent = n + ' von mindestens 6 Ergänzungen' + (n > 10 ? ' (mehr als empfohlen, aber okay)' : '');
+      });
+
+      container.querySelector('#satzBackBtn').onclick = ()=>{ clearSatzTimer(); idx--; renderStemStep(); };
+      container.querySelector('#satzNextBtn').onclick = async ()=>{
+        clearSatzTimer();
+        const btn = container.querySelector('#satzNextBtn');
+        if(btn.disabled) return;
+        btn.disabled = true;
+        const statusEl = container.querySelector('#satzStepStatus');
+        statusEl.textContent = 'Speichere ...';
+        try{
+          await airtableCreate(TABLE_SATZ_ANTWORTEN, {
+            'Datum': new Date().toISOString(),
+            'Satzanfang': stem.text,
+            'Ergaenzungen': answerInput.value
+          }, SATZ_BASE_ID);
+          if(!isLast){ idx++; renderStemStep(); return; }
+          onAllDone();
+        }catch(e){
+          statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+          btn.disabled = false;
+        }
+      };
+    }
+
+    renderStemStep();
+  }
+
+  document.getElementById('startWochenrueckblickBtn').onclick = async ()=>{
+    satzergaenzungOverlay.style.display = 'flex';
+    satzergaenzungExecutionEl.innerHTML = '<div class="card"><div class="loading">Lade diese Woche ...</div></div>';
+    try{
+      const { start, end } = getPeriodRange('Woche', new Date());
+      const records = await airtableList(TABLE_SATZ_ANTWORTEN, SATZ_BASE_ID);
+      const weekEntries = records
+        .map(r=>({ date: (r.fields||{})['Datum'] || '', stem: (r.fields||{})['Satzanfang'] || '', text: (r.fields||{})['Ergaenzungen'] || '' }))
+        .filter(e=> e.stem !== WOCHENRUECKBLICK_STEM && e.date && new Date(e.date) >= start && new Date(e.date) < end)
+        .sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+      if(weekEntries.length === 0){
+        satzergaenzungExecutionEl.innerHTML = '<div class="card"><div class="empty">Noch keine Einträge diese Woche zum Zurückblicken.</div><div class="nav-row" style="justify-content:flex-end;"><button class="primary" id="satzExecCloseBtn3">Schließen</button></div></div>';
+        document.getElementById('satzExecCloseBtn3').onclick = ()=>{ satzergaenzungOverlay.style.display = 'none'; };
+        return;
+      }
+
+      satzergaenzungExecutionEl.innerHTML = `
+        <div class="card">
+          <div class="step-label">Wochen-Rückblick · Lies, was du diese Woche geschrieben hast</div>
+          ${weekEntries.map(e=>{
+            const d = new Date(e.date);
+            const dateStr = d.toLocaleDateString('de-DE', {weekday:'long', day:'2-digit', month:'long'});
+            return `<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line);">
+              <div style="font-size:12px;color:var(--ink-soft);">${dateStr}</div>
+              <div class="summary-belief" style="margin-bottom:8px;">"${escapeHtml(e.stem)}"</div>
+              <div class="summary-a">${escapeHtml(e.text)}</div>
+            </div>`;
+          }).join('')}
+          <div class="nav-row" style="justify-content:flex-end;">
+            <button class="primary" id="satzToReflectionBtn">Weiter zum Rückblick-Satz</button>
+          </div>
+        </div>`;
+      document.getElementById('satzToReflectionBtn').onclick = ()=>{
+        runSentenceCompletionFlow(satzergaenzungExecutionEl, [{ text: WOCHENRUECKBLICK_STEM, dauer: 3 }], ()=>{ satzergaenzungOverlay.style.display = 'none'; });
+      };
+    }catch(e){
+      satzergaenzungExecutionEl.innerHTML = '<div class="card"><div class="empty">Einträge konnten nicht geladen werden.</div></div>';
+    }
+  };
+
+  const satzergaenzungToggle = document.getElementById('satzergaenzungToggle');
+  const satzergaenzungListEl = document.getElementById('satzergaenzungList');
+  satzergaenzungToggle.onclick = async ()=>{
+    const showing = satzergaenzungListEl.style.display !== 'none';
+    if(showing){
+      satzergaenzungListEl.style.display = 'none';
+      satzergaenzungToggle.textContent = 'Bisherige Einträge anzeigen';
+    } else {
+      satzergaenzungListEl.style.display = 'block';
+      satzergaenzungToggle.textContent = 'Einträge ausblenden';
+      await loadSatzergaenzungHistorie();
+    }
+  };
+
+  async function loadSatzergaenzungHistorie(){
+    satzergaenzungListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_SATZ_ANTWORTEN, SATZ_BASE_ID);
+      if(records.length === 0){
+        satzergaenzungListEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>';
+        return;
+      }
+      const entries = records.map(r=>{
+        const f = r.fields || {};
+        return { key: r.id, date: f['Datum'] || new Date().toISOString(), stem: f['Satzanfang'] || '', text: f['Ergaenzungen'] || '' };
+      });
+      entries.sort((a,b)=> new Date(b.date) - new Date(a.date));
+      satzergaenzungListEl.innerHTML = entries.map(e=>{
+        const d = new Date(e.date);
+        const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
+        return `<div class="entry">
+          <div class="entry-head" data-key="${e.key}">
+            <div>
+              <div class="entry-date">${dateStr}</div>
+              <div class="entry-belief">${escapeHtml(e.stem.slice(0,60))}</div>
+            </div>
+          </div>
+          <div class="entry-body" id="sebody-${cssSafe(e.key)}">
+            <div class="summary-a">${escapeHtml(e.text)}</div>
+            <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+          </div>
+        </div>`;
+      }).join('');
+      satzergaenzungListEl.querySelectorAll('.entry-head').forEach(h=>{
+        h.onclick = ()=>{ document.getElementById('sebody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+      });
+      satzergaenzungListEl.querySelectorAll('.entry-delete').forEach(btn=>{
+        btn.onclick = async (ev)=>{
+          ev.stopPropagation();
+          try{ await airtableDelete(TABLE_SATZ_ANTWORTEN, btn.dataset.key, SATZ_BASE_ID); loadSatzergaenzungHistorie(); }
+          catch(e){ /* ignore */ }
+        };
+      });
+    }catch(e){
+      satzergaenzungListEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
     }
   }
 
