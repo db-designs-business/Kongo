@@ -535,6 +535,10 @@
         <span class="home-link-title">Wut-Journal</span>
         <span class="home-link-sub">Wut als Antrieb nutzen</span>
       </button>
+      <button type="button" class="home-link" id="homeToSatzergaenzung">
+        <span class="home-link-title">Satzergänzung</span>
+        <span class="home-link-sub">Tägliche Übung & Wochen-Rückblick</span>
+      </button>
     </div>
   </div>
 
@@ -1086,6 +1090,7 @@
   document.getElementById('homeToZiele').onclick = ()=>switchTab('ziele');
   document.getElementById('homeToAffirmationen').onclick = ()=>switchTab('affirmationen');
   document.getElementById('homeToWutjournal').onclick = ()=>switchTab('wutjournal');
+  document.getElementById('homeToSatzergaenzung').onclick = ()=>switchTab('satzergaenzung');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
