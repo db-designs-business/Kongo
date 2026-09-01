@@ -503,7 +503,6 @@
       <button type="button" class="nav-menu-item" data-tab="affirmationen">Affirmationen</button>
       <button type="button" class="nav-menu-item" data-tab="wutjournal">Wut-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="satzergaenzung">Satzergänzung</button>
-      <button type="button" class="nav-menu-item" data-tab="morgenreflexion">Morgenreflexion</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -547,10 +546,6 @@
         <span class="home-link-title">Satzergänzung</span>
         <span class="home-link-sub">Tägliche Übung & Wochen-Rückblick</span>
       </button>
-      <button type="button" class="home-link" id="homeToMorgenreflexion">
-        <span class="home-link-title">Morgenreflexion</span>
-        <span class="home-link-sub">Den Tag ausrichten</span>
-      </button>
     </div>
   </div>
 
@@ -584,16 +579,20 @@
       </div>
     </div>
 
+    <button type="button" class="add-item-btn" id="startMorgenreflexionBtn" style="width:100%;margin-bottom:14px;">🌅 Morgenreflexion</button>
+
     <div style="margin-top:24px;">
       <button class="journal-toggle" id="historyToggleBtn">Historie anzeigen</button>
       <div id="historyPanel" style="display:none;">
         <div class="reflex-grid" style="margin-bottom:14px;">
+          <button class="ghost hist-tab-btn" data-hist="morgen" id="histMorgenBtn">Morgenreflexion</button>
           <button class="ghost hist-tab-btn" data-hist="tag" id="histTagBtn">Tagesreflexion</button>
           <button class="ghost hist-tab-btn" data-hist="woche" id="histWocheBtn">Wochenreflexion</button>
           <button class="ghost hist-tab-btn" data-hist="coaching" id="histCoachingBtn">Coaching-Berichte</button>
         </div>
         <div id="historyContent"></div>
       </div>
+
     </div>
   </div>
 
@@ -821,28 +820,6 @@
     <div style="margin-top:24px;">
       <button class="journal-toggle" id="satzergaenzungToggle">Bisherige Einträge anzeigen</button>
       <div id="satzergaenzungList" style="display:none;"></div>
-    </div>
-  </div>
-
-  <div id="panelMorgenreflexion" style="display:none;">
-    <div class="eyebrow">Morgenreflexion <span class="data-badge">Airtable</span></div>
-    <h1>Guten Morgen</h1>
-    <div class="sub">Zwei kurze Fragen, um den Tag auszurichten.</div>
-
-    <div class="card">
-      <div class="turn-title">Was würde den heutigen Tag großartig machen?</div>
-      <textarea id="morgenGrossartigInput" placeholder="Deine Antwort ..." style="min-height:100px;"></textarea>
-      <div class="turn-title" style="margin-top:16px;">Was sind meine Ziele, Intentionen und Affirmationen?</div>
-      <textarea id="morgenZieleInput" placeholder="Deine Antwort ..." style="min-height:100px;"></textarea>
-      <div class="nav-row" style="justify-content:flex-end;">
-        <button class="primary" id="saveMorgenreflexionBtn">Speichern</button>
-      </div>
-      <div id="morgenreflexionStatus" class="save-status"></div>
-    </div>
-
-    <div style="margin-top:14px;">
-      <button class="journal-toggle" id="morgenreflexionToggle">Bisherige Einträge anzeigen</button>
-      <div id="morgenreflexionList" style="display:none;"></div>
     </div>
   </div>
 
@@ -1093,9 +1070,8 @@
   const panelAffirmationen = document.getElementById('panelAffirmationen');
   const panelWutjournal = document.getElementById('panelWutjournal');
   const panelSatzergaenzung = document.getElementById('panelSatzergaenzung');
-  const panelMorgenreflexion = document.getElementById('panelMorgenreflexion');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, morgenreflexion: panelMorgenreflexion };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -1125,7 +1101,6 @@
   document.getElementById('homeToAffirmationen').onclick = ()=>switchTab('affirmationen');
   document.getElementById('homeToWutjournal').onclick = ()=>switchTab('wutjournal');
   document.getElementById('homeToSatzergaenzung').onclick = ()=>switchTab('satzergaenzung');
-  document.getElementById('homeToMorgenreflexion').onclick = ()=>switchTab('morgenreflexion');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
@@ -2611,10 +2586,12 @@
   function selectHistoryTab(tab){
     currentHistoryTab = tab;
     document.querySelectorAll('.hist-tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.hist === tab));
-    if(tab === 'tag') loadEveningJournal();
+    if(tab === 'morgen') loadMorgenreflexionHistorie();
+    else if(tab === 'tag') loadEveningJournal();
     else if(tab === 'woche') loadWeeklyJournal();
     else if(tab === 'coaching') loadCoachingJournal();
   }
+  document.getElementById('histMorgenBtn').onclick = ()=>selectHistoryTab('morgen');
   document.getElementById('histTagBtn').onclick = ()=>selectHistoryTab('tag');
   document.getElementById('histWocheBtn').onclick = ()=>selectHistoryTab('woche');
   document.getElementById('histCoachingBtn').onclick = ()=>selectHistoryTab('coaching');
@@ -3976,53 +3953,61 @@
   }
 
   /* =========================================================
-     MORGENREFLEXION
+     MORGENREFLEXION (jetzt Teil des Reflexion-Tabs)
      ========================================================= */
-  document.getElementById('saveMorgenreflexionBtn').onclick = async ()=>{
-    const btn = document.getElementById('saveMorgenreflexionBtn');
-    if(btn.disabled) return;
-    const statusEl = document.getElementById('morgenreflexionStatus');
-    const grossartig = document.getElementById('morgenGrossartigInput').value.trim();
-    const ziele = document.getElementById('morgenZieleInput').value.trim();
-    if(!grossartig && !ziele){ statusEl.textContent = 'Bitte mindestens eine Antwort eingeben.'; return; }
-    btn.disabled = true;
-    statusEl.textContent = 'Speichere ...';
-    try{
-      await airtableCreate(TABLE_MORGENREFLEXION, {
-        'Datum': new Date().toISOString(),
-        'Grossartiger Tag': grossartig,
-        'Ziele Intentionen Affirmationen': ziele
-      }, MORGEN_BASE_ID);
-      document.getElementById('morgenGrossartigInput').value = '';
-      document.getElementById('morgenZieleInput').value = '';
-      statusEl.textContent = 'Gespeichert.';
-      if(document.getElementById('morgenreflexionList').style.display !== 'none') loadMorgenreflexionHistorie();
-    }catch(e){
-      statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
-    }
-    btn.disabled = false;
+  document.getElementById('startMorgenreflexionBtn').onclick = ()=>{
+    reflexionOverlay.style.display = 'flex';
+    renderMorgenreflexionForm(reflexionContent);
   };
 
-  const morgenreflexionToggle = document.getElementById('morgenreflexionToggle');
-  const morgenreflexionListEl = document.getElementById('morgenreflexionList');
-  morgenreflexionToggle.onclick = async ()=>{
-    const showing = morgenreflexionListEl.style.display !== 'none';
-    if(showing){
-      morgenreflexionListEl.style.display = 'none';
-      morgenreflexionToggle.textContent = 'Bisherige Einträge anzeigen';
-    } else {
-      morgenreflexionListEl.style.display = 'block';
-      morgenreflexionToggle.textContent = 'Einträge ausblenden';
-      await loadMorgenreflexionHistorie();
-    }
-  };
+  function renderMorgenreflexionForm(container){
+    container.innerHTML = `
+      <div class="card">
+        <div class="step-label">Morgenreflexion</div>
+        <div class="turn-title">Was würde den heutigen Tag großartig machen?</div>
+        <textarea id="morgenGrossartigInput" placeholder="Deine Antwort ..." style="min-height:100px;"></textarea>
+        <div class="turn-title" style="margin-top:16px;">Was sind meine Ziele, Intentionen und Affirmationen?</div>
+        <textarea id="morgenZieleInput" placeholder="Deine Antwort ..." style="min-height:100px;"></textarea>
+        <div class="nav-row">
+          <button class="ghost" id="morgenCancelBtn">Abbrechen</button>
+          <button class="primary" id="saveMorgenreflexionBtn">Speichern</button>
+        </div>
+        <div id="morgenreflexionStatus" class="save-status"></div>
+      </div>`;
+
+    container.querySelector('#morgenCancelBtn').onclick = closeReflexionOverlay;
+    container.querySelector('#saveMorgenreflexionBtn').onclick = async ()=>{
+      const btn = container.querySelector('#saveMorgenreflexionBtn');
+      if(btn.disabled) return;
+      const statusEl = container.querySelector('#morgenreflexionStatus');
+      const grossartig = container.querySelector('#morgenGrossartigInput').value.trim();
+      const ziele = container.querySelector('#morgenZieleInput').value.trim();
+      if(!grossartig && !ziele){ statusEl.textContent = 'Bitte mindestens eine Antwort eingeben.'; return; }
+      btn.disabled = true;
+      statusEl.textContent = 'Speichere ...';
+      try{
+        await airtableCreate(TABLE_MORGENREFLEXION, {
+          'Datum': new Date().toISOString(),
+          'Grossartiger Tag': grossartig,
+          'Ziele Intentionen Affirmationen': ziele
+        }, MORGEN_BASE_ID);
+        statusEl.textContent = 'Gespeichert.';
+        if(historyPanel.style.display !== 'none' && currentHistoryTab === 'morgen') loadMorgenreflexionHistorie();
+        setTimeout(closeReflexionOverlay, 900);
+      }catch(e){
+        statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+        btn.disabled = false;
+      }
+    };
+  }
 
   async function loadMorgenreflexionHistorie(){
-    morgenreflexionListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    const listEl = document.getElementById('historyContent');
+    listEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
     try{
       const records = await airtableList(TABLE_MORGENREFLEXION, MORGEN_BASE_ID);
       if(records.length === 0){
-        morgenreflexionListEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>';
+        listEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>';
         return;
       }
       const entries = records.map(r=>{
@@ -4030,7 +4015,7 @@
         return { key: r.id, date: f['Datum'] || new Date().toISOString(), grossartig: f['Grossartiger Tag'] || '', ziele: f['Ziele Intentionen Affirmationen'] || '' };
       });
       entries.sort((a,b)=> new Date(b.date) - new Date(a.date));
-      morgenreflexionListEl.innerHTML = entries.map(e=>{
+      listEl.innerHTML = entries.map(e=>{
         const d = new Date(e.date);
         const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
         return `<div class="entry">
@@ -4049,10 +4034,10 @@
           </div>
         </div>`;
       }).join('');
-      morgenreflexionListEl.querySelectorAll('.entry-head').forEach(h=>{
+      listEl.querySelectorAll('.entry-head').forEach(h=>{
         h.onclick = ()=>{ document.getElementById('mrbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
       });
-      morgenreflexionListEl.querySelectorAll('.entry-delete').forEach(btn=>{
+      listEl.querySelectorAll('.entry-delete').forEach(btn=>{
         btn.onclick = async (ev)=>{
           ev.stopPropagation();
           try{ await airtableDelete(TABLE_MORGENREFLEXION, btn.dataset.key, MORGEN_BASE_ID); loadMorgenreflexionHistorie(); }
@@ -4060,7 +4045,7 @@
         };
       });
     }catch(e){
-      morgenreflexionListEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
+      listEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
     }
   }
 
