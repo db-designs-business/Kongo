@@ -671,6 +671,16 @@
     </div>
   </div>
 
+  <div id="routinePausedBanner" style="display:none; position:fixed; left:0; right:0; bottom:0; background:var(--paper-raised); border-top:1px solid var(--line); padding:14px 16px; z-index:60; box-shadow:0 -8px 24px rgba(0,0,0,.4);">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:640px; margin:0 auto;">
+      <div style="min-width:0;">
+        <div style="font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em;">Pausierte Routine</div>
+        <div id="routinePausedLabel" style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+      </div>
+      <button class="primary" id="resumeRoutineBtn" style="padding:9px 16px; min-height:auto; flex-shrink:0;">Fortsetzen</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="affirmationenModalOverlay" style="display:none;">
     <div class="modal-card">
       <button class="modal-close" id="affirmationenModalCloseBtn" aria-label="Schließen">×</button>
@@ -2681,8 +2691,27 @@
   function closeRoutineExec(){
     routineExecOverlay.style.display = 'none';
     routineExecutionEl.innerHTML = '';
+    document.getElementById('routinePausedBanner').style.display = 'none';
   }
-  document.getElementById('routineExecCloseBtn').onclick = closeRoutineExec;
+
+  function pauseRoutineExec(){
+    const stepLabelEl = routineExecutionEl.querySelector('.step-label');
+    const questionEl = routineExecutionEl.querySelector('.question');
+    if(!stepLabelEl){
+      // Nichts Laufendes (z.B. leerer oder abgeschlossener Screen) - einfach normal schließen
+      closeRoutineExec();
+      return;
+    }
+    const label = (questionEl ? questionEl.textContent + ' – ' : '') + stepLabelEl.textContent;
+    routineExecOverlay.style.display = 'none';
+    document.getElementById('routinePausedLabel').textContent = label;
+    document.getElementById('routinePausedBanner').style.display = 'block';
+  }
+  document.getElementById('routineExecCloseBtn').onclick = pauseRoutineExec;
+  document.getElementById('resumeRoutineBtn').onclick = ()=>{
+    routineExecOverlay.style.display = 'flex';
+    document.getElementById('routinePausedBanner').style.display = 'none';
+  };
 
   async function loadHabits(){
     habitsListEl.innerHTML = '<div class="loading">Lade ...</div>';
