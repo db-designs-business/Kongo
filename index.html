@@ -503,6 +503,7 @@
       <button type="button" class="nav-menu-item" data-tab="affirmationen">Affirmationen</button>
       <button type="button" class="nav-menu-item" data-tab="wutjournal">Wut-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="satzergaenzung">Satzergänzung</button>
+      <button type="button" class="nav-menu-item" data-tab="sprechuebung">Sprechübung</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -545,6 +546,10 @@
       <button type="button" class="home-link" id="homeToSatzergaenzung">
         <span class="home-link-title">Satzergänzung</span>
         <span class="home-link-sub">Tägliche Übung & Wochen-Rückblick</span>
+      </button>
+      <button type="button" class="home-link" id="homeToSprechuebung">
+        <span class="home-link-title">Sprechübung</span>
+        <span class="home-link-sub">Stimm- & Sprechtraining, max. 15 Min.</span>
       </button>
     </div>
   </div>
@@ -735,6 +740,13 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="sprechuebungOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+    <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+      <button class="modal-close" id="sprechuebungCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
+      <div id="sprechuebungExecution" style="margin-top:36px;"></div>
+    </div>
+  </div>
+
   <div id="panelZiele" style="display:none;">
     <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
     <h1>Deine Ziele</h1>
@@ -833,6 +845,45 @@
     </div>
   </div>
 
+  <div id="panelSprechuebung" style="display:none;">
+    <div class="eyebrow">Sprechübung <span class="data-badge">Airtable</span></div>
+    <h1>Stimm- & Sprechtraining</h1>
+    <div class="sub">Max. 15 Minuten. Wähl aus, was du heute machen willst.</div>
+
+    <div class="card">
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;">
+        <input type="checkbox" id="partWarmup" checked style="width:18px;height:18px;"> Warm-up
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;">
+        <input type="checkbox" id="partPhonation" checked style="width:18px;height:18px;"> Abspannen / Phonation
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;">
+        <input type="checkbox" id="partProlongation" checked style="width:18px;height:18px;"> Prolongation
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;">
+        <input type="checkbox" id="partPullout" checked style="width:18px;height:18px;"> Künstlicher Pull-Out
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px;">
+        <input type="checkbox" id="partGespraech" checked style="width:18px;height:18px;"> KI-Gespräch
+      </label>
+      <div id="technikRow" style="margin-top:10px;">
+        <div class="turn-title">Technik-Fokus im Gespräch</div>
+        <select id="technikSelect" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);font-size:16px;">
+          <option value="Abspannen / Phonation">Abspannen / Phonation</option>
+          <option value="Prolongation">Prolongation</option>
+          <option value="Künstlicher Pull-Out">Künstlicher Pull-Out</option>
+        </select>
+      </div>
+    </div>
+
+    <button type="button" class="add-item-btn" id="startSprechuebungBtn" style="width:100%;">Übung starten</button>
+
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="sprechuebungToggle">Bisherige Durchläufe anzeigen</button>
+      <div id="sprechuebungList" style="display:none;"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="libModalOverlay" style="display:none;">
@@ -891,6 +942,9 @@
   const WUTJOURNAL_BASE_ID = 'apppAAnwKDLks5oDb';
   const TABLE_WUTJOURNAL = 'tblHJML6lcHcYeCvq';
   const SATZ_BASE_ID = 'appgXlKSZGE011EfE';
+  const SPRECH_BASE_ID = 'appGT825Xgfp7LkS3';
+  const TABLE_SPRECH_TEXTE = 'tblwTTMdF8SGGbKEZ';
+  const TABLE_SPRECH_SESSIONS = 'tblMcgJn4U28gXFLy';
   const MORGEN_BASE_ID = 'appmdR675jZybMJj1';
   const TABLE_MORGENREFLEXION = 'tbl6aS17BQ0opqwJd';
   const TABLE_SATZANFAENGE = 'tblrGArnd45Nm44ZK';
@@ -1080,8 +1134,9 @@
   const panelAffirmationen = document.getElementById('panelAffirmationen');
   const panelWutjournal = document.getElementById('panelWutjournal');
   const panelSatzergaenzung = document.getElementById('panelSatzergaenzung');
+  const panelSprechuebung = document.getElementById('panelSprechuebung');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -1111,6 +1166,7 @@
   document.getElementById('homeToAffirmationen').onclick = ()=>switchTab('affirmationen');
   document.getElementById('homeToWutjournal').onclick = ()=>switchTab('wutjournal');
   document.getElementById('homeToSatzergaenzung').onclick = ()=>switchTab('satzergaenzung');
+  document.getElementById('homeToSprechuebung').onclick = ()=>switchTab('sprechuebung');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
@@ -4075,6 +4131,309 @@
       });
     }catch(e){
       listEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
+    }
+  }
+
+  /* =========================================================
+     SPRECHÜBUNG
+     ========================================================= */
+  const WARMUP_STEPS = [
+    'Lippen flattern & ausschütteln',
+    'Herzhaft gähnen',
+    'Summen und dabei den Brustkorb abklopfen',
+    'Bewusst in die Flanken atmen und auf FFFF ausatmen',
+    'Progressive Muskelentspannung: Schultern hochziehen, Gesicht zusammenkneifen, Schnute ziehen, Lippen pressen'
+  ];
+
+  const sprechuebungOverlay = document.getElementById('sprechuebungOverlay');
+  const sprechuebungExecutionEl = document.getElementById('sprechuebungExecution');
+
+  document.getElementById('partGespraech').addEventListener('change', function(){
+    document.getElementById('technikRow').style.display = this.checked ? 'block' : 'none';
+  });
+
+  document.getElementById('startSprechuebungBtn').onclick = ()=>{
+    const parts = [];
+    if(document.getElementById('partWarmup').checked) parts.push('warmup');
+    if(document.getElementById('partPhonation').checked) parts.push('phonation');
+    if(document.getElementById('partProlongation').checked) parts.push('prolongation');
+    if(document.getElementById('partPullout').checked) parts.push('pullout');
+    if(document.getElementById('partGespraech').checked) parts.push('gespraech');
+    if(parts.length === 0) return;
+    const technik = document.getElementById('technikSelect').value;
+    sprechuebungOverlay.style.display = 'flex';
+    runSprechuebungFlow(sprechuebungExecutionEl, parts, technik);
+  };
+  document.getElementById('sprechuebungCloseBtn').onclick = ()=>{ sprechuebungOverlay.style.display = 'none'; };
+
+  async function loadSprechText(typ){
+    try{
+      const records = await airtableList(TABLE_SPRECH_TEXTE, SPRECH_BASE_ID);
+      const rec = records.find(r=> (r.fields||{})['Typ'] === typ);
+      if(!rec) return null;
+      return { id: rec.id, text: (rec.fields||{})['Text'] || '', anmerkung: (rec.fields||{})['Anmerkung'] || '' };
+    }catch(e){ return null; }
+  }
+
+  function sprechPromptFor(typ, anmerkung){
+    let base = '';
+    if(typ === 'Phonation'){
+      base = 'Schreibe ein kurzes, ruhiges deutsches Gedicht (8-12 Zeilen), geeignet zum lauten Vorlesen mit bewusstem weichem Stimmeinsatz (Abspannen) an Zeilenanfängen. Einfache, fließende Sprache, keine harten Konsonantenhäufungen am Anfang von Zeilen. Gib nur das Gedicht aus, ohne Titel oder Erklärung.';
+    } else if(typ === 'Prolongation'){
+      base = 'Schreibe einen kurzen deutschen Übungstext (6-8 Sätze) für Stottertherapie, in dem in JEDEM Satz mindestens ein Wort vorkommt, das sich gut für eine bewusste Prolongation (gedehnter Anlaut) eignet. Der Text soll natürlich und alltagsnah klingen. Gib nur den Text aus, ohne Erklärung oder Markierungen.';
+    } else if(typ === 'PullOut'){
+      base = 'Schreibe einen kurzen deutschen Übungstext (6-8 Sätze) zum Üben des künstlichen Pull-Out in der Stottertherapie (bewusstes Erzeugen eines Stotter-Symptoms, dann Stoppen, Anspannung lösen, mit Prolongation weitersprechen). Der Text soll natürliche, alltägliche Wörter und Satzanfänge enthalten, die sich für diese Übung eignen. Gib nur den Text aus, ohne Erklärung.';
+    }
+    if(anmerkung) base += '\n\nBerücksichtige zusätzlich diese Anmerkung: ' + anmerkung;
+    return base;
+  }
+
+  async function generateSprechText(typ, anmerkung){
+    const prompt = sprechPromptFor(typ, anmerkung);
+    const text = await callClaudeCoach(prompt);
+    const existing = await loadSprechText(typ);
+    const fields = { 'Text': text, 'Typ': typ, 'Anmerkung': anmerkung, 'Aktualisiert am': new Date().toISOString() };
+    if(existing && existing.id){
+      await airtableFetch(TABLE_SPRECH_TEXTE + '/' + existing.id, { method: 'PATCH', body: JSON.stringify({ fields }) }, SPRECH_BASE_ID);
+    } else {
+      await airtableCreate(TABLE_SPRECH_TEXTE, fields, SPRECH_BASE_ID);
+    }
+    return { text, anmerkung };
+  }
+
+  async function callClaudeChat(systemPrompt, messages){
+    const token = getAnthropicToken();
+    if(!token) throw new Error('Kein Anthropic API Key hinterlegt. Bitte in den Einstellungen eintragen.');
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': token,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        system: systemPrompt,
+        messages: messages
+      })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error((data.error && data.error.message) || 'Anthropic-API-Fehler (' + res.status + ')');
+    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text);
+    return textBlocks.join('\n');
+  }
+
+  function runSprechuebungFlow(container, parts, technik){
+    const nonChatParts = parts.filter(p=>p!=='gespraech');
+    const hasChat = parts.includes('gespraech');
+    const screens = [];
+    nonChatParts.forEach(p=>{
+      if(p === 'warmup'){
+        WARMUP_STEPS.forEach((text,i)=> screens.push({ type:'warmup', title:'Warm-up · '+(i+1)+' von '+WARMUP_STEPS.length, text }));
+      } else if(p === 'phonation'){
+        screens.push({ type:'instruction', title:'Abspannen / Phonation · Luftpumpe', text:'fffffft\n\nsch----t\n\npssssst\n\nWiederhole jede Lautfolge mehrmals, achte auf gleichmäßigen, weichen Luftstrom.' });
+        screens.push({ type:'text', title:'Abspannen / Phonation · Gedicht', typ:'Phonation' });
+      } else if(p === 'prolongation'){
+        screens.push({ type:'text', title:'Prolongation', typ:'Prolongation' });
+      } else if(p === 'pullout'){
+        screens.push({ type:'text', title:'Künstlicher Pull-Out', typ:'PullOut' });
+      }
+    });
+
+    let idx = 0;
+
+    function renderScreen(){
+      if(idx >= screens.length){
+        if(hasChat){ startChatPart(); return; }
+        finishSession(nonChatParts);
+        return;
+      }
+      const s = screens[idx];
+      const isVeryLast = (idx === screens.length - 1) && !hasChat;
+      if(s.type === 'text'){ renderTextScreen(s, isVeryLast); return; }
+
+      container.innerHTML = `
+        <div class="card">
+          <div class="step-label">${escapeHtml(s.title)}</div>
+          <div class="question" style="white-space:pre-wrap;">${escapeHtml(s.text)}</div>
+          <div class="nav-row">
+            <button class="ghost" id="sprechBackBtn" ${idx===0?'disabled':''}>Zurück</button>
+            <button class="primary" id="sprechNextBtn">${isVeryLast ? 'Fertig' : 'Weiter'}</button>
+          </div>
+        </div>`;
+      container.querySelector('#sprechBackBtn').onclick = ()=>{ idx--; renderScreen(); };
+      container.querySelector('#sprechNextBtn').onclick = ()=>{ idx++; renderScreen(); };
+    }
+
+    async function renderTextScreen(s, isVeryLast){
+      container.innerHTML = '<div class="card"><div class="loading">Lade Text ...</div></div>';
+      const entry = await loadSprechText(s.typ);
+      renderTextContent(s, entry, isVeryLast);
+    }
+
+    function renderTextContent(s, entry, isVeryLast){
+      container.innerHTML = `
+        <div class="card">
+          <div class="step-label">${escapeHtml(s.title)}</div>
+          ${entry && entry.text ? `<div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(entry.text)}</div>` : '<div class="empty">Noch kein Text generiert.</div>'}
+          <div class="turn-title" style="margin-top:14px;">Anmerkung für die Generierung (optional)</div>
+          <textarea id="sprechAnmerkungInput" placeholder="z.B. ein bestimmtes Thema ...">${escapeHtml(entry ? (entry.anmerkung || '') : '')}</textarea>
+          <button type="button" class="ghost" id="sprechRegenBtn" style="margin-top:10px;width:100%;">${entry && entry.text ? 'Neu generieren' : 'Text generieren'}</button>
+          <div id="sprechRegenStatus" class="save-status"></div>
+          <div class="nav-row" style="margin-top:16px;">
+            <button class="ghost" id="sprechBackBtn" ${idx===0?'disabled':''}>Zurück</button>
+            <button class="primary" id="sprechNextBtn">${isVeryLast ? 'Fertig' : 'Weiter'}</button>
+          </div>
+        </div>`;
+      container.querySelector('#sprechBackBtn').onclick = ()=>{ idx--; renderScreen(); };
+      container.querySelector('#sprechNextBtn').onclick = ()=>{ idx++; renderScreen(); };
+      container.querySelector('#sprechRegenBtn').onclick = async ()=>{
+        const btn = container.querySelector('#sprechRegenBtn');
+        if(btn.disabled) return;
+        btn.disabled = true;
+        const statusEl = container.querySelector('#sprechRegenStatus');
+        statusEl.textContent = 'Generiere ...';
+        const anmerkung = container.querySelector('#sprechAnmerkungInput').value.trim();
+        try{
+          const newEntry = await generateSprechText(s.typ, anmerkung);
+          renderTextContent(s, newEntry, isVeryLast);
+        }catch(e){
+          statusEl.textContent = 'Generieren fehlgeschlagen: ' + e.message;
+          btn.disabled = false;
+        }
+      };
+    }
+
+    function startChatPart(){
+      runSprechChat(container, technik, ()=>{ finishSession([...nonChatParts, 'gespraech']); });
+    }
+
+    async function finishSession(partsDone){
+      try{
+        await airtableCreate(TABLE_SPRECH_SESSIONS, { 'Datum': new Date().toISOString(), 'Teile': partsDone.join(', ') }, SPRECH_BASE_ID);
+      }catch(e){ /* nicht blockierend */ }
+      const listEl = document.getElementById('sprechuebungList');
+      if(listEl && listEl.style.display !== 'none') loadSprechuebungHistorie();
+      sprechuebungOverlay.style.display = 'none';
+    }
+
+    renderScreen();
+  }
+
+  function runSprechChat(container, technik, onDone){
+    const messages = [];
+    const systemPrompt = `Du bist ein unterstützender Gesprächspartner für eine logopädische Sprechübung. Die Person übt bewusst die Technik "${technik}" beim freien Sprechen. Führe ein natürliches, lockeres Gespräch auf Deutsch, stelle Fragen, die zum lauten Antworten einladen. Antworte kurz (2-4 Sätze), conversational. Erinnere die Person gelegentlich (nicht bei jeder Nachricht) freundlich daran, bewusst auf die Technik "${technik}" zu achten.`;
+
+    function render(){
+      container.innerHTML = `
+        <div class="card">
+          <div class="step-label">KI-Gespräch · Fokus: ${escapeHtml(technik)}</div>
+          <div id="chatMessages" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;margin-bottom:14px;"></div>
+          <textarea id="chatInput" placeholder="Deine Antwort ..." style="min-height:70px;"></textarea>
+          <div class="nav-row">
+            <button class="ghost" id="chatFinishBtn">Gespräch beenden</button>
+            <button class="primary" id="chatSendBtn">Senden</button>
+          </div>
+          <div id="chatStatus" class="save-status"></div>
+        </div>`;
+      renderMessages();
+      container.querySelector('#chatSendBtn').onclick = sendMessage;
+      container.querySelector('#chatFinishBtn').onclick = onDone;
+    }
+
+    function renderMessages(){
+      const el = container.querySelector('#chatMessages');
+      if(!el) return;
+      if(messages.length === 0){
+        el.innerHTML = '<div class="hint" style="margin-bottom:0;">Schreib einfach los, um das Gespräch zu starten.</div>';
+        return;
+      }
+      el.innerHTML = messages.map(m=>`
+        <div style="align-self:${m.role==='user'?'flex-end':'flex-start'};max-width:85%;background:${m.role==='user'?'var(--forest)':'var(--paper)'};color:${m.role==='user'?'#0B0B0E':'var(--ink)'};padding:10px 14px;border-radius:14px;border:1px solid var(--line);">
+          ${escapeHtml(m.content)}
+        </div>`).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function sendMessage(){
+      const input = container.querySelector('#chatInput');
+      const text = input.value.trim();
+      if(!text) return;
+      const btn = container.querySelector('#chatSendBtn');
+      if(btn.disabled) return;
+      btn.disabled = true;
+      messages.push({ role:'user', content: text });
+      input.value = '';
+      renderMessages();
+      const statusEl = container.querySelector('#chatStatus');
+      statusEl.textContent = 'Antwort wird geladen ...';
+      try{
+        const reply = await callClaudeChat(systemPrompt, messages);
+        messages.push({ role:'assistant', content: reply });
+        renderMessages();
+        statusEl.textContent = '';
+      }catch(e){
+        statusEl.textContent = 'Fehler: ' + e.message;
+      }
+      btn.disabled = false;
+    }
+
+    render();
+  }
+
+  const sprechuebungToggle = document.getElementById('sprechuebungToggle');
+  const sprechuebungListEl = document.getElementById('sprechuebungList');
+  sprechuebungToggle.onclick = async ()=>{
+    const showing = sprechuebungListEl.style.display !== 'none';
+    if(showing){
+      sprechuebungListEl.style.display = 'none';
+      sprechuebungToggle.textContent = 'Bisherige Durchläufe anzeigen';
+    } else {
+      sprechuebungListEl.style.display = 'block';
+      sprechuebungToggle.textContent = 'Durchläufe ausblenden';
+      await loadSprechuebungHistorie();
+    }
+  };
+
+  async function loadSprechuebungHistorie(){
+    sprechuebungListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_SPRECH_SESSIONS, SPRECH_BASE_ID);
+      if(records.length === 0){
+        sprechuebungListEl.innerHTML = '<div class="empty">Noch keine Durchläufe.</div>';
+        return;
+      }
+      const entries = records.map(r=>({ key: r.id, date: (r.fields||{})['Datum'] || new Date().toISOString(), teile: (r.fields||{})['Teile'] || '' }));
+      entries.sort((a,b)=> new Date(b.date) - new Date(a.date));
+      sprechuebungListEl.innerHTML = entries.map(e=>{
+        const d = new Date(e.date);
+        const dateStr = d.toLocaleDateString('de-DE', {day:'2-digit',month:'long',year:'numeric'});
+        return `<div class="entry">
+          <div class="entry-head" data-key="${e.key}">
+            <div>
+              <div class="entry-date">${dateStr}</div>
+              <div class="entry-belief">${escapeHtml(e.teile)}</div>
+            </div>
+          </div>
+          <div class="entry-body" id="spbody-${cssSafe(e.key)}">
+            <button class="entry-delete" data-key="${e.key}">Eintrag löschen</button>
+          </div>
+        </div>`;
+      }).join('');
+      sprechuebungListEl.querySelectorAll('.entry-head').forEach(h=>{
+        h.onclick = ()=>{ document.getElementById('spbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+      });
+      sprechuebungListEl.querySelectorAll('.entry-delete').forEach(btn=>{
+        btn.onclick = async (ev)=>{
+          ev.stopPropagation();
+          try{ await airtableDelete(TABLE_SPRECH_SESSIONS, btn.dataset.key, SPRECH_BASE_ID); loadSprechuebungHistorie(); }
+          catch(e){ /* ignore */ }
+        };
+      });
+    }catch(e){
+      sprechuebungListEl.innerHTML = '<div class="empty">Konnte nicht geladen werden.</div>';
     }
   }
 
