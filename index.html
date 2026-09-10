@@ -4176,14 +4176,21 @@
   }
 
   function sprechPromptFor(typ, anmerkung){
-    let base = '';
+    let taskDescription = '';
     if(typ === 'Phonation'){
-      base = 'Schreibe ein kurzes, ruhiges deutsches Gedicht (8-12 Zeilen), geeignet zum lauten Vorlesen mit bewusstem weichem Stimmeinsatz (Abspannen) an Zeilenanfängen. Einfache, fließende Sprache, keine harten Konsonantenhäufungen am Anfang von Zeilen. Gib nur das Gedicht aus, ohne Titel oder Erklärung.';
+      taskDescription = 'ein kurzes, kraftvolles deutsches Gedicht (8-12 Zeilen), geeignet zum lauten Vorlesen mit bewusstem weichem Stimmeinsatz (Abspannen) an Zeilenanfängen. Einfache, fließende Sprache, keine harten Konsonantenhäufungen am Anfang von Zeilen';
     } else if(typ === 'Prolongation'){
-      base = 'Schreibe einen kurzen deutschen Übungstext (6-8 Sätze) für Stottertherapie, in dem in JEDEM Satz mindestens ein Wort vorkommt, das sich gut für eine bewusste Prolongation (gedehnter Anlaut) eignet. Der Text soll natürlich und alltagsnah klingen. Gib nur den Text aus, ohne Erklärung oder Markierungen.';
+      taskDescription = 'einen kurzen deutschen Übungstext (6-8 Sätze), in dem in JEDEM Satz mindestens ein Wort vorkommt, das sich gut für eine bewusste Prolongation (gedehnter Anlaut) eignet. Der Text soll natürlich und alltagsnah klingen, ohne besondere Markierungen';
     } else if(typ === 'PullOut'){
-      base = 'Schreibe einen kurzen deutschen Übungstext (6-8 Sätze) zum Üben des künstlichen Pull-Out in der Stottertherapie (bewusstes Erzeugen eines Stotter-Symptoms, dann Stoppen, Anspannung lösen, mit Prolongation weitersprechen). Der Text soll natürliche, alltägliche Wörter und Satzanfänge enthalten, die sich für diese Übung eignen. Gib nur den Text aus, ohne Erklärung.';
+      taskDescription = 'einen kurzen deutschen Übungstext (6-8 Sätze) zum Üben des künstlichen Pull-Out (bewusstes Erzeugen eines Stotter-Symptoms, dann Stoppen, Anspannung lösen, mit Prolongation weitersprechen). Der Text soll natürliche, alltägliche Wörter und Satzanfänge enthalten, die sich für diese Übung eignen';
     }
+
+    let base = `Erstelle GENAU ZWEI Versionen von ${taskDescription}.\n\n`;
+    base += `Thema für beide Versionen: Mindset, Disziplin, Männlichkeit, Wachstum, Erfolg.\n\n`;
+    base += `Version 1 – im Stil von Kontra K (deutscher Rapper: roh, kämpferisch, Disziplin- und Aufstiegs-Energie, direkte Ansprache).\n`;
+    base += `Version 2 – im Stil von "The Wolf of Wall Street" (aggressive, mitreißende Erfolgs- und Ambitions-Rhetorik, wie eine Motivationsrede).\n\n`;
+    base += `Schreibe beide Versionen komplett neu und eigenständig (nicht bestehende Songtexte oder Filmzitate wiedergeben). Gliedere die Antwort mit genau diesen zwei Überschriften, sonst keine weiteren Erklärungen:\n`;
+    base += `## Kontra-K-Stil\n(Version 1 hier)\n\n## Wolf-of-Wall-Street-Stil\n(Version 2 hier)`;
     if(anmerkung) base += '\n\nBerücksichtige zusätzlich diese Anmerkung: ' + anmerkung;
     return base;
   }
@@ -4201,35 +4208,9 @@
     return { text, anmerkung };
   }
 
-  async function callClaudeChat(systemPrompt, messages){
-    const token = getAnthropicToken();
-    if(!token) throw new Error('Kein Anthropic API Key hinterlegt. Bitte in den Einstellungen eintragen.');
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': token,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 400,
-        system: systemPrompt,
-        messages: messages
-      })
-    });
-    const data = await res.json();
-    if(!res.ok) throw new Error((data.error && data.error.message) || 'Anthropic-API-Fehler (' + res.status + ')');
-    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text);
-    return textBlocks.join('\n');
-  }
-
   function runSprechuebungFlow(container, parts, technik){
-    const nonChatParts = parts.filter(p=>p!=='gespraech');
-    const hasChat = parts.includes('gespraech');
     const screens = [];
-    nonChatParts.forEach(p=>{
+    parts.forEach(p=>{
       if(p === 'warmup'){
         WARMUP_STEPS.forEach((text,i)=> screens.push({ type:'warmup', title:'Warm-up · '+(i+1)+' von '+WARMUP_STEPS.length, text }));
       } else if(p === 'phonation'){
@@ -4239,6 +4220,8 @@
         screens.push({ type:'text', title:'Prolongation', typ:'Prolongation' });
       } else if(p === 'pullout'){
         screens.push({ type:'text', title:'Künstlicher Pull-Out', typ:'PullOut' });
+      } else if(p === 'gespraech'){
+        screens.push({ type:'instruction', title:'KI-Gespräch · Fokus: '+technik, text:'Führe jetzt extern ein gesprochenes Gespräch mit einer KI (z.B. Sprachmodus in einer anderen App).\n\nFokussiere dich dabei bewusst auf: '+technik+'.\n\nKlick danach auf Fertig.' });
       }
     });
 
@@ -4246,12 +4229,11 @@
 
     function renderScreen(){
       if(idx >= screens.length){
-        if(hasChat){ startChatPart(); return; }
-        finishSession(nonChatParts);
+        finishSession(parts);
         return;
       }
       const s = screens[idx];
-      const isVeryLast = (idx === screens.length - 1) && !hasChat;
+      const isVeryLast = (idx === screens.length - 1);
       if(s.type === 'text'){ renderTextScreen(s, isVeryLast); return; }
 
       container.innerHTML = `
@@ -4306,10 +4288,6 @@
       };
     }
 
-    function startChatPart(){
-      runSprechChat(container, technik, ()=>{ finishSession([...nonChatParts, 'gespraech']); });
-    }
-
     async function finishSession(partsDone){
       try{
         await airtableCreate(TABLE_SPRECH_SESSIONS, { 'Datum': new Date().toISOString(), 'Teile': partsDone.join(', ') }, SPRECH_BASE_ID);
@@ -4320,67 +4298,6 @@
     }
 
     renderScreen();
-  }
-
-  function runSprechChat(container, technik, onDone){
-    const messages = [];
-    const systemPrompt = `Du bist ein unterstützender Gesprächspartner für eine logopädische Sprechübung. Die Person übt bewusst die Technik "${technik}" beim freien Sprechen. Führe ein natürliches, lockeres Gespräch auf Deutsch, stelle Fragen, die zum lauten Antworten einladen. Antworte kurz (2-4 Sätze), conversational. Erinnere die Person gelegentlich (nicht bei jeder Nachricht) freundlich daran, bewusst auf die Technik "${technik}" zu achten.`;
-
-    function render(){
-      container.innerHTML = `
-        <div class="card">
-          <div class="step-label">KI-Gespräch · Fokus: ${escapeHtml(technik)}</div>
-          <div id="chatMessages" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;margin-bottom:14px;"></div>
-          <textarea id="chatInput" placeholder="Deine Antwort ..." style="min-height:70px;"></textarea>
-          <div class="nav-row">
-            <button class="ghost" id="chatFinishBtn">Gespräch beenden</button>
-            <button class="primary" id="chatSendBtn">Senden</button>
-          </div>
-          <div id="chatStatus" class="save-status"></div>
-        </div>`;
-      renderMessages();
-      container.querySelector('#chatSendBtn').onclick = sendMessage;
-      container.querySelector('#chatFinishBtn').onclick = onDone;
-    }
-
-    function renderMessages(){
-      const el = container.querySelector('#chatMessages');
-      if(!el) return;
-      if(messages.length === 0){
-        el.innerHTML = '<div class="hint" style="margin-bottom:0;">Schreib einfach los, um das Gespräch zu starten.</div>';
-        return;
-      }
-      el.innerHTML = messages.map(m=>`
-        <div style="align-self:${m.role==='user'?'flex-end':'flex-start'};max-width:85%;background:${m.role==='user'?'var(--forest)':'var(--paper)'};color:${m.role==='user'?'#0B0B0E':'var(--ink)'};padding:10px 14px;border-radius:14px;border:1px solid var(--line);">
-          ${escapeHtml(m.content)}
-        </div>`).join('');
-      el.scrollTop = el.scrollHeight;
-    }
-
-    async function sendMessage(){
-      const input = container.querySelector('#chatInput');
-      const text = input.value.trim();
-      if(!text) return;
-      const btn = container.querySelector('#chatSendBtn');
-      if(btn.disabled) return;
-      btn.disabled = true;
-      messages.push({ role:'user', content: text });
-      input.value = '';
-      renderMessages();
-      const statusEl = container.querySelector('#chatStatus');
-      statusEl.textContent = 'Antwort wird geladen ...';
-      try{
-        const reply = await callClaudeChat(systemPrompt, messages);
-        messages.push({ role:'assistant', content: reply });
-        renderMessages();
-        statusEl.textContent = '';
-      }catch(e){
-        statusEl.textContent = 'Fehler: ' + e.message;
-      }
-      btn.disabled = false;
-    }
-
-    render();
   }
 
   const sprechuebungToggle = document.getElementById('sprechuebungToggle');
