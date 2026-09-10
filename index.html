@@ -504,6 +504,7 @@
       <button type="button" class="nav-menu-item" data-tab="wutjournal">Wut-Journal</button>
       <button type="button" class="nav-menu-item" data-tab="satzergaenzung">Satzergänzung</button>
       <button type="button" class="nav-menu-item" data-tab="sprechuebung">Sprechübung</button>
+      <button type="button" class="nav-menu-item" data-tab="worksheets">Worksheets</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -550,6 +551,10 @@
       <button type="button" class="home-link" id="homeToSprechuebung">
         <span class="home-link-title">Sprechübung</span>
         <span class="home-link-sub">Stimm- & Sprechtraining, max. 15 Min.</span>
+      </button>
+      <button type="button" class="home-link" id="homeToWorksheets">
+        <span class="home-link-title">Worksheets</span>
+        <span class="home-link-sub">Checklisten & Notizen nachschlagen</span>
       </button>
     </div>
   </div>
@@ -884,6 +889,16 @@
     </div>
   </div>
 
+  <div id="panelWorksheets" style="display:none;">
+    <div class="eyebrow">Worksheets <span class="data-badge">Airtable</span></div>
+    <h1>Deine Worksheets</h1>
+    <div class="sub">Checklisten, Notizen und Referenzmaterial zum Nachschlagen.</div>
+
+    <button type="button" class="add-item-btn" id="newWorksheetBtn" style="width:100%;">+ Neues Worksheet</button>
+    <div id="worksheetForm"></div>
+    <div id="worksheetsListContainer"></div>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="libModalOverlay" style="display:none;">
@@ -943,6 +958,8 @@
   const TABLE_WUTJOURNAL = 'tblHJML6lcHcYeCvq';
   const SATZ_BASE_ID = 'appgXlKSZGE011EfE';
   const SPRECH_BASE_ID = 'appGT825Xgfp7LkS3';
+  const WORKSHEETS_BASE_ID = 'apptff52DgiZB9mZJ';
+  const TABLE_WORKSHEETS = 'tbl4BUBzvORW43wIp';
   const TABLE_SPRECH_TEXTE = 'tblwTTMdF8SGGbKEZ';
   const TABLE_SPRECH_SESSIONS = 'tblMcgJn4U28gXFLy';
   const MORGEN_BASE_ID = 'appmdR675jZybMJj1';
@@ -1135,8 +1152,9 @@
   const panelWutjournal = document.getElementById('panelWutjournal');
   const panelSatzergaenzung = document.getElementById('panelSatzergaenzung');
   const panelSprechuebung = document.getElementById('panelSprechuebung');
+  const panelWorksheets = document.getElementById('panelWorksheets');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -1167,6 +1185,7 @@
   document.getElementById('homeToWutjournal').onclick = ()=>switchTab('wutjournal');
   document.getElementById('homeToSatzergaenzung').onclick = ()=>switchTab('satzergaenzung');
   document.getElementById('homeToSprechuebung').onclick = ()=>switchTab('sprechuebung');
+  document.getElementById('homeToWorksheets').onclick = ()=>switchTab('worksheets');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
@@ -4353,6 +4372,166 @@
       sprechuebungListEl.innerHTML = '<div class="empty">Konnte nicht geladen werden.</div>';
     }
   }
+
+  /* =========================================================
+     WORKSHEETS
+     ========================================================= */
+  let worksheetsCache = [];
+
+  function inlineMd(text){
+    let t = escapeHtml(text);
+    t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    return t;
+  }
+
+  function renderSimpleMarkdown(md){
+    const lines = (md || '').split('\n');
+    let html = '';
+    let inList = false;
+    lines.forEach(line=>{
+      const trimmed = line.trim();
+      if(trimmed === '---'){
+        if(inList){ html += '</ul>'; inList = false; }
+        html += '<hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">';
+        return;
+      }
+      const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+      if(headingMatch){
+        if(inList){ html += '</ul>'; inList = false; }
+        const level = headingMatch[1].length;
+        const tag = level === 1 ? 'h2' : level === 2 ? 'h3' : 'h4';
+        html += `<${tag} style="margin:18px 0 8px;color:var(--ink);">${inlineMd(headingMatch[2])}</${tag}>`;
+        return;
+      }
+      if(/^[-*]\s+/.test(trimmed)){
+        if(!inList){ html += '<ul style="margin:6px 0 12px;padding-left:20px;">'; inList = true; }
+        html += `<li style="margin-bottom:4px;">${inlineMd(trimmed.replace(/^[-*]\s+/,''))}</li>`;
+        return;
+      }
+      if(trimmed === ''){
+        if(inList){ html += '</ul>'; inList = false; }
+        return;
+      }
+      if(inList){ html += '</ul>'; inList = false; }
+      html += `<p style="margin:6px 0;">${inlineMd(trimmed)}</p>`;
+    });
+    if(inList) html += '</ul>';
+    return html;
+  }
+
+  async function loadWorksheets(){
+    const listContainer = document.getElementById('worksheetsListContainer');
+    listContainer.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const records = await airtableList(TABLE_WORKSHEETS, WORKSHEETS_BASE_ID);
+      worksheetsCache = records.map(r=>({
+        id: r.id,
+        titel: (r.fields||{})['Titel'] || '',
+        inhalt: (r.fields||{})['Inhalt'] || '',
+        createdAt: (r.fields||{})['Erstellt am'] || new Date().toISOString()
+      })).sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+      renderWorksheetsList();
+    }catch(e){
+      listContainer.innerHTML = '<div class="empty">Worksheets konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderWorksheetsList(){
+    const listContainer = document.getElementById('worksheetsListContainer');
+    if(worksheetsCache.length === 0){
+      listContainer.innerHTML = '<div class="card"><div class="empty">Noch keine Worksheets gespeichert.</div></div>';
+      return;
+    }
+    listContainer.innerHTML = worksheetsCache.map(w=>`
+      <div class="entry">
+        <div class="entry-head" data-key="${w.id}">
+          <div>
+            <div class="entry-date">${new Date(w.createdAt).toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'})}</div>
+            <div class="entry-belief">${escapeHtml(w.titel)}</div>
+          </div>
+        </div>
+        <div class="entry-body" id="wsbody-${cssSafe(w.id)}">
+          <div>${renderSimpleMarkdown(w.inhalt)}</div>
+          <div class="nav-row" style="margin-top:14px;">
+            <button class="ghost" data-id="${w.id}" data-action="edit-worksheet">Bearbeiten</button>
+            <button class="entry-delete" data-key="${w.id}">Löschen</button>
+          </div>
+        </div>
+      </div>`).join('');
+
+    listContainer.querySelectorAll('.entry-head').forEach(h=>{
+      h.onclick = ()=>{ document.getElementById('wsbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+    });
+    listContainer.querySelectorAll('.entry-delete').forEach(btn=>{
+      btn.onclick = async (ev)=>{
+        ev.stopPropagation();
+        btn.textContent = '...'; btn.disabled = true;
+        try{ await airtableDelete(TABLE_WORKSHEETS, btn.dataset.key, WORKSHEETS_BASE_ID); loadWorksheets(); }
+        catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+    listContainer.querySelectorAll('[data-action="edit-worksheet"]').forEach(btn=>{
+      btn.onclick = (ev)=>{
+        ev.stopPropagation();
+        const w = worksheetsCache.find(x=>x.id === btn.dataset.id);
+        if(w) openWorksheetForm(w);
+      };
+    });
+  }
+
+  function openWorksheetForm(existing){
+    const formEl = document.getElementById('worksheetForm');
+    const isEdit = !!existing;
+    formEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">${isEdit ? 'Worksheet bearbeiten' : 'Neues Worksheet'}</div>
+        <div class="turn-title">Titel</div>
+        <input type="text" id="worksheetTitelInput" placeholder="z.B. Körpersprache-Checkliste" value="${isEdit ? escapeHtml(existing.titel) : ''}" style="margin-bottom:12px;">
+        <div class="turn-title">Inhalt</div>
+        <div class="hint" style="margin-bottom:8px;">Einfache Formatierung möglich: # Überschrift, **fett**, - Aufzählung, --- Trennlinie.</div>
+        <textarea id="worksheetInhaltInput" placeholder="Text einfügen ..." style="min-height:260px;">${isEdit ? escapeHtml(existing.inhalt) : ''}</textarea>
+        <div class="nav-row">
+          <button class="ghost" id="worksheetCancelBtn">Abbrechen</button>
+          <button class="primary" id="worksheetSaveBtn">${isEdit ? 'Änderungen speichern' : 'Speichern'}</button>
+        </div>
+        <div id="worksheetFormStatus" class="save-status"></div>
+      </div>`;
+
+    formEl.querySelector('#worksheetCancelBtn').onclick = ()=>{ formEl.innerHTML = ''; };
+    formEl.querySelector('#worksheetSaveBtn').onclick = async ()=>{
+      const btn = formEl.querySelector('#worksheetSaveBtn');
+      if(btn.disabled) return;
+      const statusEl = formEl.querySelector('#worksheetFormStatus');
+      const titel = formEl.querySelector('#worksheetTitelInput').value.trim();
+      const inhalt = formEl.querySelector('#worksheetInhaltInput').value.trim();
+      if(!titel){ statusEl.textContent = 'Bitte einen Titel eingeben.'; return; }
+      btn.disabled = true;
+      statusEl.textContent = 'Speichere ...';
+      try{
+        if(isEdit){
+          await airtableFetch(TABLE_WORKSHEETS + '/' + existing.id, {
+            method: 'PATCH',
+            body: JSON.stringify({ fields: { 'Titel': titel, 'Inhalt': inhalt } })
+          }, WORKSHEETS_BASE_ID);
+        } else {
+          await airtableCreate(TABLE_WORKSHEETS, {
+            'Titel': titel,
+            'Inhalt': inhalt,
+            'Erstellt am': new Date().toISOString()
+          }, WORKSHEETS_BASE_ID);
+        }
+        formEl.innerHTML = '';
+        loadWorksheets();
+      }catch(e){
+        statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+        btn.disabled = false;
+      }
+    };
+  }
+
+  document.getElementById('newWorksheetBtn').onclick = ()=>{ openWorksheetForm(null); };
+  loadWorksheets();
 
   // init
   render();
