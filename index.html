@@ -505,6 +505,7 @@
       <button type="button" class="nav-menu-item" data-tab="satzergaenzung">Satzergänzung</button>
       <button type="button" class="nav-menu-item" data-tab="sprechuebung">Sprechübung</button>
       <button type="button" class="nav-menu-item" data-tab="worksheets">Worksheets</button>
+      <button type="button" class="nav-menu-item" data-tab="lesen">Lesen</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -555,6 +556,10 @@
       <button type="button" class="home-link" id="homeToWorksheets">
         <span class="home-link-title">Worksheets</span>
         <span class="home-link-sub">Checklisten & Notizen nachschlagen</span>
+      </button>
+      <button type="button" class="home-link" id="homeToLesen">
+        <span class="home-link-title">Lesen</span>
+        <span class="home-link-sub">Notizen, Kapitel-Zusammenfassung & Abfrage</span>
       </button>
     </div>
   </div>
@@ -899,6 +904,27 @@
     <div id="worksheetsListContainer"></div>
   </div>
 
+  <div id="panelLesen" style="display:none;">
+    <div class="eyebrow">Lesen <span class="data-badge">Airtable</span></div>
+    <h1>Lesen</h1>
+    <div class="sub">Erst kurz abrufen, was hängengeblieben ist – dann lesen, notieren, zusammenfassen.</div>
+
+    <div class="card">
+      <div class="turn-title">Buch</div>
+      <select id="lesenBookSelect" style="margin-bottom:10px;"></select>
+      <div id="lesenBookInfo"></div>
+      <button type="button" class="ghost" id="lesenNewBookBtn">+ Neues Buch</button>
+      <div id="lesenBookForm"></div>
+    </div>
+
+    <div id="lesenMain"></div>
+
+    <div style="margin-top:24px;">
+      <button class="journal-toggle" id="lesenHistoryToggle">Notizen & Zusammenfassungen anzeigen</button>
+      <div id="lesenHistory" style="display:none;"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="modal-overlay" id="libModalOverlay" style="display:none;">
@@ -960,6 +986,9 @@
   const SPRECH_BASE_ID = 'appGT825Xgfp7LkS3';
   const WORKSHEETS_BASE_ID = 'apptff52DgiZB9mZJ';
   const TABLE_WORKSHEETS = 'tbl4BUBzvORW43wIp';
+  const LESEN_BASE_ID = 'appb0On2W6yCzWj8w';
+  const TABLE_LESEN_BUECHER = 'tblINhCe4txqYtTcq';
+  const TABLE_LESEN_EINTRAEGE = 'tbla604W3lFpBoPFJ';
   const TABLE_SPRECH_TEXTE = 'tblwTTMdF8SGGbKEZ';
   const TABLE_SPRECH_SESSIONS = 'tblMcgJn4U28gXFLy';
   const MORGEN_BASE_ID = 'appmdR675jZybMJj1';
@@ -1154,7 +1183,9 @@
   const panelSprechuebung = document.getElementById('panelSprechuebung');
   const panelWorksheets = document.getElementById('panelWorksheets');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets };
+  const panelLesen = document.getElementById('panelLesen');
+
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen };
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
@@ -1186,6 +1217,7 @@
   document.getElementById('homeToSatzergaenzung').onclick = ()=>switchTab('satzergaenzung');
   document.getElementById('homeToSprechuebung').onclick = ()=>switchTab('sprechuebung');
   document.getElementById('homeToWorksheets').onclick = ()=>switchTab('worksheets');
+  document.getElementById('homeToLesen').onclick = ()=>switchTab('lesen');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
@@ -3082,6 +3114,24 @@
     }catch(e){ /* ignore */ }
   }
 
+  // Verknüpfung: Schritte, deren Name zu einem Bereich passt, bekommen einen "Öffnen"-Button
+  function detectStepLink(name){
+    const n = (name || '').toLowerCase();
+    const map = [
+      [/lesen|buch/, 'lesen', 'Lesen'],
+      [/sprech|stimme/, 'sprechuebung', 'Sprechübung'],
+      [/reflexion|rückblick|rueckblick/, 'reflexion', 'Reflexion'],
+      [/affirmation/, 'affirmationen', 'Affirmationen'],
+      [/wut/, 'wutjournal', 'Wut-Journal'],
+      [/satz/, 'satzergaenzung', 'Satzergänzung'],
+      [/ziel/, 'ziele', 'Ziele'],
+      [/worksheet|checkliste/, 'worksheets', 'Worksheets'],
+      [/the work|glaubenssatz/, 'work', 'The Work']
+    ];
+    for(const [re,key,label] of map){ if(re.test(n)) return { key, label }; }
+    return null;
+  }
+
   function startRoutineExecution(routine){
     routineExecOverlay.style.display = 'flex';
     const steps = routine.habits.map(name=>{
@@ -3100,12 +3150,16 @@
       const step = steps[idx];
       const hasTimer = step.duration && step.duration > 0;
       let remaining = hasTimer ? Math.round(step.duration * 60) : 0;
+      const stepLink = detectStepLink(step.name);
+      const linkKey = stepLink ? stepLink.key : '';
+      const linkLabel = stepLink ? stepLink.label : '';
 
       routineExecutionEl.innerHTML = `
         <div class="card">
           <div class="step-label">Schritt ${idx+1} von ${steps.length}</div>
           <div class="question" style="font-size:20px;">${escapeHtml(step.name)}</div>
           ${step.description ? `<div class="hint">${escapeHtml(step.description)}</div>` : ''}
+          ${linkKey ? `<button type="button" class="ghost" id="stepLinkBtn" style="margin-top:12px;">Öffnen: ${escapeHtml(linkLabel)} →</button>` : ''}
           ${hasTimer ? `
             <div style="text-align:center;margin:22px 0;">
               <div id="timerDisplay" style="font-family:Georgia,'Iowan Old Style',serif;font-size:46px;font-weight:700;color:var(--forest-deep);">${formatTime(remaining)}</div>
@@ -3148,6 +3202,10 @@
         };
       }
 
+      const stepLinkBtn = document.getElementById('stepLinkBtn');
+      if(stepLinkBtn){
+        stepLinkBtn.onclick = ()=>{ pauseRoutineExec(); switchTab(linkKey); window.scrollTo(0,0); };
+      }
       document.getElementById('cancelAllBtn').onclick = ()=>{ clearTimer(); closeRoutineExec(); };
       document.getElementById('skipStepBtn').onclick = ()=>advance(false);
       document.getElementById('doneStepBtn').onclick = ()=>advance(true);
@@ -4532,6 +4590,447 @@
 
   document.getElementById('newWorksheetBtn').onclick = ()=>{ openWorksheetForm(null); };
   loadWorksheets();
+
+  /* =========================================================
+     LESEN
+     ========================================================= */
+  let lesenBooks = [];
+  let lesenEntries = [];
+  let lesenBookId = '';
+  let lesenPhase = 'start';      // start | recall | notes | summary
+  let lesenSessionStart = null;
+  let lesenChapter = '';
+  let lesenSessionNotes = [];
+
+  const lesenSelectEl = document.getElementById('lesenBookSelect');
+  const lesenMainEl = document.getElementById('lesenMain');
+  const lesenHistoryEl = document.getElementById('lesenHistory');
+  const lesenHistoryToggle = document.getElementById('lesenHistoryToggle');
+
+  function lesenBookEntries(bookId){
+    return lesenEntries.filter(e=>e.bookId === bookId).sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  async function loadLesen(){
+    lesenMainEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    try{
+      const [books, entries] = await Promise.all([
+        airtableList(TABLE_LESEN_BUECHER, LESEN_BASE_ID),
+        airtableList(TABLE_LESEN_EINTRAEGE, LESEN_BASE_ID)
+      ]);
+      lesenBooks = books.map(r=>({
+        id: r.id,
+        titel: (r.fields||{})['Titel'] || '',
+        autor: (r.fields||{})['Autor'] || '',
+        cover: (r.fields||{})['Cover'] || '',
+        seiten: (r.fields||{})['Seiten'] || 0,
+        aktuelleSeite: (r.fields||{})['Aktuelle Seite'] || 0,
+        createdAt: (r.fields||{})['Erstellt am'] || ''
+      })).sort((a,b)=> new Date(b.createdAt||0) - new Date(a.createdAt||0));
+      lesenEntries = entries.map(r=>{
+        const f = r.fields || {};
+        return {
+          id: r.id,
+          bookId: f['BuchId'] || '',
+          typ: f['Typ'] || 'Notiz',
+          kapitel: f['Kapitel'] || '',
+          seite: f['Seite'] || '',
+          text: f['Text'] || '',
+          wichtig: !!f['Wichtig'],
+          createdAt: f['Erstellt am'] || new Date().toISOString()
+        };
+      });
+      if(!lesenBooks.find(b=>b.id === lesenBookId)) lesenBookId = lesenBooks.length ? lesenBooks[0].id : '';
+      renderLesenSelect();
+      resetLesenSession();
+      renderLesenHistory();
+    }catch(e){
+      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lesen-Daten konnten nicht geladen werden. Ist der Airtable-Token für die Base "Kongrow - Lesen" freigegeben?</div></div>';
+    }
+  }
+
+  function renderLesenBookInfo(){
+    const el = document.getElementById('lesenBookInfo');
+    const b = lesenBooks.find(x=>x.id === lesenBookId);
+    if(!b){ el.innerHTML = ''; return; }
+    const pct = b.seiten ? Math.min(100, Math.round((b.aktuelleSeite || 0) / b.seiten * 100)) : 0;
+    el.innerHTML = `
+      <div style="display:flex;gap:12px;align-items:center;margin:4px 0 12px;">
+        ${b.cover ? `<img src="${escapeHtml(b.cover)}" alt="" style="width:56px;border-radius:6px;flex-shrink:0;">` : ''}
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;">${escapeHtml(b.titel)}</div>
+          ${b.autor ? `<div class="hint" style="margin:0;">${escapeHtml(b.autor)}</div>` : ''}
+          ${b.seiten ? `
+            <div style="height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--forest);"></div></div>
+            <div class="hint" style="margin:4px 0 0;">Seite ${b.aktuelleSeite || 0} von ${b.seiten} (${pct}%)</div>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function renderLesenSelect(){
+    renderLesenBookInfo();
+    if(lesenBooks.length === 0){
+      lesenSelectEl.innerHTML = '<option value="">Noch kein Buch angelegt</option>';
+      return;
+    }
+    lesenSelectEl.innerHTML = lesenBooks.map(b=>`<option value="${b.id}" ${b.id===lesenBookId?'selected':''}>${escapeHtml(b.titel)}${b.autor ? ' – ' + escapeHtml(b.autor) : ''}</option>`).join('');
+  }
+
+  function resetLesenSession(){
+    lesenSessionStart = new Date().toISOString();
+    lesenSessionNotes = [];
+    const prev = lesenBookId ? lesenBookEntries(lesenBookId).filter(e=>e.typ === 'Notiz' || e.typ === 'Zusammenfassung') : [];
+    lesenChapter = prev.length ? prev[0].kapitel : '';
+    lesenPhase = !lesenBookId ? 'start' : (prev.length ? 'recall' : 'notes');
+    renderLesenMain();
+  }
+
+  lesenSelectEl.onchange = ()=>{ lesenBookId = lesenSelectEl.value; renderLesenBookInfo(); resetLesenSession(); renderLesenHistory(); };
+
+  async function saveLesenBook(fields, statusEl, btn){
+    if(btn && btn.disabled) return;
+    if(btn) btn.disabled = true;
+    statusEl.textContent = 'Speichere ...';
+    try{
+      const id = await airtableCreate(TABLE_LESEN_BUECHER, Object.assign({ 'Erstellt am': new Date().toISOString() }, fields), LESEN_BASE_ID);
+      lesenBookId = id;
+      document.getElementById('lesenBookForm').innerHTML = '';
+      await loadLesen();
+    }catch(e){
+      statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+      if(btn) btn.disabled = false;
+    }
+  }
+
+  document.getElementById('lesenNewBookBtn').onclick = ()=>{
+    const formEl = document.getElementById('lesenBookForm');
+    formEl.innerHTML = `
+      <div style="margin-top:12px;">
+        <div class="turn-title">Buch suchen</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" id="lesenSearchInput" placeholder="Titel (optional + Autor)" style="flex:1;">
+          <button class="primary" id="lesenSearchBtn" style="flex-shrink:0;">Suchen</button>
+        </div>
+        <div id="lesenSearchResults"></div>
+        <button type="button" class="ghost" id="lesenManualToggle" style="margin-top:8px;">Nicht gefunden? Manuell anlegen</button>
+        <div id="lesenManualForm" style="display:none;margin-top:10px;">
+          <input type="text" id="lesenBookTitel" placeholder="Titel" style="margin-bottom:8px;">
+          <input type="text" id="lesenBookAutor" placeholder="Autor (optional)" style="margin-bottom:8px;">
+          <input type="text" id="lesenBookSeiten" inputmode="numeric" placeholder="Seitenzahl (optional)" style="margin-bottom:8px;">
+          <button class="primary" id="lesenBookSave">Anlegen</button>
+        </div>
+        <div id="lesenBookStatus" class="save-status"></div>
+        <button class="ghost" id="lesenBookCancel" style="margin-top:8px;">Abbrechen</button>
+      </div>`;
+    const statusEl = formEl.querySelector('#lesenBookStatus');
+    const resultsEl = formEl.querySelector('#lesenSearchResults');
+    formEl.querySelector('#lesenBookCancel').onclick = ()=>{ formEl.innerHTML = ''; };
+    formEl.querySelector('#lesenManualToggle').onclick = ()=>{
+      const m = formEl.querySelector('#lesenManualForm');
+      m.style.display = m.style.display === 'none' ? 'block' : 'none';
+    };
+    const searchBtn = formEl.querySelector('#lesenSearchBtn');
+    const doSearch = async ()=>{
+      if(searchBtn.disabled) return;
+      const q = formEl.querySelector('#lesenSearchInput').value.trim();
+      if(!q){ statusEl.textContent = 'Bitte einen Titel eingeben.'; return; }
+      searchBtn.disabled = true;
+      statusEl.textContent = 'Suche ...';
+      resultsEl.innerHTML = '';
+      try{
+        const res = await fetch('https://www.googleapis.com/books/v1/volumes?printType=books&maxResults=6&q=' + encodeURIComponent(q));
+        const data = await res.json();
+        const items = (data.items || []).map(it=>{
+          const v = it.volumeInfo || {};
+          const img = v.imageLinks ? (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || '') : '';
+          return {
+            titel: v.title + (v.subtitle ? ': ' + v.subtitle : ''),
+            autor: (v.authors || []).join(', '),
+            seiten: v.pageCount || 0,
+            cover: img.replace(/^http:/, 'https:')
+          };
+        }).filter(x=>x.titel && x.titel !== 'undefined');
+        if(!items.length){ statusEl.textContent = 'Nichts gefunden. Probier Titel + Autor oder lege das Buch manuell an.'; searchBtn.disabled = false; return; }
+        statusEl.textContent = 'Tippe auf dein Buch:';
+        resultsEl.innerHTML = items.map((x,i)=>`
+          <button type="button" class="ghost lesen-result" data-i="${i}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;margin-bottom:8px;">
+            ${x.cover ? `<img src="${escapeHtml(x.cover)}" alt="" style="width:40px;border-radius:4px;flex-shrink:0;">` : '<div style="width:40px;flex-shrink:0;"></div>'}
+            <span style="flex:1;min-width:0;"><strong>${escapeHtml(x.titel)}</strong><br><span style="color:var(--ink-soft);font-size:13px;">${escapeHtml(x.autor)}${x.seiten ? ' · ' + x.seiten + ' S.' : ''}</span></span>
+          </button>`).join('');
+        resultsEl.querySelectorAll('.lesen-result').forEach(btn=>{
+          btn.onclick = ()=>{
+            const x = items[Number(btn.dataset.i)];
+            resultsEl.querySelectorAll('.lesen-result').forEach(b=>b.disabled = true);
+            saveLesenBook({ 'Titel': x.titel, 'Autor': x.autor, 'Seiten': x.seiten || null, 'Cover': x.cover || null }, statusEl, null);
+          };
+        });
+      }catch(e){
+        statusEl.textContent = 'Suche nicht möglich. Bitte manuell anlegen.';
+      }
+      searchBtn.disabled = false;
+    };
+    searchBtn.onclick = doSearch;
+    formEl.querySelector('#lesenSearchInput').onkeydown = (ev)=>{ if(ev.key === 'Enter') doSearch(); };
+    const saveBtn = formEl.querySelector('#lesenBookSave');
+    saveBtn.onclick = ()=>{
+      const titel = formEl.querySelector('#lesenBookTitel').value.trim();
+      if(!titel){ statusEl.textContent = 'Bitte einen Titel eingeben.'; return; }
+      const seiten = parseInt(formEl.querySelector('#lesenBookSeiten').value, 10);
+      saveLesenBook({ 'Titel': titel, 'Autor': formEl.querySelector('#lesenBookAutor').value.trim(), 'Seiten': seiten > 0 ? seiten : null }, statusEl, saveBtn);
+    };
+  };
+
+  function renderLesenMain(){
+    if(!lesenBookId){
+      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lege oben ein Buch an, um zu starten.</div></div>';
+      return;
+    }
+    if(lesenPhase === 'recall') return renderLesenRecall();
+    if(lesenPhase === 'summary') return renderLesenSummary();
+    return renderLesenNotes();
+  }
+
+  /* ----- Phase 1: Abfrage ----- */
+  function lesenRecallMaterial(){
+    const prev = lesenBookEntries(lesenBookId).filter(e=>e.typ === 'Notiz' || e.typ === 'Zusammenfassung');
+    const lastSummary = prev.find(e=>e.typ === 'Zusammenfassung');
+    const notes = prev.filter(e=>e.typ === 'Notiz').slice(0, 15).reverse();
+    let mat = '';
+    if(lastSummary) mat += 'ZUSAMMENFASSUNG (Kapitel "' + lastSummary.kapitel + '"):\n' + lastSummary.text + '\n\n';
+    if(notes.length) mat += 'NOTIZEN:\n' + notes.map(n=>'- ' + (n.kapitel ? '[' + n.kapitel + '] ' : '') + (n.seite ? '(S. ' + n.seite + ') ' : '') + n.text).join('\n');
+    return mat.trim();
+  }
+
+  function renderLesenRecall(){
+    const book = lesenBooks.find(b=>b.id === lesenBookId);
+    lesenMainEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">1 · Abfrage vor dem Lesen</div>
+        <div class="question" style="font-size:19px;">Was weißt du noch?</div>
+        <div class="hint">Die KI stellt dir 3 Fragen aus deinen letzten Notizen zu „${escapeHtml(book ? book.titel : '')}“. Antworte aus dem Kopf, ohne nachzuschauen.</div>
+        <div id="lesenRecallBody"></div>
+        <div class="nav-row">
+          <button class="ghost" id="lesenSkipRecall">Überspringen</button>
+          <button class="primary" id="lesenStartRecall">Fragen stellen</button>
+        </div>
+        <div id="lesenRecallStatus" class="save-status"></div>
+      </div>`;
+    const bodyEl = lesenMainEl.querySelector('#lesenRecallBody');
+    const statusEl = lesenMainEl.querySelector('#lesenRecallStatus');
+    lesenMainEl.querySelector('#lesenSkipRecall').onclick = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
+    const startBtn = lesenMainEl.querySelector('#lesenStartRecall');
+    startBtn.onclick = async ()=>{
+      if(startBtn.disabled) return;
+      startBtn.disabled = true;
+      statusEl.textContent = 'Die KI überlegt Fragen ...';
+      const material = lesenRecallMaterial();
+      try{
+        const reply = await callClaudeCoach(
+          'Du bist ein Lern-Coach. Unten stehen Notizen, die ich beim Lesen eines Buches gemacht habe. Stelle mir genau 3 klare, konkrete Fragen, mit denen ich mein Wissen aus diesen Notizen aktiv abrufen muss. Keine Ja/Nein-Fragen, verrate die Antworten nicht. Antworte NUR mit einem JSON-Array aus 3 Strings auf Deutsch.\n\n' + material
+        );
+        let questions = [];
+        const m = reply.match(/\[[\s\S]*\]/);
+        if(m){ try{ questions = JSON.parse(m[0]).filter(q=>typeof q === 'string'); }catch(e){} }
+        if(!questions.length) questions = reply.split('\n').map(l=>l.replace(/^\s*\d+[.)]\s*/,'').trim()).filter(l=>l.length > 10).slice(0,3);
+        if(!questions.length) throw new Error('Keine Fragen erhalten');
+        questions = questions.slice(0,3);
+        statusEl.textContent = '';
+        startBtn.style.display = 'none';
+        bodyEl.innerHTML = questions.map((q,i)=>`
+          <div class="turn-title" style="margin-top:16px;">${i+1}. ${escapeHtml(q)}</div>
+          <textarea class="lesen-answer" placeholder="Deine Antwort ..." style="min-height:90px;"></textarea>`).join('') +
+          `<div id="lesenFeedback"></div>
+           <button class="primary" id="lesenEvalBtn" style="margin-top:14px;">Auswerten</button>`;
+        const evalBtn = bodyEl.querySelector('#lesenEvalBtn');
+        evalBtn.onclick = async ()=>{
+          if(evalBtn.disabled) return;
+          const answers = Array.from(bodyEl.querySelectorAll('.lesen-answer')).map(t=>t.value.trim());
+          evalBtn.disabled = true;
+          statusEl.textContent = 'Die KI wertet aus ...';
+          try{
+            const qa = questions.map((q,i)=>'Frage ' + (i+1) + ': ' + q + '\nMeine Antwort: ' + (answers[i] || '(keine Antwort)')).join('\n\n');
+            const fb = await callClaudeCoach(
+              'Du bist ein freundlicher, direkter Lern-Coach. Hier sind meine Notizen und 3 Fragen mit meinen Antworten. Sage mir pro Frage kurz: was ich richtig hatte und was gefehlt hat (laut Notizen). Schließe mit einem Satz, was ich vor dem Weiterlesen nochmal verinnerlichen sollte. Kurz, Deutsch, einfache Markdown-Formatierung.\n\nNOTIZEN:\n' + material + '\n\n' + qa
+            );
+            statusEl.textContent = '';
+            bodyEl.querySelector('#lesenFeedback').innerHTML = `<div class="card" style="margin-top:14px;">${renderSimpleMarkdown(fb)}</div>`;
+            evalBtn.style.display = 'none';
+            lesenMainEl.querySelector('#lesenSkipRecall').style.display = 'none';
+            const go = document.createElement('button');
+            go.className = 'primary'; go.textContent = 'Weiterlesen'; go.style.marginTop = '12px';
+            go.onclick = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
+            bodyEl.appendChild(go);
+            // Abfrage speichern (nur Dokumentation, kein Blocker bei Fehler)
+            airtableCreate(TABLE_LESEN_EINTRAEGE, {
+              'Titel': 'Abfrage', 'BuchId': lesenBookId, 'Typ': 'Abfrage',
+              'Text': qa + '\n\nFeedback:\n' + fb, 'Erstellt am': new Date().toISOString()
+            }, LESEN_BASE_ID).catch(()=>{});
+          }catch(e){
+            statusEl.textContent = 'Auswertung fehlgeschlagen: ' + e.message;
+            evalBtn.disabled = false;
+          }
+        };
+      }catch(e){
+        statusEl.textContent = 'Fehler: ' + e.message;
+        startBtn.disabled = false;
+      }
+    };
+  }
+
+  /* ----- Phase 2: Notizen ----- */
+  function renderLesenNotes(){
+    lesenMainEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">2 · Beim Lesen</div>
+        <div class="turn-title">Kapitel</div>
+        <input type="text" id="lesenChapterInput" placeholder="z.B. Kapitel 3 – Gewohnheiten" value="${escapeHtml(lesenChapter)}" style="margin-bottom:12px;">
+        <div class="turn-title">Notiz</div>
+        <textarea id="lesenNoteInput" placeholder="Was willst du dir merken? In eigenen Worten ..." style="min-height:110px;"></textarea>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+          <input type="text" id="lesenPageInput" inputmode="numeric" placeholder="Seite" style="width:90px;">
+          <label style="display:flex;gap:6px;align-items:center;font-size:15px;"><input type="checkbox" id="lesenImportant" style="width:auto;"> ★ Wichtig</label>
+        </div>
+        <button class="primary" id="lesenSaveNote" style="margin-top:14px;width:100%;">Notiz speichern</button>
+        <div id="lesenNoteStatus" class="save-status"></div>
+        <div id="lesenSessionNotes"></div>
+        <button class="ghost" id="lesenToSummary" style="margin-top:16px;width:100%;">Kapitel beenden → Zusammenfassung</button>
+      </div>`;
+    const chapterEl = lesenMainEl.querySelector('#lesenChapterInput');
+    chapterEl.oninput = ()=>{ lesenChapter = chapterEl.value; };
+    renderLesenSessionNotes();
+    const saveBtn = lesenMainEl.querySelector('#lesenSaveNote');
+    const statusEl = lesenMainEl.querySelector('#lesenNoteStatus');
+    saveBtn.onclick = async ()=>{
+      if(saveBtn.disabled) return;
+      const text = lesenMainEl.querySelector('#lesenNoteInput').value.trim();
+      if(!text){ statusEl.textContent = 'Bitte eine Notiz eingeben.'; return; }
+      const seite = lesenMainEl.querySelector('#lesenPageInput').value.trim();
+      const wichtig = lesenMainEl.querySelector('#lesenImportant').checked;
+      saveBtn.disabled = true; statusEl.textContent = 'Speichere ...';
+      const fields = {
+        'Titel': text.slice(0, 60), 'BuchId': lesenBookId, 'Typ': 'Notiz',
+        'Kapitel': lesenChapter.trim(), 'Seite': seite, 'Text': text,
+        'Wichtig': wichtig, 'Erstellt am': new Date().toISOString()
+      };
+      try{
+        const id = await airtableCreate(TABLE_LESEN_EINTRAEGE, fields, LESEN_BASE_ID);
+        const entry = { id, bookId: lesenBookId, typ:'Notiz', kapitel: fields['Kapitel'], seite, text, wichtig, createdAt: fields['Erstellt am'] };
+        lesenEntries.push(entry);
+        lesenSessionNotes.unshift(entry);
+        const pageNum = parseInt(seite, 10);
+        const bk = lesenBooks.find(x=>x.id === lesenBookId);
+        if(bk && pageNum > 0 && pageNum > (bk.aktuelleSeite || 0)){
+          bk.aktuelleSeite = pageNum;
+          renderLesenBookInfo();
+          airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': pageNum } }) }, LESEN_BASE_ID).catch(()=>{});
+        }
+        lesenMainEl.querySelector('#lesenNoteInput').value = '';
+        lesenMainEl.querySelector('#lesenPageInput').value = '';
+        lesenMainEl.querySelector('#lesenImportant').checked = false;
+        statusEl.textContent = 'Gespeichert.';
+        renderLesenSessionNotes();
+        renderLesenHistory();
+      }catch(e){
+        showSaveFailure(statusEl, ()=>saveBtn.click(), text);
+      }
+      saveBtn.disabled = false;
+    };
+    lesenMainEl.querySelector('#lesenToSummary').onclick = ()=>{ lesenPhase = 'summary'; renderLesenMain(); };
+  }
+
+  function renderLesenSessionNotes(){
+    const el = lesenMainEl.querySelector('#lesenSessionNotes');
+    if(!el) return;
+    if(!lesenSessionNotes.length){ el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="summary-q" style="margin-top:16px;">Notizen dieser Sitzung</div>' + lesenSessionNotes.map(n=>
+      `<div class="summary-a" style="margin-bottom:8px;">${n.wichtig ? '★ ' : ''}${n.seite ? '<span style="color:var(--ink-soft);">S. ' + escapeHtml(n.seite) + ' · </span>' : ''}${escapeHtml(n.text)}</div>`).join('');
+  }
+
+  /* ----- Phase 3: Zusammenfassung ----- */
+  function renderLesenSummary(){
+    lesenMainEl.innerHTML = `
+      <div class="card">
+        <div class="step-label">3 · Kapitel-Ende</div>
+        <div class="question" style="font-size:19px;">${escapeHtml(lesenChapter || 'Zusammenfassung')}</div>
+        <div class="turn-title" style="margin-top:12px;">Zusammenfassung in eigenen Worten</div>
+        <textarea id="lesenSummaryInput" placeholder="Worum ging es in diesem Kapitel?" style="min-height:150px;"></textarea>
+        <div class="turn-title" style="margin-top:12px;">Was nehme ich mit / setze ich um? (optional)</div>
+        <textarea id="lesenTakeawayInput" placeholder="Eine konkrete Sache ..." style="min-height:70px;"></textarea>
+        <div class="nav-row">
+          <button class="ghost" id="lesenBackNotes">Zurück</button>
+          <button class="primary" id="lesenSaveSummary">Speichern</button>
+        </div>
+        <div id="lesenSummaryStatus" class="save-status"></div>
+      </div>`;
+    lesenMainEl.querySelector('#lesenBackNotes').onclick = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
+    const saveBtn = lesenMainEl.querySelector('#lesenSaveSummary');
+    const statusEl = lesenMainEl.querySelector('#lesenSummaryStatus');
+    saveBtn.onclick = async ()=>{
+      if(saveBtn.disabled) return;
+      const sum = lesenMainEl.querySelector('#lesenSummaryInput').value.trim();
+      const take = lesenMainEl.querySelector('#lesenTakeawayInput').value.trim();
+      if(!sum){ statusEl.textContent = 'Bitte eine Zusammenfassung schreiben.'; return; }
+      saveBtn.disabled = true; statusEl.textContent = 'Speichere ...';
+      const text = sum + (take ? '\n\nMitnehmen / umsetzen: ' + take : '');
+      const fields = {
+        'Titel': 'Zusammenfassung ' + (lesenChapter || ''), 'BuchId': lesenBookId, 'Typ': 'Zusammenfassung',
+        'Kapitel': lesenChapter.trim(), 'Text': text, 'Erstellt am': new Date().toISOString()
+      };
+      try{
+        const id = await airtableCreate(TABLE_LESEN_EINTRAEGE, fields, LESEN_BASE_ID);
+        lesenEntries.push({ id, bookId: lesenBookId, typ:'Zusammenfassung', kapitel: fields['Kapitel'], seite:'', text, wichtig:false, createdAt: fields['Erstellt am'] });
+        renderLesenHistory();
+        lesenMainEl.innerHTML = `<div class="card"><div class="step-label">Fertig</div><div class="question" style="font-size:19px;">Kapitel gespeichert.</div><div class="hint">Beim nächsten Mal fragt dich die KI genau danach ab.</div><button class="primary" id="lesenNextChapter" style="width:100%;margin-top:12px;">Nächstes Kapitel beginnen</button></div>`;
+        lesenMainEl.querySelector('#lesenNextChapter').onclick = ()=>{ lesenChapter = ''; lesenSessionNotes = []; lesenPhase = 'notes'; renderLesenMain(); };
+      }catch(e){
+        showSaveFailure(statusEl, ()=>saveBtn.click(), text);
+        saveBtn.disabled = false;
+      }
+    };
+  }
+
+  /* ----- Verlauf ----- */
+  lesenHistoryToggle.onclick = ()=>{
+    const showing = lesenHistoryEl.style.display !== 'none';
+    lesenHistoryEl.style.display = showing ? 'none' : 'block';
+    lesenHistoryToggle.textContent = showing ? 'Notizen & Zusammenfassungen anzeigen' : 'Ausblenden';
+  };
+
+  function renderLesenHistory(){
+    const list = lesenBookId ? lesenBookEntries(lesenBookId).filter(e=>e.typ !== 'Abfrage') : [];
+    if(!list.length){ lesenHistoryEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
+    lesenHistoryEl.innerHTML = list.map(e=>`
+      <div class="entry">
+        <div class="entry-head" data-key="${e.id}">
+          <div>
+            <div class="entry-date">${new Date(e.createdAt).toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'})} · ${e.typ}${e.kapitel ? ' · ' + escapeHtml(e.kapitel) : ''}</div>
+            <div class="entry-belief">${e.wichtig ? '★ ' : ''}${escapeHtml(e.text.length > 70 ? e.text.slice(0,70) + ' …' : e.text)}</div>
+          </div>
+        </div>
+        <div class="entry-body" id="lbody-${cssSafe(e.id)}">
+          <div style="white-space:pre-wrap;">${e.seite ? 'S. ' + escapeHtml(e.seite) + ' – ' : ''}${escapeHtml(e.text)}</div>
+          <button class="entry-delete" data-key="${e.id}" style="margin-top:12px;">Löschen</button>
+        </div>
+      </div>`).join('');
+    lesenHistoryEl.querySelectorAll('.entry-head').forEach(h=>{
+      h.onclick = ()=>{ document.getElementById('lbody-'+cssSafe(h.dataset.key)).classList.toggle('open'); };
+    });
+    lesenHistoryEl.querySelectorAll('.entry-delete').forEach(btn=>{
+      btn.onclick = async (ev)=>{
+        ev.stopPropagation();
+        if(btn.disabled) return;
+        btn.textContent = '...'; btn.disabled = true;
+        try{
+          await airtableDelete(TABLE_LESEN_EINTRAEGE, btn.dataset.key, LESEN_BASE_ID);
+          lesenEntries = lesenEntries.filter(x=>x.id !== btn.dataset.key);
+          lesenSessionNotes = lesenSessionNotes.filter(x=>x.id !== btn.dataset.key);
+          renderLesenHistory();
+        }catch(e){ btn.textContent = 'Fehler'; btn.disabled = false; }
+      };
+    });
+  }
+
+  loadLesen();
 
   // init
   render();
