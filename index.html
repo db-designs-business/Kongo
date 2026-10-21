@@ -910,8 +910,8 @@
     <div class="sub">Erst kurz abrufen, was hängengeblieben ist – dann lesen, notieren, zusammenfassen.</div>
 
     <div class="card">
-      <div class="turn-title">Buch</div>
-      <select id="lesenBookSelect" style="margin-bottom:10px;"></select>
+      <div class="turn-title">Meine Bibliothek</div>
+      <div id="lesenLibrary"></div>
       <div id="lesenBookInfo"></div>
       <button type="button" class="ghost" id="lesenNewBookBtn">+ Neues Buch</button>
       <div id="lesenBookForm"></div>
@@ -4602,7 +4602,6 @@
   let lesenChapter = '';
   let lesenSessionNotes = [];
 
-  const lesenSelectEl = document.getElementById('lesenBookSelect');
   const lesenMainEl = document.getElementById('lesenMain');
   const lesenHistoryEl = document.getElementById('lesenHistory');
   const lesenHistoryToggle = document.getElementById('lesenHistoryToggle');
@@ -4625,6 +4624,7 @@
         cover: (r.fields||{})['Cover'] || '',
         seiten: (r.fields||{})['Seiten'] || 0,
         aktuelleSeite: (r.fields||{})['Aktuelle Seite'] || 0,
+        fertig: !!(r.fields||{})['Abgeschlossen'],
         createdAt: (r.fields||{})['Erstellt am'] || ''
       })).sort((a,b)=> new Date(b.createdAt||0) - new Date(a.createdAt||0));
       lesenEntries = entries.map(r=>{
@@ -4640,7 +4640,11 @@
           createdAt: f['Erstellt am'] || new Date().toISOString()
         };
       });
-      if(!lesenBooks.find(b=>b.id === lesenBookId)) lesenBookId = lesenBooks.length ? lesenBooks[0].id : '';
+      if(!lesenBookId){ try{ lesenBookId = localStorage.getItem('kongrow_lesen_book') || ''; }catch(e){} }
+      if(!lesenBooks.find(b=>b.id === lesenBookId)){
+        const firstOpen = lesenBooks.find(b=>!b.fertig) || lesenBooks[0];
+        lesenBookId = firstOpen ? firstOpen.id : '';
+      }
       renderLesenSelect();
       resetLesenSession();
       renderLesenHistory();
@@ -4662,18 +4666,120 @@
           ${b.autor ? `<div class="hint" style="margin:0;">${escapeHtml(b.autor)}</div>` : ''}
           ${b.seiten ? `
             <div style="height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--forest);"></div></div>
-            <div class="hint" style="margin:4px 0 0;">Seite ${b.aktuelleSeite || 0} von ${b.seiten} (${pct}%)</div>` : ''}
+            <div class="hint" style="margin:4px 0 0;">Seite ${b.aktuelleSeite || 0} von ${b.seiten} (${pct}%)</div>` : `<div class="hint" style="margin:4px 0 0;">Seitenzahl fehlt – über „Bearbeiten" eintragen</div>`}
         </div>
+        <button type="button" class="ghost" id="lesenEditBookBtn" style="flex-shrink:0;padding:8px 12px;">Bearbeiten</button>
       </div>`;
+    el.querySelector('#lesenEditBookBtn').onclick = openLesenBookEdit;
+  }
+
+  let lesenShowFinished = false;
+
+  function lesenBookTile(b){
+    const pct = b.seiten ? Math.min(100, Math.round((b.aktuelleSeite || 0) / b.seiten * 100)) : 0;
+    const active = b.id === lesenBookId;
+    return `
+      <button type="button" class="lesen-tile" data-id="${b.id}" style="flex:0 0 92px;width:92px;padding:0;background:none;border:none;text-align:left;cursor:pointer;opacity:${b.fertig && !active ? '0.6' : '1'};">
+        <div style="width:92px;height:136px;border-radius:8px;overflow:hidden;background:var(--paper);border:2px solid ${active ? 'var(--forest)' : 'var(--line)'};display:flex;align-items:center;justify-content:center;${active ? 'box-shadow:0 0 12px rgba(31,209,196,.45);' : ''}">
+          ${b.cover ? `<img src="${escapeHtml(b.cover)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : `<span style="padding:8px;font-size:12px;color:var(--ink-soft);text-align:center;">${escapeHtml(b.titel)}</span>`}
+        </div>
+        <div style="font-size:12px;margin-top:6px;color:var(--ink);line-height:1.25;max-height:30px;overflow:hidden;">${escapeHtml(b.titel)}</div>
+        <div style="font-size:11px;color:var(--ink-soft);">${b.fertig ? '✓ Gelesen' : (b.seiten ? pct + '%' : '')}</div>
+      </button>`;
+  }
+
+  function selectLesenBook(id){
+    lesenBookId = id;
+    try{ localStorage.setItem('kongrow_lesen_book', id); }catch(e){}
+    document.getElementById('lesenBookForm').innerHTML = '';
+    renderLesenSelect();
+    resetLesenSession();
+    renderLesenHistory();
   }
 
   function renderLesenSelect(){
     renderLesenBookInfo();
+    const libEl = document.getElementById('lesenLibrary');
     if(lesenBooks.length === 0){
-      lesenSelectEl.innerHTML = '<option value="">Noch kein Buch angelegt</option>';
+      libEl.innerHTML = '<div class="hint">Noch kein Buch angelegt.</div>';
       return;
     }
-    lesenSelectEl.innerHTML = lesenBooks.map(b=>`<option value="${b.id}" ${b.id===lesenBookId?'selected':''}>${escapeHtml(b.titel)}${b.autor ? ' – ' + escapeHtml(b.autor) : ''}</option>`).join('');
+    const reading = lesenBooks.filter(b=>!b.fertig);
+    const finished = lesenBooks.filter(b=>b.fertig);
+    const row = list => `<div style="display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;-webkit-overflow-scrolling:touch;">${list.map(lesenBookTile).join('')}</div>`;
+    libEl.innerHTML =
+      (reading.length ? `<div class="hint" style="margin:0 0 4px;">Lese ich gerade (${reading.length})</div>` + row(reading) : '') +
+      (finished.length ? `<button type="button" class="ghost" id="lesenFinishedToggle" style="margin-bottom:8px;">${lesenShowFinished ? 'Gelesene ausblenden' : 'Gelesene Bücher anzeigen (' + finished.length + ')'}</button>` + (lesenShowFinished ? row(finished) : '') : '');
+    libEl.querySelectorAll('.lesen-tile').forEach(t=>{ t.onclick = ()=>selectLesenBook(t.dataset.id); });
+    const ft = libEl.querySelector('#lesenFinishedToggle');
+    if(ft) ft.onclick = ()=>{ lesenShowFinished = !lesenShowFinished; renderLesenSelect(); };
+  }
+
+  function openLesenBookEdit(){
+    const b = lesenBooks.find(x=>x.id === lesenBookId);
+    if(!b) return;
+    const formEl = document.getElementById('lesenBookForm');
+    formEl.innerHTML = `
+      <div style="margin-top:12px;">
+        <div class="turn-title">Buch bearbeiten</div>
+        <input type="text" id="lesenEditTitel" placeholder="Titel" value="${escapeHtml(b.titel)}" style="margin-bottom:8px;">
+        <input type="text" id="lesenEditAutor" placeholder="Autor" value="${escapeHtml(b.autor)}" style="margin-bottom:8px;">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;"><div class="hint" style="margin:0 0 4px;">Seiten gesamt</div><input type="text" inputmode="numeric" id="lesenEditSeiten" value="${b.seiten || ''}"></div>
+          <div style="flex:1;"><div class="hint" style="margin:0 0 4px;">Aktuelle Seite</div><input type="text" inputmode="numeric" id="lesenEditAktuell" value="${b.aktuelleSeite || ''}"></div>
+        </div>
+        <label style="display:flex;gap:6px;align-items:center;font-size:15px;margin-bottom:10px;"><input type="checkbox" id="lesenEditFertig" style="width:auto;" ${b.fertig ? 'checked' : ''}> Fertig gelesen</label>
+        <div class="nav-row">
+          <button class="ghost" id="lesenEditCancel">Abbrechen</button>
+          <button class="primary" id="lesenEditSave">Speichern</button>
+        </div>
+        <button class="entry-delete" id="lesenEditDelete" style="margin-top:12px;">Buch löschen</button>
+        <div id="lesenEditStatus" class="save-status"></div>
+      </div>`;
+    const statusEl = formEl.querySelector('#lesenEditStatus');
+    formEl.querySelector('#lesenEditCancel').onclick = ()=>{ formEl.innerHTML = ''; };
+    const saveBtn = formEl.querySelector('#lesenEditSave');
+    saveBtn.onclick = async ()=>{
+      if(saveBtn.disabled) return;
+      const titel = formEl.querySelector('#lesenEditTitel').value.trim();
+      if(!titel){ statusEl.textContent = 'Bitte einen Titel eingeben.'; return; }
+      const seiten = parseInt(formEl.querySelector('#lesenEditSeiten').value, 10);
+      const aktuell = parseInt(formEl.querySelector('#lesenEditAktuell').value, 10);
+      const fields = {
+        'Titel': titel,
+        'Autor': formEl.querySelector('#lesenEditAutor').value.trim(),
+        'Seiten': seiten > 0 ? seiten : null,
+        'Aktuelle Seite': aktuell > 0 ? aktuell : null,
+        'Abgeschlossen': formEl.querySelector('#lesenEditFertig').checked
+      };
+      saveBtn.disabled = true; statusEl.textContent = 'Speichere ...';
+      try{
+        await airtableFetch(TABLE_LESEN_BUECHER + '/' + b.id, { method:'PATCH', body: JSON.stringify({ fields }) }, LESEN_BASE_ID);
+        b.titel = fields['Titel']; b.autor = fields['Autor'];
+        b.seiten = fields['Seiten'] || 0; b.aktuelleSeite = fields['Aktuelle Seite'] || 0; b.fertig = fields['Abgeschlossen'];
+        formEl.innerHTML = '';
+        renderLesenSelect();
+      }catch(e){
+        statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+        saveBtn.disabled = false;
+      }
+    };
+    const delBtn = formEl.querySelector('#lesenEditDelete');
+    let armed = false;
+    delBtn.onclick = async ()=>{
+      if(delBtn.disabled) return;
+      if(!armed){ armed = true; delBtn.textContent = 'Wirklich löschen? Nochmal tippen'; return; }
+      delBtn.disabled = true; delBtn.textContent = 'Lösche ...';
+      try{
+        await airtableDelete(TABLE_LESEN_BUECHER, b.id, LESEN_BASE_ID);
+        lesenBooks = lesenBooks.filter(x=>x.id !== b.id);
+        const next = lesenBooks.find(x=>!x.fertig) || lesenBooks[0];
+        formEl.innerHTML = '';
+        selectLesenBook(next ? next.id : '');
+      }catch(e){
+        delBtn.textContent = 'Fehler – erneut versuchen'; delBtn.disabled = false; armed = false;
+      }
+    };
   }
 
   function resetLesenSession(){
@@ -4685,7 +4791,6 @@
     renderLesenMain();
   }
 
-  lesenSelectEl.onchange = ()=>{ lesenBookId = lesenSelectEl.value; renderLesenBookInfo(); resetLesenSession(); renderLesenHistory(); };
 
   async function saveLesenBook(fields, statusEl, btn){
     if(btn && btn.disabled) return;
@@ -4694,6 +4799,7 @@
     try{
       const id = await airtableCreate(TABLE_LESEN_BUECHER, Object.assign({ 'Erstellt am': new Date().toISOString() }, fields), LESEN_BASE_ID);
       lesenBookId = id;
+      try{ localStorage.setItem('kongrow_lesen_book', id); }catch(e){}
       document.getElementById('lesenBookForm').innerHTML = '';
       await loadLesen();
     }catch(e){
