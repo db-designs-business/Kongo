@@ -4738,18 +4738,40 @@
       statusEl.textContent = 'Suche ...';
       resultsEl.innerHTML = '';
       try{
-        const res = await fetch('https://www.googleapis.com/books/v1/volumes?printType=books&maxResults=6&q=' + encodeURIComponent(q));
-        const data = await res.json();
-        const items = (data.items || []).map(it=>{
-          const v = it.volumeInfo || {};
-          const img = v.imageLinks ? (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || '') : '';
-          return {
-            titel: v.title + (v.subtitle ? ': ' + v.subtitle : ''),
-            autor: (v.authors || []).join(', '),
-            seiten: v.pageCount || 0,
-            cover: img.replace(/^http:/, 'https:')
-          };
-        }).filter(x=>x.titel && x.titel !== 'undefined');
+        let items = [];
+        let failed = 0;
+        // Quelle 1: Google Books
+        try{
+          const res = await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent(q));
+          const data = await res.json();
+          if(data.error) throw new Error(data.error.message || 'Google Books Fehler');
+          items = items.concat((data.items || []).map(it=>{
+            const v = it.volumeInfo || {};
+            const img = v.imageLinks ? (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || '') : '';
+            return {
+              titel: (v.title || '') + (v.subtitle ? ': ' + v.subtitle : ''),
+              autor: (v.authors || []).join(', '),
+              seiten: v.pageCount || 0,
+              cover: img.replace(/^http:/, 'https:')
+            };
+          }));
+        }catch(e){ failed++; }
+        // Quelle 2: Open Library (Fallback bzw. Ergänzung)
+        if(items.length < 4){
+          try{
+            const res2 = await fetch('https://openlibrary.org/search.json?limit=8&fields=title,author_name,number_of_pages_median,cover_i&q=' + encodeURIComponent(q));
+            const d2 = await res2.json();
+            items = items.concat((d2.docs || []).map(x=>({
+              titel: x.title || '',
+              autor: (x.author_name || []).slice(0,2).join(', '),
+              seiten: x.number_of_pages_median || 0,
+              cover: x.cover_i ? 'https://covers.openlibrary.org/b/id/' + x.cover_i + '-M.jpg' : ''
+            })));
+          }catch(e){ failed++; }
+        }
+        items = items.filter(x=>x.titel);
+        if(!items.length && failed >= 2){ statusEl.textContent = 'Die Buchsuche ist gerade nicht erreichbar. Bitte manuell anlegen.'; searchBtn.disabled = false; return; }
+        items = items.slice(0, 8);
         if(!items.length){ statusEl.textContent = 'Nichts gefunden. Probier Titel + Autor oder lege das Buch manuell an.'; searchBtn.disabled = false; return; }
         statusEl.textContent = 'Tippe auf dein Buch:';
         resultsEl.innerHTML = items.map((x,i)=>`
