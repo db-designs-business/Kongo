@@ -496,16 +496,12 @@
     </button>
     <div class="nav-menu" id="navMenu" style="display:none;">
       <button type="button" class="nav-menu-item active" data-tab="home">Start</button>
-      <button type="button" class="nav-menu-item" data-tab="work">The Work</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
-      <button type="button" class="nav-menu-item" data-tab="affirmationen">Affirmationen</button>
-      <button type="button" class="nav-menu-item" data-tab="wutjournal">Wut-Journal</button>
-      <button type="button" class="nav-menu-item" data-tab="satzergaenzung">Satzergänzung</button>
       <button type="button" class="nav-menu-item" data-tab="sprechuebung">Sprechübung</button>
-      <button type="button" class="nav-menu-item" data-tab="worksheets">Worksheets</button>
       <button type="button" class="nav-menu-item" data-tab="lesen">Lesen</button>
+      <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -521,10 +517,6 @@
     </div>
 
     <div class="home-links">
-      <button type="button" class="home-link" id="homeToWork">
-        <span class="home-link-title">The Work</span>
-        <span class="home-link-sub">Einen Glaubenssatz durcharbeiten</span>
-      </button>
       <button type="button" class="home-link" id="homeToReflexion">
         <span class="home-link-title">Reflexion</span>
         <span class="home-link-sub">Tages-, Wochen-, Monats-, Quartals- oder Jahresrückblick</span>
@@ -537,29 +529,17 @@
         <span class="home-link-title">Ziele</span>
         <span class="home-link-sub">Ziele anlegen und verfolgen</span>
       </button>
-      <button type="button" class="home-link" id="homeToAffirmationen">
-        <span class="home-link-title">Affirmationen</span>
-        <span class="home-link-sub">Deine Affirmationen durchgehen</span>
-      </button>
-      <button type="button" class="home-link" id="homeToWutjournal">
-        <span class="home-link-title">Wut-Journal</span>
-        <span class="home-link-sub">Wut als Antrieb nutzen</span>
-      </button>
-      <button type="button" class="home-link" id="homeToSatzergaenzung">
-        <span class="home-link-title">Satzergänzung</span>
-        <span class="home-link-sub">Tägliche Übung & Wochen-Rückblick</span>
-      </button>
       <button type="button" class="home-link" id="homeToSprechuebung">
         <span class="home-link-title">Sprechübung</span>
         <span class="home-link-sub">Stimm- & Sprechtraining, max. 15 Min.</span>
       </button>
-      <button type="button" class="home-link" id="homeToWorksheets">
-        <span class="home-link-title">Worksheets</span>
-        <span class="home-link-sub">Checklisten & Notizen nachschlagen</span>
-      </button>
       <button type="button" class="home-link" id="homeToLesen">
         <span class="home-link-title">Lesen</span>
         <span class="home-link-sub">Notizen, Kapitel-Zusammenfassung & Abfrage</span>
+      </button>
+      <button type="button" class="home-link" id="homeToAktivitaeten">
+        <span class="home-link-title">Aktivitäten</span>
+        <span class="home-link-sub">The Work, Affirmationen, Wut-Journal, Satzergänzung, Worksheets</span>
       </button>
     </div>
   </div>
@@ -904,6 +884,34 @@
     <div id="worksheetsListContainer"></div>
   </div>
 
+  <div id="panelAktivitaeten" style="display:none;">
+    <div class="eyebrow">Aktivitäten</div>
+    <h1>Aktivitäten</h1>
+    <div class="sub">Übungen und Werkzeuge für zwischendurch.</div>
+    <div class="home-links">
+      <button type="button" class="home-link" id="homeToWork">
+        <span class="home-link-title">The Work</span>
+        <span class="home-link-sub">Einen Glaubenssatz durcharbeiten</span>
+      </button>
+      <button type="button" class="home-link" id="homeToAffirmationen">
+        <span class="home-link-title">Affirmationen</span>
+        <span class="home-link-sub">Deine Affirmationen durchgehen</span>
+      </button>
+      <button type="button" class="home-link" id="homeToWutjournal">
+        <span class="home-link-title">Wut-Journal</span>
+        <span class="home-link-sub">Wut als Antrieb nutzen</span>
+      </button>
+      <button type="button" class="home-link" id="homeToSatzergaenzung">
+        <span class="home-link-title">Satzergänzung</span>
+        <span class="home-link-sub">Tägliche Übung & Wochen-Rückblick</span>
+      </button>
+      <button type="button" class="home-link" id="homeToWorksheets">
+        <span class="home-link-title">Worksheets</span>
+        <span class="home-link-sub">Checklisten & Notizen nachschlagen</span>
+      </button>
+    </div>
+  </div>
+
   <div id="panelLesen" style="display:none;">
     <div class="eyebrow">Lesen <span class="data-badge">Airtable</span></div>
     <h1>Lesen</h1>
@@ -1184,13 +1192,26 @@
   const panelWorksheets = document.getElementById('panelWorksheets');
 
   const panelLesen = document.getElementById('panelLesen');
+  const panelAktivitaeten = document.getElementById('panelAktivitaeten');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten };
+
+  const AKTIVITAETEN_TABS = ['work','affirmationen','wutjournal','satzergaenzung','worksheets'];
+  AKTIVITAETEN_TABS.forEach(k=>{
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'ghost';
+    back.textContent = '← Aktivitäten';
+    back.style.marginBottom = '14px';
+    back.onclick = ()=>{ switchTab('aktivitaeten'); window.scrollTo(0,0); };
+    panels[k].insertBefore(back, panels[k].firstChild);
+  });
 
   function switchTab(key){
     Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
+    const navKey = AKTIVITAETEN_TABS.includes(key) ? 'aktivitaeten' : key;
     document.querySelectorAll('.nav-menu-item').forEach(item=>{
-      item.classList.toggle('active', item.dataset.tab === key);
+      item.classList.toggle('active', item.dataset.tab === navKey);
     });
     navMenu.style.display = 'none';
   }
@@ -1218,6 +1239,7 @@
   document.getElementById('homeToSprechuebung').onclick = ()=>switchTab('sprechuebung');
   document.getElementById('homeToWorksheets').onclick = ()=>switchTab('worksheets');
   document.getElementById('homeToLesen').onclick = ()=>switchTab('lesen');
+  document.getElementById('homeToAktivitaeten').onclick = ()=>switchTab('aktivitaeten');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
