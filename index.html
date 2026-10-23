@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
@@ -287,6 +287,43 @@
   label{ color:var(--ink); }
   input[type=checkbox]{ accent-color:var(--forest); width:18px; height:18px; }
   ::-webkit-scrollbar{ width:0; height:0; }
+
+  /* ---------- Responsive-Absicherung ---------- */
+  html, body{ overflow-x:hidden; max-width:100%; }
+  body{ overflow-wrap:anywhere; word-break:normal; -webkit-text-size-adjust:100%; }
+  img, svg, video{ max-width:100%; }
+  .wrap{
+    padding-top:calc(18px + env(safe-area-inset-top));
+    padding-left:max(16px, env(safe-area-inset-left));
+    padding-right:max(16px, env(safe-area-inset-right));
+    padding-bottom:calc(80px + env(safe-area-inset-bottom));
+  }
+  /* Flex-Kinder dürfen schrumpfen, damit nichts über den Rand schiebt */
+  .entry-head > div, .lib-item-text, .nav-row > div, .list-input-row > *, .topbar-title{ min-width:0; }
+  .entry-head > div{ flex:1; }
+  button{ max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+  input, textarea, select{ max-width:100%; }
+  input[type=number]{
+    width:100%; font-family:var(--font); font-size:16px; color:var(--ink);
+    background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px;
+  }
+  input[type=range]{ width:100%; min-width:0; accent-color:var(--forest); }
+  select{ font-size:16px; }               /* iOS zoomt sonst beim Antippen */
+  .lib-item{ flex-wrap:wrap; }
+  .lib-item-actions{ flex-wrap:wrap; }
+  @media (max-width:420px){
+    .lib-item-text{ flex:1 1 100%; }
+    .lib-item-actions{ width:100%; }
+    .lib-item-actions button{ flex:1; }
+  }
+  .yesno{ flex-wrap:wrap; }
+  .yesno button{ min-width:0; }
+  .nav-menu{ max-width:calc(100vw - 32px); }
+  /* Vollbild-Overlays: Notch und Home-Leiste berücksichtigen */
+  .modal-overlay[style*="align-items:stretch"] > div{ padding-top:calc(20px + env(safe-area-inset-top)) !important; padding-bottom:calc(40px + env(safe-area-inset-bottom)) !important; }
+  .modal-card{ padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
+  #routinePausedBanner{ padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important; }
+  pre, code{ white-space:pre-wrap; overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
