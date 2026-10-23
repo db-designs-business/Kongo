@@ -334,6 +334,14 @@
   body.modal-open{ overflow:hidden; }
   #routinePausedBanner{ padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important; }
   pre, code{ white-space:pre-wrap; overflow-wrap:anywhere; }
+  .back-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,.03); color:var(--ink-soft);
+    border:1px solid var(--line-soft); border-radius:999px;
+    padding:8px 14px; min-height:38px; margin:0 0 18px;
+    font-size:13.5px; font-weight:600; cursor:pointer; transition:all .2s;
+  }
+  .back-btn:hover, .back-btn:active{ color:var(--forest); border-color:rgba(34,227,211,.5); }
 </style>
 </head>
 <body>
@@ -1054,13 +1062,15 @@
   const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten };
 
   const AKTIVITAETEN_TABS = ['work','affirmationen','wutjournal','satzergaenzung','worksheets'];
-  AKTIVITAETEN_TABS.forEach(k=>{
+  // Zurück-Buttons: Hauptbereiche → Start, Aktivitäten-Unterseiten → Aktivitäten
+  Object.keys(panels).forEach(k=>{
+    if(k === 'home') return;
+    const sub = AKTIVITAETEN_TABS.includes(k);
     const back = document.createElement('button');
     back.type = 'button';
-    back.className = 'ghost';
-    back.textContent = '← Aktivitäten';
-    back.style.marginBottom = '14px';
-    back.onclick = ()=>{ switchTab('aktivitaeten'); window.scrollTo(0,0); };
+    back.className = 'back-btn';
+    back.textContent = sub ? '← Aktivitäten' : '← Start';
+    back.onclick = ()=>{ switchTab(sub ? 'aktivitaeten' : 'home'); window.scrollTo(0,0); };
     panels[k].insertBefore(back, panels[k].firstChild);
   });
 
