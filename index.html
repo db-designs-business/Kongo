@@ -310,12 +310,16 @@
   input[type=range]{ width:100%; min-width:0; accent-color:var(--forest); }
   select{ font-size:16px; }               /* iOS zoomt sonst beim Antippen */
   .lib-item{ flex-wrap:wrap; }
+  .lib-item > *{ min-width:0; }
   .lib-item-actions{ flex-wrap:wrap; }
-  @media (max-width:420px){
-    .lib-item-text{ flex:1 1 100%; }
-    .lib-item-actions{ width:100%; }
-    .lib-item-actions button{ flex:1; }
+  /* Listen-Zeilen mit Aktionen: Text oben, Buttons darunter – auf allen Handy-Breiten */
+  @media (max-width:640px){
+    .lib-item{ align-items:stretch; }
+    .lib-item > :not(.lib-item-actions){ flex:1 1 100%; min-width:0; }
+    .lib-item-actions{ width:100%; flex-shrink:1; }
+    .lib-item-actions button{ flex:1 1 0; min-width:0; }
   }
+  .wrap{ overflow-x:clip; }
   .yesno{ flex-wrap:wrap; }
   .yesno button{ min-width:0; }
   .nav-menu{ max-width:calc(100vw - 32px); }
