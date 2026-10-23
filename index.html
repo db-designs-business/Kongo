@@ -289,7 +289,6 @@
   ::-webkit-scrollbar{ width:0; height:0; }
 
   /* ---------- Responsive-Absicherung ---------- */
-  html, body{ overflow-x:hidden; max-width:100%; }
   body{ overflow-wrap:anywhere; word-break:normal; -webkit-text-size-adjust:100%; }
   img, svg, video{ max-width:100%; }
   .wrap{
@@ -325,7 +324,14 @@
   .nav-menu{ max-width:calc(100vw - 32px); }
   /* Vollbild-Overlays: Notch und Home-Leiste berücksichtigen */
   .modal-overlay[style*="align-items:stretch"] > div{ padding-top:calc(20px + env(safe-area-inset-top)) !important; padding-bottom:calc(40px + env(safe-area-inset-bottom)) !important; }
-  .modal-card{ padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
+  .modal-card{
+    padding-bottom:calc(18px + env(safe-area-inset-bottom));
+    max-height:85vh; max-height:85dvh;
+    overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y;
+  }
+  @media (min-width:480px){ .modal-card{ max-height:80vh; max-height:80dvh; } }
+  .modal-overlay{ overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  body.modal-open{ overflow:hidden; }
   #routinePausedBanner{ padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important; }
   pre, code{ white-space:pre-wrap; overflow-wrap:anywhere; }
 </style>
@@ -5032,6 +5038,18 @@
   }
 
   loadLesen();
+
+  // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)
+  (function(){
+    const overlays = Array.from(document.querySelectorAll('.modal-overlay'));
+    const sync = ()=>{
+      const open = overlays.some(o=>o.style.display && o.style.display !== 'none');
+      document.body.classList.toggle('modal-open', open);
+    };
+    const mo = new MutationObserver(sync);
+    overlays.forEach(o=>mo.observe(o, { attributes:true, attributeFilter:['style'] }));
+    sync();
+  })();
 
   // init
   render();
