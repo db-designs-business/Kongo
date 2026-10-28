@@ -334,6 +334,29 @@
   body.modal-open{ overflow:hidden; }
   #routinePausedBanner{ padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important; }
   pre, code{ white-space:pre-wrap; overflow-wrap:anywhere; }
+  /* ---------- Prioritäten (Startseite) ---------- */
+  .prio-card{ border-color:rgba(34,227,211,.28); background:linear-gradient(135deg,#0F1A1B 0%,#090D0F 70%); }
+  .prio-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+  .prio-edit-toggle{ background:none; border:none; color:var(--ink-soft); font-size:13px; font-weight:600; cursor:pointer; padding:6px 0; }
+  .prio-edit-toggle:hover{ color:var(--forest); }
+  .prio-progress{ height:3px; background:var(--line); border-radius:999px; overflow:hidden; margin-bottom:12px; }
+  .prio-progress > div{ height:100%; background:var(--forest); box-shadow:0 0 10px var(--forest-glow); transition:width .3s; }
+  .prio-item{ display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line-soft); }
+  .prio-item:last-child{ border-bottom:none; }
+  .prio-check{
+    flex-shrink:0; width:28px; height:28px; border-radius:999px; border:2px solid rgba(34,227,211,.5);
+    background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    color:#04110F; font-size:15px; font-weight:800; padding:0; transition:all .2s;
+  }
+  .prio-item.done .prio-check{ background:var(--forest); border-color:var(--forest); box-shadow:0 0 12px var(--forest-glow); }
+  .prio-title{ flex:1; min-width:0; font-size:16px; font-weight:600; color:var(--ink); }
+  .prio-item.done .prio-title{ color:var(--ink-soft); text-decoration:line-through; text-decoration-color:rgba(34,227,211,.6); }
+  .prio-move, .prio-del{ flex-shrink:0; background:none; border:1px solid var(--line-soft); color:var(--ink-soft); border-radius:999px; width:34px; height:34px; cursor:pointer; padding:0; font-size:14px; }
+  .prio-del{ color:var(--danger); }
+  .prio-add{ display:flex; gap:8px; margin-top:12px; }
+  .prio-add input{ flex:1; min-width:0; }
+  .prio-add button{ flex-shrink:0; padding:12px 16px; }
+  .prio-add button::after{ content:''; }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -375,6 +398,20 @@
     <div class="eyebrow">Selbst-Erforschung</div>
     <h1 id="homeGreeting">Willkommen zurück</h1>
     <div class="sub">Schön, dass du dir Zeit nimmst.</div>
+
+    <div class="card prio-card" id="prioCard">
+      <div class="prio-head">
+        <div class="step-label" style="margin:0;">Prioritäten · Jeden Tag zuerst</div>
+        <button type="button" class="prio-edit-toggle" id="prioEditToggle">Bearbeiten</button>
+      </div>
+      <div class="prio-progress" id="prioProgress"></div>
+      <div id="prioList"><div class="loading">Lade ...</div></div>
+      <div id="prioAddRow" class="prio-add" style="display:none;">
+        <input type="text" id="prioInput" placeholder="Neue Priorität, z.B. Meditation">
+        <button type="button" class="primary" id="prioAddBtn">Hinzufügen</button>
+      </div>
+      <div id="prioStatus" class="save-status"></div>
+    </div>
 
     <div class="card" id="quoteCard">
       <div class="step-label">Impuls für heute</div>
@@ -5048,6 +5085,126 @@
   }
 
   loadLesen();
+
+
+  /* =========================================================
+     PRIORITÄTEN (Startseite)
+     ========================================================= */
+  const TABLE_PRIORITAETEN = 'tblz6r2sMHhzTTckw';
+  let prioCache = [];
+  let prioEditMode = false;
+  const prioListEl = document.getElementById('prioList');
+  const prioStatusEl = document.getElementById('prioStatus');
+
+  function prioToday(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  async function loadPrioritaeten(){
+    try{
+      const records = await airtableList(TABLE_PRIORITAETEN, ROUTINEN_BASE_ID);
+      prioCache = records.map(r=>({
+        id: r.id,
+        titel: (r.fields||{})['Titel'] || '',
+        order: (r.fields||{})['Reihenfolge'] || 0,
+        erledigtAm: (r.fields||{})['Erledigt am'] || ''
+      })).filter(p=>p.titel).sort((a,b)=> a.order - b.order);
+      renderPrioritaeten();
+    }catch(e){
+      prioListEl.innerHTML = '<div class="empty">Prioritäten konnten nicht geladen werden.</div>';
+    }
+  }
+
+  function renderPrioritaeten(){
+    const today = prioToday();
+    const done = prioCache.filter(p=>p.erledigtAm === today).length;
+    const prog = document.getElementById('prioProgress');
+    prog.innerHTML = prioCache.length ? `<div style="width:${Math.round(done/prioCache.length*100)}%"></div>` : '';
+    document.getElementById('prioEditToggle').textContent = prioEditMode ? 'Fertig' : 'Bearbeiten';
+    document.getElementById('prioAddRow').style.display = (prioEditMode || !prioCache.length) ? 'flex' : 'none';
+    if(!prioCache.length){
+      prioListEl.innerHTML = '<div class="empty">Noch keine Prioritäten. Füg unten die Dinge hinzu, die du jeden Tag zuerst machst.</div>';
+      return;
+    }
+    prioListEl.innerHTML = prioCache.map((p,i)=>{
+      const isDone = p.erledigtAm === today;
+      return `<div class="prio-item ${isDone ? 'done' : ''}" data-id="${p.id}">
+        <button type="button" class="prio-check" data-id="${p.id}" aria-label="Erledigt">${isDone ? '✓' : ''}</button>
+        <div class="prio-title">${escapeHtml(p.titel)}</div>
+        ${prioEditMode ? `
+          <button type="button" class="prio-move" data-id="${p.id}" data-dir="-1" ${i===0?'disabled':''} aria-label="Nach oben">↑</button>
+          <button type="button" class="prio-del" data-id="${p.id}" aria-label="Löschen">×</button>` : ''}
+      </div>`;
+    }).join('');
+
+    prioListEl.querySelectorAll('.prio-check').forEach(btn=>{
+      btn.onclick = async ()=>{
+        if(btn.disabled) return;
+        const p = prioCache.find(x=>x.id === btn.dataset.id);
+        const newVal = p.erledigtAm === today ? '' : today;
+        const prev = p.erledigtAm;
+        p.erledigtAm = newVal;
+        if(newVal) vibrateDevice && vibrateDevice();
+        renderPrioritaeten();
+        try{
+          await airtableFetch(TABLE_PRIORITAETEN + '/' + p.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Erledigt am': newVal } }) }, ROUTINEN_BASE_ID);
+          prioStatusEl.textContent = '';
+        }catch(e){
+          p.erledigtAm = prev; renderPrioritaeten();
+          prioStatusEl.textContent = 'Konnte nicht gespeichert werden. Bitte erneut tippen.';
+        }
+      };
+    });
+    prioListEl.querySelectorAll('.prio-del').forEach(btn=>{
+      btn.onclick = async ()=>{
+        if(btn.disabled) return;
+        btn.disabled = true;
+        try{
+          await airtableDelete(TABLE_PRIORITAETEN, btn.dataset.id, ROUTINEN_BASE_ID);
+          prioCache = prioCache.filter(x=>x.id !== btn.dataset.id);
+          renderPrioritaeten();
+        }catch(e){ btn.disabled = false; prioStatusEl.textContent = 'Löschen fehlgeschlagen.'; }
+      };
+    });
+    prioListEl.querySelectorAll('.prio-move').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const i = prioCache.findIndex(x=>x.id === btn.dataset.id);
+        if(i <= 0) return;
+        const tmp = prioCache[i-1]; prioCache[i-1] = prioCache[i]; prioCache[i] = tmp;
+        prioCache.forEach((p,idx)=>{ p.order = idx+1; });
+        renderPrioritaeten();
+        try{
+          await airtableFetch(TABLE_PRIORITAETEN, { method:'PATCH', body: JSON.stringify({ records: [prioCache[i-1], prioCache[i]].map(p=>({ id:p.id, fields:{ 'Reihenfolge': p.order } })) }) }, ROUTINEN_BASE_ID);
+        }catch(e){ prioStatusEl.textContent = 'Reihenfolge konnte nicht gespeichert werden.'; }
+      };
+    });
+  }
+
+  document.getElementById('prioEditToggle').onclick = ()=>{ prioEditMode = !prioEditMode; prioStatusEl.textContent = ''; renderPrioritaeten(); };
+  const prioAddBtn = document.getElementById('prioAddBtn');
+  const prioInput = document.getElementById('prioInput');
+  const addPrio = async ()=>{
+    if(prioAddBtn.disabled) return;
+    const titel = prioInput.value.trim();
+    if(!titel) return;
+    prioAddBtn.disabled = true;
+    const order = (prioCache.length ? Math.max(...prioCache.map(p=>p.order)) : 0) + 1;
+    try{
+      const id = await airtableCreate(TABLE_PRIORITAETEN, { 'Titel': titel, 'Reihenfolge': order }, ROUTINEN_BASE_ID);
+      prioCache.push({ id, titel, order, erledigtAm:'' });
+      prioInput.value = '';
+      prioStatusEl.textContent = '';
+      renderPrioritaeten();
+    }catch(e){ prioStatusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.'; }
+    prioAddBtn.disabled = false;
+  };
+  prioAddBtn.onclick = addPrio;
+  prioInput.onkeydown = (ev)=>{ if(ev.key === 'Enter') addPrio(); };
+  // Neuer Tag: Haken automatisch zurücksetzen, wenn die App offen bleibt
+  let prioDay = prioToday();
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && prioToday() !== prioDay){ prioDay = prioToday(); renderPrioritaeten(); } });
+  loadPrioritaeten();
 
   // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)
   (function(){
