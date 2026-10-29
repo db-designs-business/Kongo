@@ -461,6 +461,41 @@
   }
   .picker-count{ font-size:14px; color:var(--ink-soft); }
   .picker-count b{ color:var(--forest); font-size:18px; }
+  .daily-streak{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ink-soft); margin:-2px 0 8px; }
+  .daily-streak b{ color:var(--ink); font-size:15px; }
+  .streak-flame{ filter:grayscale(1); opacity:.5; font-size:16px; }
+  .streak-flame.on{ filter:none; opacity:1; }
+  .streak-best{ margin-left:auto; font-size:12px; }
+  .streak-joker{ flex-basis:100%; font-size:11.5px; color:var(--forest); }
+  .streak-joker.used{ color:var(--ink-soft); }
+  .streak-warn{ font-size:11px; color:#FFB37A; border:1px solid rgba(255,154,77,.4); border-radius:999px; padding:1px 8px; }
+  .nofap-main{ display:flex; align-items:center; gap:16px; }
+  .nofap-days{ flex-shrink:0; width:92px; height:92px; border-radius:22px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border:1px solid rgba(34,227,211,.4); background:radial-gradient(circle at 50% 30%, rgba(34,227,211,.18), transparent 70%); }
+  .nofap-days span{ font-size:38px; font-weight:800; line-height:1; letter-spacing:-.03em; color:var(--forest); text-shadow:0 0 18px var(--forest-glow); }
+  .nofap-days small{ font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); margin-top:4px; }
+  .nofap-meta{ flex:1; min-width:0; font-size:13px; color:var(--ink-soft); display:flex; flex-direction:column; gap:3px; }
+  .nofap-meta b{ color:var(--ink); }
+  .nofap-actions{ display:flex; gap:8px; margin-top:12px; }
+  .nofap-actions .primary{ flex:1; }
+  .nofap-actions .primary::after{ content:''; }
+  .nofap-foot{ display:flex; justify-content:space-between; gap:10px; margin-top:8px; }
+  .nofap-checkin{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; margin-bottom:14px; border-radius:12px; background:rgba(255,154,77,.08); border:1px solid rgba(255,154,77,.35); font-size:13px; color:var(--ink-soft); }
+  .nofap-checkin b{ color:#FFB37A; }
+  .nofap-checkin .primary{ flex-shrink:0; min-height:38px; padding:8px 16px; font-size:13.5px; }
+  .nofap-ok{ color:var(--forest); font-size:12px; }
+  .checkin-days{ display:flex; flex-direction:column; gap:8px; margin:6px 0 14px; }
+  .checkin-day{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; border-radius:12px; border:1px solid rgba(34,227,211,.35); background:rgba(34,227,211,.06); color:var(--ink); font-size:14.5px; cursor:pointer; text-align:left; }
+  .checkin-day b{ color:var(--forest); font-size:13px; }
+  .checkin-day.relapse{ border-color:rgba(255,107,107,.5); background:rgba(255,107,107,.08); }
+  .checkin-day.relapse b{ color:var(--danger); }
+  .checkin-day.after{ opacity:.45; }
+  .checkin-day.after b{ color:var(--ink-soft); }
+  .checkin-honest{ display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--ink-soft); line-height:1.4; }
+  .checkin-honest input{ margin-top:2px; flex-shrink:0; }
+  .nofap-urge{ flex:1; color:var(--forest) !important; border-color:rgba(34,227,211,.45) !important; }
+  .urge-timer{ font-size:56px; font-weight:800; letter-spacing:-.03em; color:var(--forest); text-shadow:0 0 22px var(--forest-glow); margin:16px 0; font-variant-numeric:tabular-nums; }
+  .urge-timer.done{ font-size:34px; }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -528,8 +563,17 @@
       </div>
       <div class="prio-progress" id="prioProgress"></div>
       <div class="prio-quest" id="prioQuest"></div>
+      <div class="daily-streak" id="dailyStreak"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
       <div id="prioStatus" class="save-status"></div>
+    </div>
+
+    <div class="card nofap-card" id="nofapCard">
+      <div class="home-aufg-head">
+        <div class="step-label" style="margin:0;">NoFap-Counter</div>
+        <span class="xp-sub" id="nofapUrgeInfo"></span>
+      </div>
+      <div id="nofapBody"><div class="loading">Lade ...</div></div>
     </div>
 
     <div class="card" id="homeAufgabenCard">
@@ -1019,6 +1063,12 @@
       <input type="text" id="libNewInput" placeholder="Neuen Glaubenssatz hinzufügen ...">
       <button class="primary" id="libAddBtn">Hinzufügen</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="nofapOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
+    <div id="nofapOverlayBody" style="margin-top:20px;"></div>
   </div>
 </div>
 
@@ -6000,6 +6050,7 @@
       xpLoaded = true;
       renderXP();
       xpSyncPrios();
+      renderNofap();
     }catch(e){
       const el = document.getElementById('xpCard');
       if(el) el.querySelector('#xpSub').textContent = 'XP konnten nicht geladen werden.';
@@ -6058,6 +6109,7 @@
     card.querySelector('#xpDayLabel').textContent = driven ? `Driven Day ✓ · ${today} XP` : `Heute ${today} / ${XP_TAGESZIEL} XP`;
     card.classList.toggle('driven', driven);
     card.querySelector('#xpTotal').textContent = total + ' XP gesamt';
+    renderDailyStreak();
   }
 
   // Bereits heute abgehakte Prioritäten (z.B. vor dem Laden) nachträglich gutschreiben
@@ -6125,6 +6177,335 @@
   }
 
   loadXP();
+
+  /* =========================================================
+     DAILY-STREAK (nur Tage mit kompletter Daily Quest)
+     ========================================================= */
+  function dqDates(){ return new Set(xpEntries.filter(e=>e.key.startsWith('dq:')).map(e=>e.key.slice(3))); }
+  function shiftDay(str, n){ const d = new Date(str + 'T12:00'); d.setDate(d.getDate()+n); return dayStr(d); }
+  function weekKeyOf(str){ const d = new Date(str + 'T12:00'); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return dayStr(d); }
+  // Streak über komplette Daily Quests; 1 Joker pro Woche überbrückt einen verpassten Tag automatisch
+  function dailyStreakInfo(){
+    const set = dqDates();
+    const today = todayStr();
+    const usedWeeks = new Set();
+    const jokerDays = [];
+    let run = 0, best = 0;
+    if(set.size){
+      let x = [...set].sort()[0];
+      while(x <= today){
+        if(set.has(x)){ run++; }
+        else if(x !== today){
+          const nx = shiftDay(x, 1);
+          const wk = weekKeyOf(x);
+          if(run > 0 && !usedWeeks.has(wk) && (set.has(nx) || nx === today)){ usedWeeks.add(wk); jokerDays.push(x); }
+          else run = 0;
+        }
+        best = Math.max(best, run);
+        x = shiftDay(x, 1);
+      }
+    }
+    const jokerUsed = usedWeeks.has(weekKeyOf(today));
+    return { cur: run, best, todayDone: set.has(today), jokerUsed, jokerDays };
+  }
+  function renderDailyStreak(){
+    const el = document.getElementById('dailyStreak');
+    if(!el || !xpLoaded) return;
+    const s = dailyStreakInfo();
+    el.innerHTML = `<span class="streak-flame ${s.cur ? 'on' : ''}">🔥</span>
+      <span><b>${s.cur}</b> ${s.cur === 1 ? 'Tag' : 'Tage'} Streak</span>
+      <span class="streak-best">Rekord ${Math.max(s.best, s.cur)}</span>
+      ${!s.todayDone && s.cur ? '<span class="streak-warn">heute noch offen</span>' : ''}
+      <span class="streak-joker ${s.jokerUsed ? 'used' : ''}" title="1 Joker pro Woche rettet einen verpassten Tag">🃏 ${s.jokerUsed ? 'Joker diese Woche genutzt' : 'Joker bereit'}</span>`;
+  }
+
+  /* =========================================================
+     NOFAP-COUNTER (zählt nur per Check-in bestätigte Tage)
+     ========================================================= */
+  const TABLE_NOFAP = 'tbl7pXJ8Nz9W0nYI0';
+  const NOFAP_MILESTONES = [1, 3, 7, 14, 30, 60, 90, 180, 365];
+  const NOFAP_MS_XP = { 7:50, 14:75, 30:150, 60:250, 90:400, 180:600, 365:1000 };
+  const NOFAP_DAY_XP = 10, NOFAP_URGE_XP = 15, NOFAP_URGE_MAX = 3;
+  const NOFAP_XP_BACKDAYS = 7;      // XP nur für Check-ins der letzten 7 Tage
+  const NOFAP_TODAY_FROM = 20;      // heutiger Tag ist ab 20 Uhr bestätigbar
+  let nofapRuns = [];
+  let nofapLoaded = false;
+
+  function daysBetween(a, b){ return Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 86400000); }
+  function nofapCurrent(){ return nofapRuns.find(r=>!r.ende); }
+  function nofapDays(run){ return (run && run.bestaetigtBis && run.bestaetigtBis >= run.start) ? daysBetween(run.start, run.bestaetigtBis) + 1 : 0; }
+  function nofapBest(){ return nofapRuns.reduce((m,r)=>Math.max(m, nofapDays(r)), 0); }
+  function nofapLastCheckable(){ return new Date().getHours() >= NOFAP_TODAY_FROM ? todayStr() : shiftDay(todayStr(), -1); }
+  function nofapOpenDays(run){
+    if(!run) return [];
+    let d = (run.bestaetigtBis && run.bestaetigtBis >= run.start) ? shiftDay(run.bestaetigtBis, 1) : run.start;
+    const last = nofapLastCheckable(), out = [];
+    while(d <= last){ out.push(d); d = shiftDay(d, 1); }
+    return out;
+  }
+  function fmtDay(d){ return new Date(d + 'T12:00').toLocaleDateString('de-DE',{ weekday:'short', day:'2-digit', month:'2-digit' }); }
+
+  async function loadNofap(){
+    try{
+      const recs = await airtableList(TABLE_NOFAP, ROUTINEN_BASE_ID);
+      nofapRuns = recs.map(r=>{ const f = r.fields || {}; return { id:r.id, start:f['Start'] || '', ende:f['Ende'] || '', ausloeser:f['Ausloeser'] || '', lernen:f['Lernen'] || '', trackingAb:f['Tracking ab'] || f['Start'] || '', bestaetigtBis:f['Bestaetigt bis'] || '' }; })
+        .filter(r=>r.start).sort((a,b)=> b.start.localeCompare(a.start));
+      nofapLoaded = true;
+      renderNofap();
+    }catch(e){
+      document.getElementById('nofapBody').innerHTML = '<div class="empty">Counter konnte nicht geladen werden.</div>';
+    }
+  }
+  function nofapAwardDaily(){ /* XP gibt es jetzt nur über den Check-in */ }
+
+  // XP für bestätigte Tage + Meilensteine (nur ab Einrichtung, nichts rückwirkend davor)
+  function nofapAwardFor(run, days){
+    const limit = shiftDay(todayStr(), -NOFAP_XP_BACKDAYS);
+    days.forEach(d=>{ if(d >= run.trackingAb && d >= limit) awardXP('nofap:' + d, 'NoFap: clean ' + fmtDay(d), NOFAP_DAY_XP); });
+    const n = nofapDays(run);
+    Object.keys(NOFAP_MS_XP).map(Number).forEach(m=>{
+      if(n >= m && shiftDay(run.start, m - 1) >= run.trackingAb) awardXP('nofapms:' + run.id + ':' + m, `NoFap: ${m} Tage`, NOFAP_MS_XP[m]);
+    });
+  }
+
+  function renderNofap(){
+    const body = document.getElementById('nofapBody');
+    if(!body) return;
+    const run = nofapCurrent();
+    if(!run){
+      body.innerHTML = `<div class="hint" style="margin-bottom:12px;">Starte deinen Counter. Bist du schon länger dabei, wähl das Datum, seit dem du clean bist – die Tage davor zählen mit, bringen aber keine XP.</div>
+        <div class="aufg-field-row"><label class="aufg-label">Seit</label><input type="date" id="nofapStartInput" value="${todayStr()}" max="${todayStr()}"></div>
+        <button type="button" class="primary" id="nofapStartBtn" style="margin-top:8px;">Counter starten</button>`;
+      const btn = body.querySelector('#nofapStartBtn');
+      btn.onclick = async ()=>{
+        if(btn.disabled) return;
+        const start = body.querySelector('#nofapStartInput').value || todayStr();
+        if(start > todayStr()) return;
+        btn.disabled = true;
+        const t = todayStr();
+        const bis = start < t ? shiftDay(t, -1) : '';
+        try{
+          const id = await airtableCreate(TABLE_NOFAP, { 'Start': start, 'Tracking ab': t, 'Bestaetigt bis': bis }, ROUTINEN_BASE_ID);
+          nofapRuns.unshift({ id, start, ende:'', ausloeser:'', lernen:'', trackingAb:t, bestaetigtBis:bis });
+          renderNofap();
+        }catch(e){ btn.disabled = false; }
+      };
+      return;
+    }
+    const days = nofapDays(run);
+    const best = Math.max(nofapBest(), days);
+    const next = NOFAP_MILESTONES.find(m=>m > days) || null;
+    const prev = [...NOFAP_MILESTONES].reverse().find(m=>m <= days) || 0;
+    const pct = next ? Math.round((days - prev) / (next - prev) * 100) : 100;
+    const open = nofapOpenDays(run);
+    const urgesToday = xpEntries.filter(e=>e.key.startsWith('urge:' + todayStr())).length;
+    const canEditStart = run.trackingAb === todayStr() && nofapRuns.length === 1;   // nur beim allerersten Einrichten
+    body.innerHTML = `
+      ${open.length ? `<div class="nofap-checkin">
+          <div><b>Check-in offen</b> · ${open.length === 1 ? fmtDay(open[0]) : open.length + ' Tage (' + fmtDay(open[0]) + ' – ' + fmtDay(open[open.length-1]) + ')'}</div>
+          <button type="button" class="primary" id="nofapCheckinBtn">Check-in</button>
+        </div>` : ''}
+      <div class="nofap-main">
+        <div class="nofap-days"><span>${days}</span><small>${days === 1 ? 'Tag' : 'Tage'}</small></div>
+        <div class="nofap-meta">
+          <div>Seit ${new Date(run.start + 'T12:00').toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'})}</div>
+          <div>Rekord: <b>${best}</b> ${best === 1 ? 'Tag' : 'Tage'}</div>
+          ${next ? `<div>Nächster Meilenstein: <b>${next}</b>${NOFAP_MS_XP[next] ? ` · +${NOFAP_MS_XP[next]} XP` : ''}</div>` : '<div><b>Legende.</b></div>'}
+          ${!open.length ? `<div class="nofap-ok">✓ Bestätigt bis ${run.bestaetigtBis ? fmtDay(run.bestaetigtBis) : '–'}${new Date().getHours() < NOFAP_TODAY_FROM ? ' · heute ab ' + NOFAP_TODAY_FROM + ' Uhr' : ''}</div>` : ''}
+        </div>
+      </div>
+      <div class="xp-bar" style="margin:12px 0 4px;"><div style="width:${pct}%"></div></div>
+      <div class="nofap-actions">
+        <button type="button" class="ghost nofap-urge" id="nofapUrgeBtn">Drang? Durchhalten</button>
+        <button type="button" class="ghost" id="nofapRelapseBtn">Rückfall</button>
+      </div>
+      <div class="nofap-foot">
+        ${canEditStart ? `<button type="button" class="aufg-link" id="nofapEditBtn">Startdatum ändern</button>` : '<span></span>'}
+        ${nofapRuns.some(r=>r.ausloeser || r.lernen) ? `<button type="button" class="aufg-link" id="nofapHistBtn">Auslöser-Muster</button>` : ''}
+      </div>
+      <div id="nofapExtra"></div>`;
+    const cb = body.querySelector('#nofapCheckinBtn');
+    if(cb) cb.onclick = ()=>openNofapCheckin(run);
+    body.querySelector('#nofapUrgeBtn').onclick = openNofapUrge;
+    body.querySelector('#nofapRelapseBtn').onclick = ()=>openNofapRelapse(run, open.length ? open[0] : todayStr());
+    const eb = body.querySelector('#nofapEditBtn');
+    if(eb) eb.onclick = ()=>{
+      const ex = body.querySelector('#nofapExtra');
+      ex.innerHTML = `<div class="hint" style="margin:10px 0 4px;">Nur heute änderbar – danach ist das Startdatum fest.</div><div class="aufg-field-row"><label class="aufg-label">Seit</label><input type="date" id="nofapEditInput" value="${run.start}" max="${todayStr()}"><button type="button" class="ghost" id="nofapEditSave" style="padding:10px 14px;">OK</button></div>`;
+      const sb = ex.querySelector('#nofapEditSave');
+      sb.onclick = async ()=>{
+        const v = ex.querySelector('#nofapEditInput').value;
+        if(!v || v > todayStr() || sb.disabled) return;
+        sb.disabled = true;
+        const bis = v < todayStr() ? shiftDay(todayStr(), -1) : '';
+        try{
+          await airtableFetch(TABLE_NOFAP + '/' + run.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Start': v, 'Bestaetigt bis': bis } }) }, ROUTINEN_BASE_ID);
+          run.start = v; run.bestaetigtBis = bis; renderNofap();
+        }catch(e){ sb.disabled = false; }
+      };
+    };
+    const hb = body.querySelector('#nofapHistBtn');
+    if(hb) hb.onclick = ()=>{
+      const ex = body.querySelector('#nofapExtra');
+      const past = nofapRuns.filter(r=>r.ende);
+      ex.innerHTML = `<div class="example-box">${past.map(r=>`<div class="example-text"><b>${nofapDays(r)} Tage</b> · Rückfall ${fmtDay(r.ende)}${r.ausloeser ? '<br><span style="color:var(--ink-soft);">Auslöser:</span> ' + escapeHtml(r.ausloeser) : ''}${r.lernen ? '<br><span style="color:var(--ink-soft);">Nächstes Mal:</span> ' + escapeHtml(r.lernen) : ''}</div>`).join('<hr style="border:none;border-top:1px solid var(--line-soft);margin:8px 0;">')}</div>`;
+    };
+    const urgeInfo = document.getElementById('nofapUrgeInfo');
+    if(urgeInfo) urgeInfo.textContent = urgesToday ? `${urgesToday}× heute widerstanden` : '';
+  }
+
+  // Check-in: jeden offenen Tag einzeln bestätigen (auch mehrere Tage nachträglich)
+  function openNofapCheckin(run){
+    const ov = document.getElementById('nofapOverlay');
+    const el = document.getElementById('nofapOverlayBody');
+    const open = nofapOpenDays(run);
+    let relapseDay = null;
+    const draw = ()=>{
+      el.innerHTML = `<div class="card">
+          <div class="step-label">NoFap Check-in</div>
+          <div class="question" style="font-size:19px;">Bist du clean geblieben?</div>
+          <div class="hint">Tippe einen Tag an, wenn du dort einen Rückfall hattest. Der Counter zählt nur bestätigte Tage.</div>
+          <div class="checkin-days">
+            ${open.map(d=>{
+              const st = relapseDay && d === relapseDay ? 'relapse' : (relapseDay && d > relapseDay ? 'after' : 'clean');
+              return `<button type="button" class="checkin-day ${st}" data-d="${d}">
+                <span>${fmtDay(d)}${d === todayStr() ? ' (heute)' : ''}</span>
+                <b>${st === 'relapse' ? '✗ Rückfall' : st === 'after' ? '– neuer Start' : '✓ Clean'}</b>
+              </button>`;
+            }).join('')}
+          </div>
+          <label class="checkin-honest"><input type="checkbox" id="checkinHonest"> Ich bestätige das ehrlich – ich belüge nur mich selbst, wenn nicht.</label>
+          <div class="nav-row">
+            <button type="button" class="ghost" id="checkinCancel">Abbrechen</button>
+            <button type="button" class="primary" id="checkinSave" disabled>${relapseDay ? 'Weiter' : 'Bestätigen'}</button>
+          </div>
+          <div id="checkinStatus" class="save-status"></div>
+        </div>`;
+      el.querySelectorAll('.checkin-day').forEach(b=>b.onclick = ()=>{ relapseDay = relapseDay === b.dataset.d ? null : b.dataset.d; draw(); });
+      const honest = el.querySelector('#checkinHonest');
+      const save = el.querySelector('#checkinSave');
+      honest.onchange = ()=>{ save.disabled = !honest.checked; };
+      el.querySelector('#checkinCancel').onclick = ()=>{ ov.style.display = 'none'; };
+      save.onclick = async ()=>{
+        if(save.disabled) return;
+        if(relapseDay){ openNofapRelapse(run, relapseDay); return; }
+        save.disabled = true;
+        const last = open[open.length - 1];
+        try{
+          await airtableFetch(TABLE_NOFAP + '/' + run.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Bestaetigt bis': last } }) }, ROUTINEN_BASE_ID);
+          run.bestaetigtBis = last;
+          nofapAwardFor(run, open);
+          ov.style.display = 'none';
+          renderNofap();
+        }catch(e){ save.disabled = false; el.querySelector('#checkinStatus').textContent = 'Speichern fehlgeschlagen.'; }
+      };
+    };
+    draw();
+    ov.style.display = 'flex';
+  }
+
+  // Drang-Modus: 5-Minuten-Timer + Alternativen
+  function openNofapUrge(){
+    const ov = document.getElementById('nofapOverlay');
+    const el = document.getElementById('nofapOverlayBody');
+    let remaining = 300, timer = null;
+    const alts = ['20 Liegestütze – jetzt sofort','Kalt duschen','Raus an die frische Luft, 10 Min gehen','Handy weg, Raum verlassen','Jemanden anrufen'];
+    el.innerHTML = `<div class="card" style="text-align:center;">
+        <div class="step-label">Drang-Modus</div>
+        <div class="question" style="font-size:20px;">Der Drang ist eine Welle. Sie geht vorbei.</div>
+        <div class="hint">Halte 5 Minuten durch. Atme langsam: 4 Sek. ein, 6 Sek. aus.</div>
+        <div id="urgeTimer" class="urge-timer">5:00</div>
+        <div style="text-align:left;margin:6px 0 14px;">
+          <div class="summary-q">Mach stattdessen</div>
+          ${alts.map(a=>`<div class="summary-a">• ${a}</div>`).join('')}
+        </div>
+        <div class="nav-row" style="justify-content:center;">
+          <button type="button" class="ghost" id="urgeAffBtn">Affirmationen</button>
+          <button type="button" class="ghost" id="urgeWutBtn">Wut-Journal</button>
+        </div>
+        <button type="button" class="primary" id="urgeDoneBtn" style="width:100%;margin-top:14px;" disabled>Noch 5:00 durchhalten</button>
+        <button type="button" class="ghost" id="urgeCloseBtn" style="width:100%;margin-top:8px;">Schließen</button>
+      </div>`;
+    ov.style.display = 'flex';
+    const disp = el.querySelector('#urgeTimer');
+    const doneBtn = el.querySelector('#urgeDoneBtn');
+    const stop = ()=>{ if(timer){ clearInterval(timer); timer = null; } };
+    timer = setInterval(()=>{
+      remaining--;
+      const mmss = Math.floor(remaining/60) + ':' + String(remaining%60).padStart(2,'0');
+      if(remaining <= 0){
+        stop(); disp.textContent = 'Geschafft ✓'; disp.classList.add('done'); vibrateDevice(); playBeep();
+        doneBtn.disabled = false; doneBtn.textContent = 'Drang überstanden';
+        return;
+      }
+      disp.textContent = mmss;
+      doneBtn.textContent = 'Noch ' + mmss + ' durchhalten';
+    }, 1000);
+    const close = ()=>{ stop(); ov.style.display = 'none'; };
+    el.querySelector('#urgeCloseBtn').onclick = close;
+    el.querySelector('#urgeAffBtn').onclick = ()=>{ close(); switchTab('affirmationen'); window.scrollTo(0,0); };
+    el.querySelector('#urgeWutBtn').onclick = ()=>{ close(); switchTab('wutjournal'); window.scrollTo(0,0); };
+    doneBtn.onclick = ()=>{
+      if(doneBtn.disabled) return;
+      const n = xpEntries.filter(e=>e.key.startsWith('urge:' + todayStr())).length;
+      if(n < NOFAP_URGE_MAX) awardXP('urge:' + todayStr() + ':' + Date.now(), 'Drang überstanden', NOFAP_URGE_XP);
+      else xpToast('Stark. 💪');
+      close();
+      renderNofap();
+    };
+  }
+
+  // Rückfall: Tag wählen, ehrlich festhalten, ohne Strafe. Tage davor gelten als clean.
+  function openNofapRelapse(run, defaultDay){
+    const ov = document.getElementById('nofapOverlay');
+    const el = document.getElementById('nofapOverlayBody');
+    const minDay = (run.bestaetigtBis && run.bestaetigtBis >= run.start) ? shiftDay(run.bestaetigtBis, 1) : run.start;
+    el.innerHTML = `<div class="card">
+        <div class="step-label">Rückfall</div>
+        <div class="question" style="font-size:19px;">Kein Urteil. Die Tage davor haben dich stärker gemacht.</div>
+        <div class="hint">Kurz festhalten, damit du Muster erkennst.</div>
+        <div class="aufg-field-row"><label class="aufg-label">Wann?</label><input type="date" id="relapseDay" value="${defaultDay < minDay ? minDay : defaultDay}" min="${minDay}" max="${todayStr()}"></div>
+        <div class="turn-title" style="margin-top:8px;">Was war der Auslöser?</div>
+        <textarea id="relapseTrigger" placeholder="z.B. abends allein, Handy im Bett, Stress ..."></textarea>
+        <div class="turn-title" style="margin-top:12px;">Was machst du nächstes Mal anders?</div>
+        <textarea id="relapseLearn" placeholder="Eine konkrete Sache ..."></textarea>
+        <div class="nav-row">
+          <button type="button" class="ghost" id="relapseCancel">Abbrechen</button>
+          <button type="button" class="primary" id="relapseSave">Neu starten</button>
+        </div>
+        <div id="relapseStatus" class="save-status"></div>
+      </div>`;
+    ov.style.display = 'flex';
+    el.querySelector('#relapseCancel').onclick = ()=>{ ov.style.display = 'none'; };
+    const btn = el.querySelector('#relapseSave');
+    btn.onclick = async ()=>{
+      if(btn.disabled) return;
+      let day = el.querySelector('#relapseDay').value || todayStr();
+      if(day < minDay) day = minDay;
+      if(day > todayStr()) day = todayStr();
+      btn.disabled = true;
+      const t = todayStr();
+      const cleanBefore = [];
+      for(let d = minDay; d < day; d = shiftDay(d, 1)) cleanBefore.push(d);
+      const bis = cleanBefore.length ? cleanBefore[cleanBefore.length-1] : run.bestaetigtBis;
+      const trig = el.querySelector('#relapseTrigger').value.trim(), learn = el.querySelector('#relapseLearn').value.trim();
+      try{
+        await airtableFetch(TABLE_NOFAP + '/' + run.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Ende': day, 'Bestaetigt bis': bis || '', 'Ausloeser': trig, 'Lernen': learn } }) }, ROUTINEN_BASE_ID);
+        Object.assign(run, { ende:day, bestaetigtBis:bis || '', ausloeser:trig, lernen:learn });
+        nofapAwardFor(run, cleanBefore);
+        const newStart = day < t ? shiftDay(day, 1) : t;
+        const newBis = day < t ? day : '';   // neuer Lauf: Tag nach dem Rückfall, noch nichts bestätigt
+        const id = await airtableCreate(TABLE_NOFAP, { 'Start': newStart, 'Tracking ab': t, 'Bestaetigt bis': newBis }, ROUTINEN_BASE_ID);
+        nofapRuns.unshift({ id, start:newStart, ende:'', ausloeser:'', lernen:'', trackingAb:t, bestaetigtBis:newBis });
+        ov.style.display = 'none';
+        renderNofap();
+        xpToast('Neuer Start. Los geht\'s.', true);
+      }catch(e){ btn.disabled = false; el.querySelector('#relapseStatus').textContent = 'Speichern fehlgeschlagen.'; }
+    };
+  }
+  document.getElementById('nofapOverlay').addEventListener('click', e=>{ if(e.target.id === 'nofapOverlay') e.target.style.display = 'none'; });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ renderNofap(); renderDailyStreak(); } });
+  loadNofap();
 
   // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)
   (function(){
