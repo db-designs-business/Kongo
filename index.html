@@ -442,6 +442,25 @@
   .xp-toast.big{ font-size:17px; padding:14px 22px; letter-spacing:.02em; }
   .prio-quest{ font-size:12px; color:var(--ink-soft); margin:-4px 0 10px; }
   .prio-quest b{ color:var(--forest); }
+  .prio-kat{ font-size:11.5px; font-weight:500; color:var(--ink-soft); margin-top:2px; }
+  .prio-main{ flex:1; min-width:0; }
+  .prio-pick-hint{ display:flex; flex-direction:column; gap:12px; align-items:flex-start; padding:12px 0 4px; color:var(--ink-soft); font-size:14px; }
+  .picker-card{ padding-bottom:0 !important; }
+  .pick-kat{ margin-bottom:16px; }
+  .pick-kat-title{ font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--forest); margin-bottom:8px; }
+  .pick-chips{ display:flex; flex-wrap:wrap; gap:7px; }
+  .pick-chip{ background:rgba(0,0,0,.3); border:1px solid var(--line-soft); color:var(--ink); font-size:13.5px; font-weight:500; padding:8px 12px; border-radius:999px; cursor:pointer; }
+  .pick-chip.on{ background:var(--forest); border-color:var(--forest); color:#04110F; font-weight:700; box-shadow:0 0 12px var(--forest-glow); }
+  .pick-chip.add{ border-style:dashed; color:var(--ink-soft); }
+  .pick-add-row{ gap:8px; margin-top:8px; }
+  .pick-add-row input{ flex:1; min-width:0; }
+  .picker-foot{
+    position:sticky; bottom:0; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin:8px -18px 0; padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(9,12,14,.85), #090C0E 40%); border-top:1px solid var(--line-soft);
+  }
+  .picker-count{ font-size:14px; color:var(--ink-soft); }
+  .picker-count b{ color:var(--forest); font-size:18px; }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -504,16 +523,12 @@
 
     <div class="card prio-card" id="prioCard">
       <div class="prio-head">
-        <div class="step-label" style="margin:0;">Prioritäten · Jeden Tag zuerst</div>
-        <button type="button" class="prio-edit-toggle" id="prioEditToggle">Bearbeiten</button>
+        <div class="step-label" style="margin:0;">Dailys · Jeden Tag</div>
+        <button type="button" class="prio-edit-toggle" id="prioEditToggle">Auswählen</button>
       </div>
       <div class="prio-progress" id="prioProgress"></div>
       <div class="prio-quest" id="prioQuest"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
-      <div id="prioAddRow" class="prio-add" style="display:none;">
-        <input type="text" id="prioInput" placeholder="Neue Priorität, z.B. Meditation">
-        <button type="button" class="primary" id="prioAddBtn">Hinzufügen</button>
-      </div>
       <div id="prioStatus" class="save-status"></div>
     </div>
 
@@ -1004,6 +1019,20 @@
       <input type="text" id="libNewInput" placeholder="Neuen Glaubenssatz hinzufügen ...">
       <button class="primary" id="libAddBtn">Hinzufügen</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="dailyPickerOverlay" style="display:none;">
+  <div class="modal-card picker-card">
+    <button class="modal-close" id="dailyPickerClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Deine 4 Dailys</div>
+    <div class="modal-sub">Wähle genau 4 Dinge, die du jeden Tag machst. Je 25 XP – alle 4 geschafft = Daily Quest +50 XP.</div>
+    <div id="dailyPickerBody"></div>
+    <div class="picker-foot">
+      <div class="picker-count" id="dailyPickerCount"></div>
+      <button class="primary" id="dailyPickerSave" disabled>Speichern</button>
+    </div>
+    <div id="dailyPickerStatus" class="save-status"></div>
   </div>
 </div>
 
@@ -5293,11 +5322,20 @@
 
 
   /* =========================================================
-     PRIORITÄTEN (Startseite)
+     PRIORITÄTEN / DAILYS (Startseite)
      ========================================================= */
   const TABLE_PRIORITAETEN = 'tblz6r2sMHhzTTckw';
-  let prioCache = [];
-  let prioEditMode = false;
+  const DAILY_COUNT = 4;
+  const DAILY_KATALOG = [
+    { kat:'Körper & Sport', icon:'💪', items:['Training','10.000 Schritte','Mobility / Dehnen','Kalt duschen','3 l Wasser'] },
+    { kat:'Mental & Fokus', icon:'🧠', items:['Meditation','Lesen (20 Min)','Deep Work (90 Min)','Kein Handy in der 1. Stunde','Journaling'] },
+    { kat:'Resilienz & Disziplin', icon:'🛡️', items:['Komfortzone verlassen','Unangenehmste Aufgabe zuerst','Wort halten – keine Ausreden','NoFap-Tag'] },
+    { kat:'Business & Wachstum', icon:'💼', items:['Kundenakquise','Content erstellen','Weiterbildung (30 Min)','1 neuer Kontakt / Netzwerken'] },
+    { kat:'Skills & Ausstrahlung', icon:'🗣️', items:['Sprechtraining','Körpersprache üben','Affirmationen'] },
+    { kat:'Erholung & Beziehungen', icon:'🌿', items:['7+ Std. Schlaf','Zeit mit Familie / Freunden','Digital Detox am Abend','Dankbarkeit'] }
+  ];
+  let prioAll = [];      // alle Datensätze (aktive Dailys + eigene Katalog-Einträge)
+  let prioCache = [];    // nur aktive Dailys
   const prioListEl = document.getElementById('prioList');
   const prioStatusEl = document.getElementById('prioStatus');
 
@@ -5305,21 +5343,32 @@
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
+  function katalogKategorie(titel){
+    const k = DAILY_KATALOG.find(c=>c.items.some(i=>i.toLowerCase() === (titel||'').toLowerCase()));
+    return k ? k.kat : '';
+  }
+  function katIcon(kat){ const k = DAILY_KATALOG.find(c=>c.kat === kat); return k ? k.icon : '✨'; }
 
   async function loadPrioritaeten(){
     try{
       const records = await airtableList(TABLE_PRIORITAETEN, ROUTINEN_BASE_ID);
-      prioCache = records.map(r=>({
-        id: r.id,
-        titel: (r.fields||{})['Titel'] || '',
-        order: (r.fields||{})['Reihenfolge'] || 0,
-        erledigtAm: (r.fields||{})['Erledigt am'] || ''
-      })).filter(p=>p.titel).sort((a,b)=> a.order - b.order);
+      prioAll = records.map(r=>{
+        const f = r.fields || {};
+        const titel = f['Titel'] || '';
+        return {
+          id: r.id, titel,
+          order: f['Reihenfolge'] || 0,
+          erledigtAm: f['Erledigt am'] || '',
+          kategorie: f['Kategorie'] || katalogKategorie(titel) || 'Eigene',
+          aktiv: (f['Status'] || '') !== 'katalog'
+        };
+      }).filter(p=>p.titel);
+      prioCache = prioAll.filter(p=>p.aktiv).sort((a,b)=> a.order - b.order);
       renderPrioritaeten();
       prioLoaded = true;
       xpSyncPrios();
     }catch(e){
-      prioListEl.innerHTML = '<div class="empty">Prioritäten konnten nicht geladen werden.</div>';
+      prioListEl.innerHTML = '<div class="empty">Dailys konnten nicht geladen werden.</div>';
     }
   }
 
@@ -5328,30 +5377,25 @@
     const done = prioCache.filter(p=>p.erledigtAm === today).length;
     const prog = document.getElementById('prioProgress');
     prog.innerHTML = prioCache.length ? `<div style="width:${Math.round(done/prioCache.length*100)}%"></div>` : '';
-    document.getElementById('prioEditToggle').textContent = prioEditMode ? 'Fertig' : 'Bearbeiten';
+    document.getElementById('prioEditToggle').textContent = 'Auswählen';
     const questEl = document.getElementById('prioQuest');
-    if(prioCache.length >= DAILY_QUEST_MIN){
+    if(prioCache.length === DAILY_COUNT){
       questEl.innerHTML = done === prioCache.length
         ? `<b>✓ Daily Quest geschafft</b> · +${DAILY_QUEST_XP} XP`
-        : `Daily Quest · ${done}/${prioCache.length} · <b>+${DAILY_QUEST_XP} XP</b> wenn alle erledigt · je ${PRIO_XP} XP`;
+        : `Daily Quest · ${done}/${DAILY_COUNT} · <b>+${DAILY_QUEST_XP} XP</b> wenn alle erledigt · je ${PRIO_XP} XP`;
     } else {
-      questEl.innerHTML = prioCache.length ? `Je ${PRIO_XP} XP · Daily Quest ab ${DAILY_QUEST_MIN} Prioritäten` : '';
+      questEl.innerHTML = '';
     }
-    document.getElementById('prioAddRow').style.display = (prioEditMode || !prioCache.length) ? 'flex' : 'none';
-    if(!prioCache.length){
-      prioListEl.innerHTML = '<div class="empty">Noch keine Prioritäten. Füg unten die Dinge hinzu, die du jeden Tag zuerst machst.</div>';
-      return;
+    if(prioCache.length !== DAILY_COUNT){
+      prioListEl.innerHTML = `${prioCache.length ? prioCache.map(p=>prioItemHtml(p, today)).join('') : ''}
+        <div class="prio-pick-hint">
+          <div>${prioCache.length ? `Du hast ${prioCache.length} statt ${DAILY_COUNT} Dailys. Die Daily Quest zählt erst mit genau ${DAILY_COUNT}.` : `Wähle deine ${DAILY_COUNT} Dailys – die Dinge, die du jeden Tag erledigst.`}</div>
+          <button type="button" class="primary" id="prioPickOpen2">Dailys auswählen</button>
+        </div>`;
+      document.getElementById('prioPickOpen2').onclick = openDailyPicker;
+    } else {
+      prioListEl.innerHTML = prioCache.map(p=>prioItemHtml(p, today)).join('');
     }
-    prioListEl.innerHTML = prioCache.map((p,i)=>{
-      const isDone = p.erledigtAm === today;
-      return `<div class="prio-item ${isDone ? 'done' : ''}" data-id="${p.id}">
-        <button type="button" class="prio-check" data-id="${p.id}" aria-label="Erledigt">${isDone ? '✓' : ''}</button>
-        <div class="prio-title">${escapeHtml(p.titel)}</div>
-        ${prioEditMode ? `
-          <button type="button" class="prio-move" data-id="${p.id}" data-dir="-1" ${i===0?'disabled':''} aria-label="Nach oben">↑</button>
-          <button type="button" class="prio-del" data-id="${p.id}" aria-label="Löschen">×</button>` : ''}
-      </div>`;
-    }).join('');
 
     prioListEl.querySelectorAll('.prio-check').forEach(btn=>{
       btn.onclick = async ()=>{
@@ -5365,7 +5409,7 @@
         try{
           await airtableFetch(TABLE_PRIORITAETEN + '/' + p.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Erledigt am': newVal } }) }, ROUTINEN_BASE_ID);
           prioStatusEl.textContent = '';
-          if(newVal) awardXP('prio:' + p.id + ':' + today, 'Priorität: ' + p.titel, PRIO_XP);
+          if(newVal) awardXP('prio:' + p.id + ':' + today, 'Daily: ' + p.titel, PRIO_XP);
           else revokeXP('prio:' + p.id + ':' + today);
           prioDailyQuestCheck();
         }catch(e){
@@ -5374,54 +5418,147 @@
         }
       };
     });
-    prioListEl.querySelectorAll('.prio-del').forEach(btn=>{
-      btn.onclick = async ()=>{
-        if(btn.disabled) return;
-        btn.disabled = true;
-        try{
-          await airtableDelete(TABLE_PRIORITAETEN, btn.dataset.id, ROUTINEN_BASE_ID);
-          prioCache = prioCache.filter(x=>x.id !== btn.dataset.id);
-          revokeXP('prio:' + btn.dataset.id + ':' + prioToday());
-          renderPrioritaeten();
-          prioDailyQuestCheck();
-        }catch(e){ btn.disabled = false; prioStatusEl.textContent = 'Löschen fehlgeschlagen.'; }
+  }
+
+  function prioItemHtml(p, today){
+    const isDone = p.erledigtAm === today;
+    return `<div class="prio-item ${isDone ? 'done' : ''}" data-id="${p.id}">
+      <button type="button" class="prio-check" data-id="${p.id}" aria-label="Erledigt">${isDone ? '✓' : ''}</button>
+      <div class="prio-main"><div class="prio-title">${escapeHtml(p.titel)}</div><div class="prio-kat">${katIcon(p.kategorie)} ${escapeHtml(p.kategorie)}</div></div>
+    </div>`;
+  }
+
+  /* ----- Auswahl-Pop-up: genau 4 Dailys aus dem Katalog ----- */
+  let pickSel = [];          // [{titel, kat}]
+  let pickCustom = [];       // eigene Einträge [{titel, kat, id?}]
+
+  function openDailyPicker(){
+    pickSel = prioCache.map(p=>({ titel:p.titel, kat:p.kategorie }));
+    pickCustom = prioAll.filter(p=>!DAILY_KATALOG.some(c=>c.items.some(i=>i.toLowerCase() === p.titel.toLowerCase())))
+      .map(p=>({ titel:p.titel, kat:p.kategorie, id:p.id }));
+    document.getElementById('dailyPickerStatus').textContent = '';
+    renderDailyPicker();
+    document.getElementById('dailyPickerOverlay').style.display = 'flex';
+  }
+  function closeDailyPicker(){ document.getElementById('dailyPickerOverlay').style.display = 'none'; }
+
+  function renderDailyPicker(){
+    const body = document.getElementById('dailyPickerBody');
+    const isSel = t => pickSel.some(s=>s.titel.toLowerCase() === t.toLowerCase());
+    const kats = DAILY_KATALOG.map(c=>c.kat);
+    pickCustom.forEach(c=>{ if(!kats.includes(c.kat)) kats.push(c.kat); });
+    body.innerHTML = kats.map(kat=>{
+      const base = (DAILY_KATALOG.find(c=>c.kat === kat) || { items:[] }).items;
+      const own = pickCustom.filter(c=>c.kat === kat).map(c=>c.titel);
+      const items = base.concat(own.filter(o=>!base.some(b=>b.toLowerCase() === o.toLowerCase())));
+      return `<div class="pick-kat">
+        <div class="pick-kat-title">${katIcon(kat)} ${escapeHtml(kat)}</div>
+        <div class="pick-chips">
+          ${items.map(t=>`<button type="button" class="pick-chip ${isSel(t)?'on':''}" data-t="${escapeHtml(t)}" data-k="${escapeHtml(kat)}">${isSel(t)?'✓ ':''}${escapeHtml(t)}</button>`).join('')}
+          <button type="button" class="pick-chip add" data-add="${escapeHtml(kat)}">+ Eigene</button>
+        </div>
+        <div class="pick-add-row" data-row="${escapeHtml(kat)}" style="display:none;">
+          <input type="text" placeholder="Eigenes Daily in ${escapeHtml(kat)}">
+          <button type="button" class="ghost">OK</button>
+        </div>
+      </div>`;
+    }).join('');
+    const n = pickSel.length;
+    document.getElementById('dailyPickerCount').innerHTML = `<b>${n}</b> / ${DAILY_COUNT} gewählt`;
+    const saveBtn = document.getElementById('dailyPickerSave');
+    saveBtn.disabled = n !== DAILY_COUNT;
+    saveBtn.textContent = n === DAILY_COUNT ? 'Speichern' : (n < DAILY_COUNT ? `Noch ${DAILY_COUNT - n} wählen` : `${n - DAILY_COUNT} zu viel`);
+
+    body.querySelectorAll('.pick-chip[data-t]').forEach(b=>{
+      b.onclick = ()=>{
+        const t = b.dataset.t, k = b.dataset.k;
+        if(isSel(t)) pickSel = pickSel.filter(s=>s.titel.toLowerCase() !== t.toLowerCase());
+        else {
+          if(pickSel.length >= DAILY_COUNT){ document.getElementById('dailyPickerStatus').textContent = `Maximal ${DAILY_COUNT} – entferne erst eins.`; return; }
+          pickSel.push({ titel:t, kat:k });
+        }
+        document.getElementById('dailyPickerStatus').textContent = '';
+        renderDailyPicker();
       };
     });
-    prioListEl.querySelectorAll('.prio-move').forEach(btn=>{
-      btn.onclick = async ()=>{
-        const i = prioCache.findIndex(x=>x.id === btn.dataset.id);
-        if(i <= 0) return;
-        const tmp = prioCache[i-1]; prioCache[i-1] = prioCache[i]; prioCache[i] = tmp;
-        prioCache.forEach((p,idx)=>{ p.order = idx+1; });
-        renderPrioritaeten();
-        try{
-          await airtableFetch(TABLE_PRIORITAETEN, { method:'PATCH', body: JSON.stringify({ records: [prioCache[i-1], prioCache[i]].map(p=>({ id:p.id, fields:{ 'Reihenfolge': p.order } })) }) }, ROUTINEN_BASE_ID);
-        }catch(e){ prioStatusEl.textContent = 'Reihenfolge konnte nicht gespeichert werden.'; }
+    body.querySelectorAll('.pick-chip[data-add]').forEach(b=>{
+      b.onclick = ()=>{
+        const row = body.querySelector(`.pick-add-row[data-row="${CSS.escape(b.dataset.add)}"]`);
+        row.style.display = 'flex';
+        const inp = row.querySelector('input');
+        inp.focus();
+        const add = ()=>{
+          const t = inp.value.trim();
+          if(!t) return;
+          if(!pickCustom.some(c=>c.titel.toLowerCase() === t.toLowerCase()) && !DAILY_KATALOG.some(c=>c.items.some(i=>i.toLowerCase() === t.toLowerCase()))){
+            pickCustom.push({ titel:t, kat:b.dataset.add });
+          }
+          if(!isSel(t) && pickSel.length < DAILY_COUNT) pickSel.push({ titel:t, kat:b.dataset.add });
+          renderDailyPicker();
+        };
+        row.querySelector('button').onclick = add;
+        inp.onkeydown = (ev)=>{ if(ev.key === 'Enter') add(); };
       };
     });
   }
 
-  document.getElementById('prioEditToggle').onclick = ()=>{ prioEditMode = !prioEditMode; prioStatusEl.textContent = ''; renderPrioritaeten(); };
-  const prioAddBtn = document.getElementById('prioAddBtn');
-  const prioInput = document.getElementById('prioInput');
-  const addPrio = async ()=>{
-    if(prioAddBtn.disabled) return;
-    const titel = prioInput.value.trim();
-    if(!titel) return;
-    prioAddBtn.disabled = true;
-    const order = (prioCache.length ? Math.max(...prioCache.map(p=>p.order)) : 0) + 1;
+  async function saveDailyPicker(){
+    const btn = document.getElementById('dailyPickerSave');
+    const statusEl = document.getElementById('dailyPickerStatus');
+    if(btn.disabled || pickSel.length !== DAILY_COUNT) return;
+    btn.disabled = true;
+    statusEl.textContent = 'Speichere ...';
+    const today = prioToday();
+    const lc = s => s.toLowerCase();
     try{
-      const id = await airtableCreate(TABLE_PRIORITAETEN, { 'Titel': titel, 'Reihenfolge': order }, ROUTINEN_BASE_ID);
-      prioCache.push({ id, titel, order, erledigtAm:'' });
-      prioDailyQuestCheck();
-      prioInput.value = '';
-      prioStatusEl.textContent = '';
+      // 1) gewählte: bestehenden Datensatz wiederverwenden (Haken von heute bleibt), sonst neu anlegen
+      for(let i=0;i<pickSel.length;i++){
+        const s = pickSel[i];
+        const existing = prioAll.find(p=>lc(p.titel) === lc(s.titel));
+        if(existing){
+          await airtableFetch(TABLE_PRIORITAETEN + '/' + existing.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Status':'', 'Reihenfolge': i+1, 'Kategorie': s.kat } }) }, ROUTINEN_BASE_ID);
+          Object.assign(existing, { aktiv:true, order:i+1, kategorie:s.kat });
+        } else {
+          const id = await airtableCreate(TABLE_PRIORITAETEN, { 'Titel': s.titel, 'Reihenfolge': i+1, 'Kategorie': s.kat }, ROUTINEN_BASE_ID);
+          prioAll.push({ id, titel:s.titel, order:i+1, erledigtAm:'', kategorie:s.kat, aktiv:true });
+        }
+      }
+      // 2) nicht mehr gewählte: Katalog-Einträge löschen, eigene als Katalog-Eintrag behalten
+      const removed = prioAll.filter(p=>p.aktiv && !pickSel.some(s=>lc(s.titel) === lc(p.titel)));
+      for(const p of removed){
+        const isOwn = !DAILY_KATALOG.some(c=>c.items.some(i=>lc(i) === lc(p.titel)));
+        if(isOwn){
+          await airtableFetch(TABLE_PRIORITAETEN + '/' + p.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Status':'katalog', 'Erledigt am':'' } }) }, ROUTINEN_BASE_ID);
+          p.aktiv = false; p.erledigtAm = '';
+        } else {
+          await airtableDelete(TABLE_PRIORITAETEN, p.id, ROUTINEN_BASE_ID);
+          prioAll = prioAll.filter(x=>x !== p);
+        }
+        revokeXP('prio:' + p.id + ':' + today);
+      }
+      // 3) neue eigene Einträge, die nicht gewählt wurden, im Katalog speichern
+      for(const c of pickCustom){
+        if(!prioAll.some(p=>lc(p.titel) === lc(c.titel))){
+          const id = await airtableCreate(TABLE_PRIORITAETEN, { 'Titel': c.titel, 'Kategorie': c.kat, 'Status':'katalog', 'Reihenfolge': 99 }, ROUTINEN_BASE_ID);
+          prioAll.push({ id, titel:c.titel, order:99, erledigtAm:'', kategorie:c.kat, aktiv:false });
+        }
+      }
+      prioCache = prioAll.filter(p=>p.aktiv).sort((a,b)=> a.order - b.order);
       renderPrioritaeten();
-    }catch(e){ prioStatusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.'; }
-    prioAddBtn.disabled = false;
-  };
-  prioAddBtn.onclick = addPrio;
-  prioInput.onkeydown = (ev)=>{ if(ev.key === 'Enter') addPrio(); };
+      prioDailyQuestCheck();
+      closeDailyPicker();
+    }catch(e){
+      statusEl.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
+      btn.disabled = false;
+      loadPrioritaeten();
+    }
+  }
+
+  document.getElementById('prioEditToggle').onclick = openDailyPicker;
+  document.getElementById('dailyPickerClose').onclick = closeDailyPicker;
+  document.getElementById('dailyPickerSave').onclick = saveDailyPicker;
+  document.getElementById('dailyPickerOverlay').addEventListener('click', e=>{ if(e.target.id === 'dailyPickerOverlay') closeDailyPicker(); });
+
   // Neuer Tag: Haken automatisch zurücksetzen, wenn die App offen bleibt
   let prioDay = prioToday();
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && prioToday() !== prioDay){ prioDay = prioToday(); renderPrioritaeten(); } });
@@ -5839,7 +5976,7 @@
      ========================================================= */
   const TABLE_XP = 'tbl5cwi9htwni25l4';
   const XP_TAGESZIEL = 200;
-  const PRIO_XP = 25, DAILY_QUEST_XP = 50, DAILY_QUEST_MIN = 3;
+  const PRIO_XP = 25, DAILY_QUEST_XP = 50, DAILY_QUEST_MIN = 4;
   let xpEntries = [];
   let xpLoaded = false;
 
@@ -5937,7 +6074,7 @@
     const t = todayStr();
     const n = prioCache.length;
     const done = prioCache.filter(p=>p.erledigtAm === t).length;
-    if(n >= DAILY_QUEST_MIN && done === n){
+    if(n === DAILY_QUEST_MIN && done === n){
       if(!xpHas('dq:' + t)){ awardXP('dq:' + t, 'Daily Quest: alle Prioritäten', DAILY_QUEST_XP); setTimeout(()=>xpToast('Daily Quest geschafft · +' + DAILY_QUEST_XP + ' XP', true), 1600); }
     } else {
       revokeXP('dq:' + t);
