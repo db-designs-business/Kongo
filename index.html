@@ -685,6 +685,60 @@
   .refl-quick-btn{ padding:9px 8px; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
     background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--ink); }
   .refl-quick-btn:active{ border-color:var(--forest); color:var(--forest); }
+  .ziel-row{ display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+  .ziel-row-main{ flex:1; min-width:0; }
+  .ziel-row-text{ font-size:15px; overflow-wrap:break-word; }
+  .ziel-row-text.done{ text-decoration:line-through; opacity:.6; }
+  .ziel-row-meta{ display:flex; flex-wrap:wrap; gap:6px 10px; font-size:12px; color:var(--ink-soft); margin-top:5px; align-items:center; }
+  .ziel-art.main{ color:var(--forest); font-weight:700; }
+  .ziel-status{ padding:2px 8px; border-radius:999px; border:1px solid var(--line-soft); }
+  .ziel-status.ok{ color:var(--forest); border-color:rgba(34,227,211,.45); }
+  .ziel-status.mid{ color:#FFC56B; border-color:rgba(255,197,107,.4); }
+  .ziel-status.bad{ color:#FF7A7A; border-color:rgba(255,122,122,.4); }
+  .ziel-open{ flex-shrink:0; font-size:12.5px; padding:6px 11px; border-radius:12px; border:1px solid var(--line-soft); background:rgba(255,255,255,.03); color:var(--ink); cursor:pointer; white-space:nowrap; }
+  .ziel-why{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .ziel-why button{ padding:10px 8px; border-radius:12px; font-size:13.5px; font-weight:600; cursor:pointer; background:rgba(0,0,0,.3); border:1px solid var(--line-soft); color:var(--ink); }
+  .ziel-why button.active{ border-color:var(--forest); color:var(--forest); background:rgba(34,227,211,.08); }
+  .hz-text{ cursor:pointer; }
+  /* ---------- Tablet & Desktop ---------- */
+  @media (min-width:700px){
+    .wrap{ max-width:820px; }
+  }
+  @media (min-width:1024px){
+    :root{ --side-w: 232px; }
+    body{ padding-left:var(--side-w); }
+    .wrap{ max-width:1180px; padding-left:40px !important; padding-right:40px !important; padding-top:28px !important; padding-bottom:60px !important; }
+    .wrap > [id^="panel"]:not(#panelHome){ max-width:880px; margin-left:auto; margin-right:auto; }
+    /* Bottom-Bar wird zur Seitenleiste */
+    .bottom-bar{ top:0; bottom:0; left:0; right:auto; width:var(--side-w); height:auto; display:flex; flex-direction:column; align-items:stretch;
+      gap:4px; padding:26px 14px; border-top:none; border-right:1px solid var(--line-soft); }
+    .bottom-bar::before{ order:-2; content:'KONGROW'; font-weight:800; letter-spacing:.3em; font-size:15px; color:var(--ink); padding:0 12px 22px; }
+    .bb-plus{ order:-1; width:100%; height:46px; margin:0 0 16px; border-radius:14px; align-self:stretch; }
+    .bb-plus::after{ content:'Neu'; font-weight:800; font-size:15px; margin-left:6px; }
+    .bb-item{ height:46px; flex-direction:row; justify-content:flex-start; gap:12px; padding:0 14px; border-radius:12px; font-size:14.5px; }
+    .bb-item svg{ width:20px; height:20px; }
+    .bb-item:hover{ color:var(--ink); background:rgba(255,255,255,.03); }
+    .bb-item.active{ background:rgba(34,227,211,.08); }
+    #routinePausedBanner{ left:var(--side-w) !important; bottom:0 !important; }
+    .xp-toast{ bottom:24px !important; }
+    .rest-bar{ left:calc(50% + var(--side-w) / 2); }
+    /* Startseite: zweispaltig */
+    #panelHome{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys ziele" "dailys aufg" "links links"; gap:0 22px; align-items:start; }
+    #panelHome[style*="none"]{ display:none; }
+    #prioCard{ grid-area:dailys; }
+    #homeZieleCard{ grid-area:ziele; }
+    #homeAufgabenCard{ grid-area:aufg; }
+    #panelHome > .home-links{ grid-area:links; }
+    #panelHome > :not(#prioCard):not(#homeZieleCard):not(#homeAufgabenCard):not(.home-links){ grid-column:1 / -1; }
+    .home-links{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+    /* Vollbild-Abläufe mittig statt über die ganze Breite */
+    .modal-overlay[style*="align-items:stretch"] > div{ max-width:780px; width:100%; margin-left:auto !important; margin-right:auto !important; }
+    .modal-card{ max-width:520px; }
+    .card:hover{ border-color:rgba(255,255,255,.1); }
+  }
+  @media (min-width:1400px){
+    #panelHome{ grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys ziele aufg" "links links links"; }
+  }
 </style>
 </head>
 <body>
@@ -813,7 +867,7 @@
   </div>
 
   <div id="panelWork" style="display:none;">
-    <div class="eyebrow">The Work · Byron Katie <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">The Work · Byron Katie</div>
     <h1>Deine tägliche Selbst-Erforschung</h1>
     <div class="sub">Nimm dir einen Gedanken vor, der dich gerade beschäftigt, und geh in Ruhe durch die vier Fragen und die Umkehrung.</div>
 
@@ -867,7 +921,7 @@
   </div>
 
   <div id="panelRoutinen" style="display:none;">
-    <div class="eyebrow">Routinen <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Routinen</div>
     <h1>Deine Gewohnheiten</h1>
     <div class="sub">Lege Gewohnheiten an, baue dir Routinen daraus und wähle beim Ausführen, welche du gerade machen willst.</div>
 
@@ -1006,7 +1060,7 @@
   </div>
 
   <div id="panelKoerper" style="display:none;">
-    <div class="eyebrow">Körper <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Körper</div>
     <h1>Körper</h1>
     <div class="sub">Training, Ernährung und Gewicht an einem Ort.</div>
     <div class="aufg-tabs">
@@ -1038,7 +1092,7 @@
   </div>
 
   <div id="panelZiele" style="display:none;">
-    <div class="eyebrow">Ziele <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Ziele</div>
     <h1>Deine Ziele</h1>
     <div class="sub">Denk rückwärts: erst das Jahresziel, dann Quartal, Monat, Woche.</div>
 
@@ -1089,7 +1143,7 @@
   </div>
 
   <div id="panelAffirmationen" style="display:none;">
-    <div class="eyebrow">Affirmationen <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Affirmationen</div>
     <h1>Deine Affirmationen</h1>
     <div class="sub">Lege dir eine Liste an und geh sie durch, wann immer du magst.</div>
 
@@ -1103,7 +1157,7 @@
   </div>
 
   <div id="panelWutjournal" style="display:none;">
-    <div class="eyebrow">Wut-Journal <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Wut-Journal</div>
     <h1>Wut als Antrieb nutzen</h1>
     <div class="sub">Ein kurzes Morgen-Journal, um deine Wut gezielt in Richtung zu lenken.</div>
 
@@ -1116,7 +1170,7 @@
   </div>
 
   <div id="panelSatzergaenzung" style="display:none;">
-    <div class="eyebrow">Satzergänzung <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Satzergänzung</div>
     <h1>Satzergänzungsübung</h1>
     <div class="sub">Nach Nathaniel Branden – Mo bis Fr üben, am Wochenende zurückblicken.</div>
 
@@ -1136,7 +1190,7 @@
   </div>
 
   <div id="panelSprechuebung" style="display:none;">
-    <div class="eyebrow">Sprechübung <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Sprechübung</div>
     <h1>Stimm- & Sprechtraining</h1>
     <div class="sub">Max. 15 Minuten. Wähl aus, was du heute machen willst.</div>
 
@@ -1175,7 +1229,7 @@
   </div>
 
   <div id="panelWorksheets" style="display:none;">
-    <div class="eyebrow">Worksheets <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Worksheets</div>
     <h1>Deine Worksheets</h1>
     <div class="sub">Checklisten, Notizen und Referenzmaterial zum Nachschlagen.</div>
 
@@ -1221,7 +1275,7 @@
   </div>
 
   <div id="panelLesen" style="display:none;">
-    <div class="eyebrow">Lesen <span class="data-badge">Airtable</span></div>
+    <div class="eyebrow">Lesen</div>
     <h1>Lesen</h1>
     <div class="sub">Erst kurz abrufen, was hängengeblieben ist – dann lesen, notieren, zusammenfassen.</div>
 
@@ -1358,6 +1412,45 @@
       </div>
     <button type="button" class="primary" id="aufgNewAdd" style="width:100%; margin-top:16px;">Hinzufügen</button>
     <div id="aufgNewStatus" class="save-status"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="zielOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="zielOverlayClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Ziel bearbeiten</div>
+    <div class="modal-sub" id="zielPopupSub"></div>
+    <div class="turn-title">Ziel</div>
+    <textarea id="zielPopupText" rows="2" style="min-height:64px;"></textarea>
+    <div class="turn-title" style="margin-top:14px;">Art</div>
+    <div class="aufg-seg" id="zielPopupArt">
+      <button type="button" data-v="Hauptziel">★ Hauptziel</button>
+      <button type="button" data-v="Nebenziel">Nebenziel</button>
+    </div>
+    <div class="turn-title" style="margin-top:4px;">Bereich</div>
+    <div class="aufg-seg" id="zielPopupKat">
+      <button type="button" data-v="Business">Business</button>
+      <button type="button" data-v="Privat">Privat</button>
+    </div>
+    <div class="turn-title" style="margin-top:4px;">Was ist passiert?</div>
+    <div class="ziel-why" id="zielPopupWhy">
+      <button type="button" data-v="Offen">⏳ Läuft noch</button>
+      <button type="button" data-v="Erreicht">✓ Erreicht</button>
+      <button type="button" data-v="Teilweise">◐ Teilweise</button>
+      <button type="button" data-v="Nicht erreicht">✕ Nicht erreicht</button>
+      <button type="button" data-v="Geändert">✎ Ziel geändert</button>
+      <button type="button" data-v="Verworfen">🗑 Verworfen</button>
+    </div>
+    <div id="zielPopupReasonWrap" style="display:none; margin-top:12px;">
+      <div class="turn-title" id="zielPopupReasonLabel">Warum?</div>
+      <textarea id="zielPopupReason" rows="2" style="min-height:64px;" placeholder="Kurz notieren ..."></textarea>
+    </div>
+    <div class="hint" id="zielPopupHistory" style="margin-top:10px; white-space:pre-line;"></div>
+    <div class="nav-row" style="margin-top:14px;">
+      <button type="button" class="ghost" id="zielPopupDelete">Löschen</button>
+      <button type="button" class="primary" id="zielPopupSave">Speichern</button>
+    </div>
+    <div class="save-status" id="zielPopupStatus"></div>
   </div>
 </div>
 
@@ -1917,7 +2010,7 @@
   });
 
   function switchTab(key){
-    Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? 'block' : 'none'; });
+    Object.keys(panels).forEach(k=>{ panels[k].style.display = (k === key) ? '' : 'none'; });
     const navKey = AKTIVITAETEN_TABS.includes(key) ? 'aktivitaeten' : key;
     document.querySelectorAll('.bb-item').forEach(b=>{
       b.classList.toggle('active', b.dataset.tab === key);
@@ -4225,24 +4318,22 @@
     }).join('');
   }
 
+  const ZIEL_STATUS_CLASS = { 'Offen':'', 'Erreicht':'ok', 'Teilweise':'mid', 'Nicht erreicht':'bad', 'Verworfen':'bad' };
   function zielDisplayHtml(z){
+    const art = z.prioritaet === 'Nebenziel' ? 'Nebenziel' : 'Hauptziel';
     return `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <div>
-          <div style="font-size:15px;">${escapeHtml(z.text)}</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
-            ${escapeHtml(z.kategorie)}${z.prioritaet ? ' · '+escapeHtml(z.prioritaet) : ''}
+      <div class="ziel-row" data-id="${z.id}">
+        <div class="ziel-row-main">
+          <div class="ziel-row-text ${z.status === 'Erreicht' || z.status === 'Verworfen' ? 'done' : ''}">${escapeHtml(z.text)}</div>
+          <div class="ziel-row-meta">
+            <span class="ziel-art ${art === 'Hauptziel' ? 'main' : ''}">${art === 'Hauptziel' ? '★ Hauptziel' : 'Nebenziel'}</span>
+            <span>${escapeHtml(z.kategorie)}</span>
+            <span class="ziel-status ${ZIEL_STATUS_CLASS[z.status] || ''}">${escapeHtml(z.status || 'Offen')}</span>
           </div>
           ${zielTaskBadge(z.id)}
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="entry-edit" data-id="${z.id}" style="font-size:12.5px;padding:6px 10px;border-radius:12px;border:1px solid var(--line);background:var(--paper);cursor:pointer;">Bearbeiten</button>
-          <button class="entry-delete" data-id="${z.id}" style="margin-top:0;">Löschen</button>
-        </div>
-      </div>
-      <select data-id="${z.id}" class="ziel-status-select" style="margin-top:8px;padding:6px 10px;border:1px solid var(--line);border-radius:12px;background:var(--paper);font-size:13px;">
-        ${['Offen','Erreicht','Teilweise','Nicht erreicht'].map(s=>`<option value="${s}" ${s===z.status?'selected':''}>${s}</option>`).join('')}
-      </select>`;
+        <button type="button" class="entry-edit ziel-open" data-id="${z.id}">Bearbeiten</button>
+      </div>`;
   }
 
   function zielEditHtml(z){
@@ -4313,13 +4404,8 @@
         }catch(e){ /* silent */ }
       };
     });
-    container.querySelectorAll('.entry-edit').forEach(btn=>{
-      btn.onclick = ()=>{
-        const z = zieleCache.find(g=>g.id === btn.dataset.id);
-        if(!z) return;
-        document.getElementById('ziel-entry-'+z.id).innerHTML = zielEditHtml(z);
-        wireZieleListenEvents();
-      };
+    container.querySelectorAll('.ziel-row').forEach(row=>{
+      row.onclick = ()=>openZielPopup(row.dataset.id);
     });
     container.querySelectorAll('[data-action="cancel-edit"]').forEach(btn=>{
       btn.onclick = ()=>{
@@ -4359,14 +4445,14 @@
     const done = z.status === 'Erreicht';
     return `<div class="hz-row ${main ? 'main' : 'side'} ${done ? 'done' : ''}">
       <button type="button" class="prio-check hz-check" data-id="${z.id}" aria-label="Erreicht">${done ? '✓' : ''}</button>
-      <div class="hz-text">${escapeHtml(z.text)}</div>
+      <div class="hz-text" data-id="${z.id}">${escapeHtml(z.text)}</div>
     </div>`;
   }
   function renderHomeZiele(){
     const el = document.getElementById('homeZieleList');
     if(!el) return;
     const key = getPeriodKey('Woche', new Date());
-    const week = zieleCache.filter(z=>z.zeitrahmen === 'Woche' && z.periodKey === key);
+    const week = zieleCache.filter(z=>z.zeitrahmen === 'Woche' && z.periodKey === key && z.status !== 'Verworfen');
     if(!week.length){
       el.innerHTML = `<div class="hint" style="margin:8px 0 12px;">Für diese Woche sind noch keine Ziele gesetzt.</div>
         <button type="button" class="primary" id="homeZieleSet">Wochenziele setzen</button>`;
@@ -4391,6 +4477,7 @@
     el.innerHTML = html + (sideTotal ? `<button type="button" class="aufg-link hz-toggle" id="homeZieleSideToggle">${homeZieleSideOpen ? 'Nebenziele ausblenden' : 'Nebenziele anzeigen (' + sideDone + '/' + sideTotal + ')'}</button>` : '');
     const tgl = document.getElementById('homeZieleSideToggle');
     if(tgl) tgl.onclick = ()=>{ homeZieleSideOpen = !homeZieleSideOpen; try{ localStorage.setItem('kongrow_home_side', homeZieleSideOpen ? '1' : '0'); }catch(e){} renderHomeZiele(); };
+    el.querySelectorAll('.hz-text').forEach(t=>t.onclick = ()=>openZielPopup(t.dataset.id));
     el.querySelectorAll('.hz-check').forEach(btn=>btn.onclick = async ()=>{
       if(btn.disabled) return;
       const z = zieleCache.find(x=>x.id === btn.dataset.id);
@@ -4414,6 +4501,89 @@
   document.getElementById('homeMorningBtn').onclick = ()=>{ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); };
   document.getElementById('homeEveningBtn').onclick = ()=>{ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); };
   document.getElementById('homeZieleAll').onclick = ()=>{ switchTab('ziele'); window.scrollTo(0,0); };
+
+  /* ---------- Ziel-Popup: bearbeiten, Haupt/Neben, Status mit Grund ---------- */
+  let zielPopup = null;   // { id, art, kat, why, origText }
+  const zielOverlay = document.getElementById('zielOverlay');
+  function paintZielPopup(){
+    const z = zielPopup;
+    zielOverlay.querySelectorAll('#zielPopupArt button').forEach(b=>b.classList.toggle('active', b.dataset.v === z.art));
+    zielOverlay.querySelectorAll('#zielPopupKat button').forEach(b=>b.classList.toggle('active', b.dataset.v === z.kat));
+    zielOverlay.querySelectorAll('#zielPopupWhy button').forEach(b=>b.classList.toggle('active', b.dataset.v === z.why));
+    const needReason = ['Teilweise','Nicht erreicht','Geändert','Verworfen'].includes(z.why);
+    document.getElementById('zielPopupReasonWrap').style.display = needReason ? 'block' : 'none';
+    document.getElementById('zielPopupReasonLabel').textContent =
+      z.why === 'Geändert' ? 'Warum geändert? (oben den neuen Zieltext eintragen)' :
+      z.why === 'Verworfen' ? 'Warum verworfen?' : 'Warum nicht (ganz) erreicht?';
+  }
+  function openZielPopup(id){
+    const z = zieleCache.find(x=>x.id === id);
+    if(!z) return;
+    zielPopup = { id, art: z.prioritaet === 'Nebenziel' ? 'Nebenziel' : 'Hauptziel', kat: z.kategorie || 'Business', why: z.status || 'Offen', origText: z.text };
+    document.getElementById('zielPopupSub').textContent = (z.zeitrahmen || '') + (z.periodKey ? ' · ' + periodLabel(z.zeitrahmen, z.periodKey) : '');
+    document.getElementById('zielPopupText').value = z.text;
+    document.getElementById('zielPopupReason').value = '';
+    document.getElementById('zielPopupHistory').textContent = z.begruendung ? ('Bisherige Notizen:\n' + z.begruendung) : '';
+    document.getElementById('zielPopupStatus').textContent = '';
+    const del = document.getElementById('zielPopupDelete'); del.textContent = 'Löschen'; del.dataset.armed = '';
+    paintZielPopup();
+    zielOverlay.style.display = 'flex';
+  }
+  window.openZielPopup = openZielPopup;
+  zielOverlay.querySelectorAll('#zielPopupArt button').forEach(b=>b.onclick = ()=>{ zielPopup.art = b.dataset.v; paintZielPopup(); });
+  zielOverlay.querySelectorAll('#zielPopupKat button').forEach(b=>b.onclick = ()=>{ zielPopup.kat = b.dataset.v; paintZielPopup(); });
+  zielOverlay.querySelectorAll('#zielPopupWhy button').forEach(b=>b.onclick = ()=>{
+    zielPopup.why = b.dataset.v; paintZielPopup();
+    if(b.dataset.v === 'Geändert') setTimeout(()=>{ const t = document.getElementById('zielPopupText'); t.focus(); t.select(); }, 30);
+  });
+  document.getElementById('zielOverlayClose').onclick = ()=>{ zielOverlay.style.display = 'none'; };
+  function zielAfterChange(){ renderZieleListen(); renderHomeZiele(); }
+  document.getElementById('zielPopupSave').onclick = async ()=>{
+    const btn = document.getElementById('zielPopupSave'); const st = document.getElementById('zielPopupStatus');
+    if(btn.disabled) return;
+    const zp = zielPopup; const z = zieleCache.find(x=>x.id === zp.id); if(!z) return;
+    const text = document.getElementById('zielPopupText').value.trim();
+    const reason = document.getElementById('zielPopupReason').value.trim();
+    if(!text){ st.textContent = 'Bitte einen Zieltext eingeben.'; return; }
+    if(zp.why === 'Geändert' && text === zp.origText){ st.textContent = 'Trag oben den geänderten Zieltext ein.'; return; }
+    const status = zp.why === 'Geändert' ? 'Offen' : zp.why;
+    const d = new Date(); const dStr = String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.';
+    let note = '';
+    if(zp.why === 'Geändert') note = dStr + ' Geändert (vorher: „' + zp.origText + '“)' + (reason ? ' – ' + reason : '');
+    else if(['Teilweise','Nicht erreicht','Verworfen'].includes(zp.why) && (reason || zp.why !== z.status)) note = dStr + ' ' + zp.why + (reason ? ' – ' + reason : '');
+    const begruendung = note ? (z.begruendung ? z.begruendung + '\n' + note : note) : z.begruendung;
+    const fields = { 'Zieltext': text, 'Kategorie': zp.kat, 'Priorität': zp.art };
+    if(status !== z.status) fields['Status'] = status;
+    if(begruendung !== z.begruendung) fields['Begründung'] = begruendung;
+    btn.disabled = true; st.textContent = 'Speichere ...';
+    try{
+      // Nur 1 Hauptziel pro Bereich & Zeitraum: bisheriges Hauptziel wird zum Nebenziel
+      if(zp.art === 'Hauptziel'){
+        const others = zieleCache.filter(x=>x.id !== z.id && x.zeitrahmen === z.zeitrahmen && x.periodKey === z.periodKey && x.kategorie === zp.kat && (x.prioritaet === 'Hauptziel' || !x.prioritaet) && x.status !== 'Verworfen');
+        for(const o of others){
+          await airtableFetch(TABLE_ZIELE + '/' + o.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Priorität': 'Nebenziel' } }) }, ZIELE_BASE_ID);
+          o.prioritaet = 'Nebenziel';
+        }
+      }
+      await airtableFetch(TABLE_ZIELE + '/' + z.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ZIELE_BASE_ID);
+      z.text = text; z.kategorie = zp.kat; z.prioritaet = zp.art; z.status = status; z.begruendung = begruendung || '';
+      zielOverlay.style.display = 'none';
+      zielAfterChange();
+    }catch(e){ st.textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.'; }
+    btn.disabled = false;
+  };
+  document.getElementById('zielPopupDelete').onclick = async ()=>{
+    const del = document.getElementById('zielPopupDelete');
+    if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
+    if(del.disabled) return; del.disabled = true;
+    try{
+      await airtableDelete(TABLE_ZIELE, zielPopup.id, ZIELE_BASE_ID);
+      zieleCache = zieleCache.filter(x=>x.id !== zielPopup.id);
+      zielOverlay.style.display = 'none';
+      zielAfterChange();
+    }catch(e){ document.getElementById('zielPopupStatus').textContent = 'Löschen fehlgeschlagen.'; }
+    del.disabled = false;
+  };
 
   const quickGoalsOverlay = document.getElementById('quickGoalsOverlay');
   const quickGoalsExecutionEl = document.getElementById('quickGoalsExecution');
