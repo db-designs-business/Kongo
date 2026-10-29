@@ -725,8 +725,6 @@
       <button type="button" class="nav-menu-item" data-tab="aufgaben">Aufgaben</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="koerper">Körper</button>
-      <button type="button" class="nav-menu-item" data-tab="sprechuebung">Sprechübung</button>
-      <button type="button" class="nav-menu-item" data-tab="lesen">Lesen</button>
       <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
@@ -774,17 +772,9 @@
         <span class="home-link-title">Ziele</span>
         <span class="home-link-sub">Ziele anlegen und verfolgen</span>
       </button>
-      <button type="button" class="home-link" id="homeToSprechuebung">
-        <span class="home-link-title">Sprechübung</span>
-        <span class="home-link-sub">Stimm- & Sprechtraining, max. 15 Min.</span>
-      </button>
-      <button type="button" class="home-link" id="homeToLesen">
-        <span class="home-link-title">Lesen</span>
-        <span class="home-link-sub">Notizen, Kapitel-Zusammenfassung & Abfrage</span>
-      </button>
       <button type="button" class="home-link" id="homeToAktivitaeten">
         <span class="home-link-title">Aktivitäten</span>
-        <span class="home-link-sub">The Work, Affirmationen, Wut-Journal, Satzergänzung, Worksheets</span>
+        <span class="home-link-sub">Sprechübung, Lesen, The Work, Affirmationen, Wut-Journal, Satzergänzung, Worksheets</span>
       </button>
     </div>
   </div>
@@ -1166,6 +1156,14 @@
     <h1>Aktivitäten</h1>
     <div class="sub">Übungen und Werkzeuge für zwischendurch.</div>
     <div class="home-links">
+      <button type="button" class="home-link" id="homeToSprechuebung">
+        <span class="home-link-title">Sprechübung</span>
+        <span class="home-link-sub">Stimm- & Sprechtraining, max. 15 Min.</span>
+      </button>
+      <button type="button" class="home-link" id="homeToLesen">
+        <span class="home-link-title">Lesen</span>
+        <span class="home-link-sub">Notizen, Kapitel-Zusammenfassung & Abfrage</span>
+      </button>
       <button type="button" class="home-link" id="homeToWork">
         <span class="home-link-title">The Work</span>
         <span class="home-link-sub">Einen Glaubenssatz durcharbeiten</span>
@@ -1872,7 +1870,7 @@
 
   const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper };
 
-  const AKTIVITAETEN_TABS = ['work','affirmationen','wutjournal','satzergaenzung','worksheets'];
+  const AKTIVITAETEN_TABS = ['sprechuebung','lesen','work','affirmationen','wutjournal','satzergaenzung','worksheets'];
   // Zurück-Buttons nur für Aktivitäten-Unterseiten (Start erreicht man über die Bottom-Bar)
   Object.keys(panels).forEach(k=>{
     const sub = AKTIVITAETEN_TABS.includes(k);
