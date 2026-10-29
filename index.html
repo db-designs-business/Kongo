@@ -93,6 +93,7 @@
     padding:12px 14px; font-size:14.5px; font-weight:500; color:var(--ink-soft);
     cursor:pointer; border-radius:10px; min-height:44px; font-family:var(--font);
   }
+  .nav-user{ padding:10px 14px 8px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--forest); font-weight:700; border-bottom:1px solid var(--line-soft); margin-bottom:4px; }
   .nav-menu-item:hover{ background:rgba(255,255,255,.04); color:var(--ink); }
   .nav-menu-item.active{ color:var(--forest); font-weight:700; background:var(--spark-soft); }
 
@@ -438,6 +439,7 @@
       </svg>
     </button>
     <div class="nav-menu" id="navMenu" style="display:none;">
+      <div class="nav-user" id="navUser"></div>
       <button type="button" class="nav-menu-item active" data-tab="home">Start</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
@@ -963,7 +965,9 @@
   <div class="modal-card">
     <button class="modal-close" id="settingsModalCloseBtn" aria-label="Schließen">×</button>
     <div class="modal-title">Einstellungen</div>
-    <div class="modal-sub">Beide Schlüssel werden nur in diesem Browser gespeichert – nie im Code oder auf GitHub.</div>
+    <div class="modal-sub">Die Schlüssel werden nur in diesem Browser gespeichert – nie im Code oder auf GitHub.</div>
+    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Benutzername</div>
+    <input type="text" id="settingsUsernameInput" placeholder="z.B. Kongolongo" autocapitalize="off" autocomplete="username" style="margin-bottom:16px;">
     <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Airtable Personal Access Token</div>
     <input type="text" id="settingsTokenInput" placeholder="pat..." style="margin-bottom:16px;">
     <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching)</div>
@@ -1265,6 +1269,7 @@
   function openSettingsModal(){
     settingsTokenInput.value = getAirtableToken();
     settingsAnthropicInput.value = getAnthropicToken();
+    document.getElementById('settingsUsernameInput').value = profil.username || '';
     settingsStatus.textContent = '';
     settingsOverlay.style.display = 'flex';
   }
@@ -1273,15 +1278,25 @@
   document.getElementById('openSettingsBtn').onclick = ()=>{ navMenu.style.display = 'none'; openSettingsModal(); };
   document.getElementById('settingsModalCloseBtn').onclick = closeSettingsModal;
   settingsOverlay.addEventListener('click', (e)=>{ if(e.target === settingsOverlay) closeSettingsModal(); });
-  document.getElementById('settingsSaveBtn').onclick = ()=>{
+  document.getElementById('settingsSaveBtn').onclick = async ()=>{
+    const btn = document.getElementById('settingsSaveBtn');
+    if(btn.disabled) return;
     setAirtableToken(settingsTokenInput.value.trim());
     setAnthropicToken(settingsAnthropicInput.value.trim());
-    settingsStatus.textContent = 'Gespeichert – nur in diesem Browser.';
+    const name = document.getElementById('settingsUsernameInput').value.trim();
+    if(name && name !== profil.username){
+      btn.disabled = true;
+      settingsStatus.textContent = 'Speichere ...';
+      try{ await saveUsername(name); }
+      catch(e){ settingsStatus.textContent = 'Benutzername konnte nicht gespeichert werden.'; btn.disabled = false; return; }
+      btn.disabled = false;
+    }
+    settingsStatus.textContent = 'Gespeichert.';
     setTimeout(closeSettingsModal, 900);
   };
 
   if(!getAirtableToken()){
-    openSettingsModal();
+    setTimeout(openSettingsModal, 0);   // nach der Initialisierung (Profil) öffnen
   }
 
   /* ---------- Begrüßung & täglicher Impuls ---------- */
@@ -1308,13 +1323,44 @@
     return Math.floor(diff / 86400000);
   }
 
+  /* ---------- Profil / Benutzername ---------- */
+  const TABLE_PROFIL = 'tblCwW4UQbRslWftE';
+  const profil = { id:'', username: (function(){ try{ return localStorage.getItem('kongrow_username') || ''; }catch(e){ return ''; } })() };
+
+  async function loadProfil(){
+    try{
+      const recs = await airtableList(TABLE_PROFIL, ROUTINEN_BASE_ID);
+      const r = recs.find(x=>(x.fields||{})['Benutzername']);
+      if(r){
+        profil.id = r.id;
+        profil.username = r.fields['Benutzername'];
+        try{ localStorage.setItem('kongrow_username', profil.username); }catch(e){}
+        renderHome();
+      }
+    }catch(e){ /* Begrüßung ohne Namen */ }
+  }
+  async function saveUsername(name){
+    if(profil.id){
+      await airtableFetch(TABLE_PROFIL + '/' + profil.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Benutzername': name } }) }, ROUTINEN_BASE_ID);
+    } else {
+      profil.id = await airtableCreate(TABLE_PROFIL, { 'Benutzername': name, 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID);
+    }
+    profil.username = name;
+    try{ localStorage.setItem('kongrow_username', name); }catch(e){}
+    renderHome();
+  }
+
   function renderHome(){
     const now = new Date();
     const hour = now.getHours();
     const greeting = hour < 11 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend";
-    document.getElementById('homeGreeting').textContent = greeting;
+    document.getElementById('homeGreeting').textContent = greeting + (profil.username ? ', ' + profil.username : '');
+    const nu = document.getElementById('navUser');
+    if(nu) nu.textContent = profil.username ? '@' + profil.username : '';
+    nu && (nu.style.display = profil.username ? 'block' : 'none');
   }
   renderHome();
+  loadProfil();
 
   const reflexionContent = document.getElementById('reflexionContent');
   const reflexionOverlay = document.getElementById('reflexionOverlay');
