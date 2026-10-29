@@ -889,6 +889,10 @@
   .fokus-opt span{ font-size:13px; color:var(--ink-soft); }
   .fokus-opt.active{ border-color:var(--forest); background:rgba(34,227,211,.08); }
   .fokus-opt.active b{ color:var(--forest); }
+  .aufg-cal-box{ margin-top:12px; padding:12px; border-radius:14px; border:1px solid var(--line-soft); background:rgba(0,0,0,.25); }
+  .aufg-cal-toggle{ display:flex; align-items:center; gap:10px; font-size:14.5px; font-weight:600; cursor:pointer; }
+  .aufg-cal-toggle input{ width:18px; height:18px; accent-color:var(--forest); }
+  .w-sync{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--ink-soft); margin:12px 2px; }
 </style>
 </head>
 <body>
@@ -1002,7 +1006,7 @@
     </div>
 
 
-    <div class="home-links">
+    <div class="home-links" id="homeLinks" style="display:none;">
       <button type="button" class="home-link" id="homeToReflexion">
         <span class="home-link-title">Reflexion</span>
         <span class="home-link-sub">Tages-, Wochen-, Monats-, Quartals- oder Jahresrückblick</span>
@@ -1627,6 +1631,18 @@
         </div>
       </div>
     <textarea id="aufgNewNotiz" placeholder="Beschreibung (optional)" style="min-height:70px; margin-top:10px;"></textarea>
+    <div class="aufg-cal-box">
+      <label class="aufg-cal-toggle"><input type="checkbox" id="aufgCalOn"> 📅 Im Kalender eintragen</label>
+      <div id="aufgCalFields" style="display:none;">
+        <div class="ev-grid" style="margin-top:10px;">
+          <label>Datum<input type="date" id="aufgCalDate"></label>
+          <label>Uhrzeit<input type="time" id="aufgCalTime" value="09:00"></label>
+          <label>Dauer<select id="aufgCalDur"><option value="15">15 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60" selected>1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option><option value="180">3 Std</option></select></label>
+          <label>Erinnerung<select id="aufgCalRem"><option value="-1">Keine</option><option value="0">Zum Start</option><option value="10">10 Min vorher</option><option value="15" selected>15 Min vorher</option><option value="30">30 Min vorher</option><option value="60">1 Std vorher</option><option value="1440">1 Tag vorher</option></select></label>
+        </div>
+        <div class="hint" id="aufgCalHint" style="margin:8px 0 0;">Titel und Beschreibung werden übernommen.</div>
+      </div>
+    </div>
     <button type="button" class="primary" id="aufgNewAdd" style="width:100%; margin-top:16px;">Hinzufügen</button>
     <div id="aufgNewStatus" class="save-status"></div>
   </div>
@@ -6849,6 +6865,8 @@
           erledigtAm: f['Erledigt am'] || '',
           zielId: f['ZielId'] || '',
           notiz: f['Notiz'] || '',
+          eventId: f['EventId'] || '',
+          termin: f['Termin'] || '',
           createdAt: f['Erstellt am'] || ''
         };
       }).filter(t=>t.titel);
@@ -6909,7 +6927,7 @@
     return `<div class="aufg-item ${done ? 'done' : ''}" data-id="${t.id}">
       <button type="button" class="aufg-check prio-${t.prio}" data-id="${t.id}" aria-label="Erledigt">${done ? '✓' : ''}</button>
       <div class="aufg-main" data-id="${t.id}">
-        <div class="aufg-title">${escapeHtml(t.titel)}${t.notiz ? ' <span class="aufg-has-note" title="Hat Beschreibung">≡</span>' : ''}</div>
+        <div class="aufg-title">${escapeHtml(t.titel)}${t.notiz ? ' <span class="aufg-has-note" title="Hat Beschreibung">≡</span>' : ''}${t.termin ? ' <span class="aufg-has-note" title="Im Kalender">📅 ' + escapeHtml(t.termin.slice(11,16)) + '</span>' : ''}</div>
         <div class="aufg-chips">${chips}</div>
       </div>
       ${opts.compact ? '' : `<button type="button" class="aufg-star ${t.heute === todayStr() ? 'on' : ''}" data-id="${t.id}" aria-label="Für heute">★</button>`}
@@ -7081,6 +7099,7 @@
           ${t.zielId && !ziele.find(z=>z.id===t.zielId) && zielById(t.zielId) ? `<option value="${t.zielId}" selected>${escapeHtml(zielById(t.zielId).text)}</option>` : ''}
         </select>
       </div>
+      ${t.termin ? `<div class="hint" style="margin:10px 0 0;">📅 Im Kalender: ${escapeHtml(new Date(t.termin).toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} Uhr</div>` : ''}
       <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink-soft);">Beschreibung</div>
       <textarea id="aufgEditNotiz" placeholder="Beschreibung (optional)" style="min-height:110px;margin-top:6px;">${escapeHtml(t.notiz)}</textarea>
       <div class="nav-row" style="margin-top:12px;">
@@ -7159,6 +7178,18 @@
       setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 60);
     };
     window.__openAufgNew = openNew;
+    const calOn = document.getElementById('aufgCalOn');
+    calOn.onchange = async ()=>{
+      document.getElementById('aufgCalFields').style.display = calOn.checked ? 'block' : 'none';
+      if(calOn.checked){
+        const dIn = document.getElementById('aufgCalDate');
+        if(!dIn.value) dIn.value = document.getElementById('aufgNewFaellig').value || todayStr();
+        const st = cal.status || await loadGoogleStatus();
+        const hint = document.getElementById('aufgCalHint');
+        if(!st.connected){ hint.innerHTML = '⚠️ Google ist noch nicht verbunden. <button type="button" class="aufg-link" id="aufgCalConn">Jetzt verbinden</button>'; document.getElementById('aufgCalConn').onclick = ()=>{ overlay.style.display = 'none'; openConnections(); }; }
+        else hint.textContent = 'Titel und Beschreibung werden übernommen.';
+      }
+    };
     document.getElementById('aufgNewOpen').onclick = openNew;
     document.getElementById('aufgNewClose').onclick = ()=>{ overlay.style.display = 'none'; };
     const more = document.getElementById('aufgNewMore');
@@ -7173,7 +7204,8 @@
       if(addBtn.disabled) return;
       const titel = input.value.trim();
       if(!titel){ newStatus('Bitte einen Titel eingeben.'); input.focus(); return; }
-      const heute = document.getElementById('aufgNewHeute').checked ? todayStr() : '';
+      const calFuture = document.getElementById('aufgCalOn').checked && (document.getElementById('aufgCalDate').value || todayStr()) > todayStr();
+      const heute = document.getElementById('aufgNewHeute').checked && !calFuture ? todayStr() : '';
       if(heute){
         const count = aufgabenCache.filter(x=>aufgabeIsHeute(x) && !x.erledigtAm).length;
         if(count >= HEUTE_LIMIT){ aufgabenStatus(`Heute sind schon ${count} Aufgaben geplant – ich lege sie ohne „Heute" an.`); }
@@ -7194,7 +7226,29 @@
         input.value = '';
         document.getElementById('aufgNewFaellig').value = '';
         if(!(heute && count >= HEUTE_LIMIT)) aufgabenStatus('');
-        renderAufgaben(); renderHomeAufgaben();
+        // Optional: direkt als Termin in Google Kalender
+        if(calOn.checked){
+          const date = document.getElementById('aufgCalDate').value || todayStr();
+          const time = document.getElementById('aufgCalTime').value || '09:00';
+          const dur = Number(document.getElementById('aufgCalDur').value) || 60;
+          const sdt = new Date(date + 'T' + time); const edt = new Date(+sdt + dur * 60000);
+          const loc = d=>d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00';
+          try{
+            newStatus('Trage in den Kalender ein ...');
+            const ev = await kgApi('google.php?action=event_save', { calendarId:'primary', title: titel, allDay:false, start: loc(sdt), end: loc(edt), description: fields['Notiz'] || '', location:'', reminder: Number(document.getElementById('aufgCalRem').value) });
+            const t = aufgabenCache.find(x=>x.id === id);
+            const extra = { 'EventId': ev.id || '', 'Termin': loc(sdt) };
+            if(!fields['Faellig']) extra['Faellig'] = date;
+            await patchAufgabe(t, extra);
+            Object.assign(t, { eventId: extra['EventId'], termin: extra['Termin'], faellig: extra['Faellig'] || t.faellig });
+            homeTermineLoaded = 0; cal.loadedKey = '';
+          }catch(err){
+            newStatus('Aufgabe gespeichert, aber Kalender-Eintrag fehlgeschlagen: ' + err.message);
+            renderAufgaben(); renderHomeAufgaben(); addBtn.disabled = false; return;
+          }
+          calOn.checked = false; document.getElementById('aufgCalFields').style.display = 'none'; document.getElementById('aufgCalDate').value = '';
+        }
+        renderAufgaben(); renderHomeAufgaben(); renderHomeTermine(true);
         overlay.style.display = 'none';
       }catch(e){ newStatus('Speichern fehlgeschlagen. Bitte erneut versuchen.'); }
       addBtn.disabled = false;
@@ -8285,9 +8339,11 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   async function renderConnections(note){
     const body = document.getElementById('connBody');
     body.innerHTML = '<div class="loading">Lade ...</div>';
-    const [g, m, s] = await Promise.all([
-      kgApi('google.php?action=status').catch(e=>({ error:e.message })), kgApi('mail.php?action=accounts').catch(e=>({ accounts:[], error:e.message })), kgApi('slack.php?action=status').catch(e=>({ teams:[], error:e.message }))
+    const [g, m, s, w] = await Promise.all([
+      kgApi('google.php?action=status').catch(e=>({ error:e.message })), kgApi('mail.php?action=accounts').catch(e=>({ accounts:[], error:e.message })), kgApi('slack.php?action=status').catch(e=>({ teams:[], error:e.message })),
+      kgApi('withings.php?action=status').catch(e=>({ error:e.message }))
     ]);
+    if(!w.error) withingsStatus = w;
     cal.status = g.error ? cal.status : g;
     const copyRow = uri=>`<div class="conn-uri"><code>${escapeHtml(uri)}</code><button type="button" class="aufg-link" data-copy="${escapeHtml(uri)}">Kopieren</button></div>`;
     body.innerHTML = `${note ? `<div class="conn-note">${escapeHtml(note)}</div>` : ''}
@@ -8325,6 +8381,15 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
              <input type="password" id="sSec" placeholder="Client Secret" autocomplete="off" style="margin-bottom:8px;">
              <button type="button" class="primary" data-s-save>Speichern</button>`}
       </div>
+      <div class="conn-sec">
+        <div class="conn-h">⚖️ Withings <span>Waage → Gewicht-Tab</span></div>
+        ${w.connected ? `<div class="conn-ok">✓ Verbunden</div><button type="button" class="ghost" data-w-sync>Jetzt abgleichen</button> <button type="button" class="aufg-link" data-w-disc style="margin-left:10px;">Trennen</button>`
+          : w.configured ? `<button type="button" class="primary" data-w-conn>Mit Withings verbinden</button>`
+          : `<div class="hint">Einmalig: auf developer.withings.com eine App anlegen (Public API). Callback-URL dort eintragen:</div>${copyRow(w.redirect_uri || '')}
+             <input type="text" id="wCid" placeholder="Client ID" autocomplete="off" style="margin:8px 0;">
+             <input type="password" id="wSec" placeholder="Consumer Secret" autocomplete="off" style="margin-bottom:8px;">
+             <button type="button" class="primary" data-w-save>Speichern</button>`}
+      </div>
       <div class="save-status" id="connStatus"></div>`;
     const st = msgTxt=>{ document.getElementById('connStatus').textContent = msgTxt; };
     const q = sel=>body.querySelector(sel);
@@ -8347,6 +8412,10 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     body.querySelectorAll('[data-m-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('mail.php?action=account_delete', { id:b.dataset.mDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
     if(q('[data-s-save]')) q('[data-s-save]').onclick = async ()=>{ try{ await kgApi('slack.php?action=config', { client_id:q('#sCid').value, client_secret:q('#sSec').value }); renderConnections(); }catch(e){ st(e.message); } };
     if(q('[data-s-conn]')) q('[data-s-conn]').onclick = async ()=>{ try{ const j = await kgApi('slack.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
+    if(q('[data-w-save]')) q('[data-w-save]').onclick = async ()=>{ try{ await kgApi('withings.php?action=config', { client_id:q('#wCid').value, client_secret:q('#wSec').value }); renderConnections(); }catch(e){ st(e.message); } };
+    if(q('[data-w-conn]')) q('[data-w-conn]').onclick = async ()=>{ try{ const j = await kgApi('withings.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
+    if(q('[data-w-sync]')) q('[data-w-sync]').onclick = async ()=>{ const b = q('[data-w-sync]'); b.disabled = true; b.textContent = 'Gleiche ab ...'; try{ const j = await kgApi('withings.php?action=sync&full=1', {}); b.textContent = j.days + ' Tage übernommen ✓'; withingsStatus = null; gewichtCache = mapGewicht((cacheDrop(TABLE_GEWICHT, ROUTINEN_BASE_ID), await airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID))); }catch(e){ st(e.message); b.disabled = false; b.textContent = 'Jetzt abgleichen'; } };
+    if(q('[data-w-disc]')) q('[data-w-disc]').onclick = async ()=>{ const b = q('[data-w-disc]'); if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich trennen?'; return; } await kgApi('withings.php?action=disconnect', {}).catch(()=>{}); withingsStatus = null; renderConnections(); };
     body.querySelectorAll('[data-s-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('slack.php?action=disconnect', { team_id:b.dataset.sDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
   }
   document.getElementById('openConnectionsBtn').onclick = ()=>{ document.getElementById('settingsModalOverlay').style.display = 'none'; openConnections(); };
@@ -8359,7 +8428,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(key === 'nachrichten') loadMessages();
     if(key === 'home') renderHomeTermine();
   };
-  authReady.then(()=>{ setTimeout(()=>{ renderHomeTermine(true); loadMessages(); }, 1500); });
+  authReady.then(()=>{ setTimeout(()=>{ renderHomeTermine(true); loadMessages(); withingsSync(); }, 1500); });
   setInterval(()=>{ if(document.visibilityState === 'visible'){ msg.loadedAt = 0; loadMessages(); } }, 5 * 60 * 1000);
 
 
@@ -8372,8 +8441,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(!open) return;
     history.replaceState(null, '', location.pathname);
     if(open === 'settings'){
-      const g = params.get('google'), sl = params.get('slack');
-      const note = g === 'ok' ? 'Google verbunden ✓' : g === 'error' ? 'Google-Verbindung fehlgeschlagen – bitte erneut versuchen.' : sl === 'ok' ? 'Slack-Workspace verbunden ✓' : sl === 'error' ? 'Slack-Verbindung fehlgeschlagen.' : '';
+      const g = params.get('google'), sl = params.get('slack'), wi = params.get('withings');
+      const note = g === 'ok' ? 'Google verbunden ✓' : g === 'error' ? 'Google-Verbindung fehlgeschlagen – bitte erneut versuchen.' : sl === 'ok' ? 'Slack-Workspace verbunden ✓' : sl === 'error' ? 'Slack-Verbindung fehlgeschlagen.'
+        : wi === 'ok' ? 'Withings verbunden ✓ – tippe auf „Jetzt abgleichen“, um deine Messungen zu übernehmen.' : wi === 'error' ? 'Withings-Verbindung fehlgeschlagen.' : '';
       authReady.then(()=>setTimeout(()=>openConnections(note), 400));
       return;
     }
@@ -8454,6 +8524,30 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   function saveActiveWorkout(){ try{ if(activeWorkout) localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(activeWorkout)); else localStorage.removeItem(ACTIVE_WORKOUT_KEY); }catch(e){} }
   try{ const aw = localStorage.getItem(ACTIVE_WORKOUT_KEY); if(aw) activeWorkout = JSON.parse(aw); }catch(e){}
 
+  function mapGewicht(g){
+    return g.map(r=>{ const f = r.fields || {}; return { id:r.id, datum:f['Datum'] || '', kg:f['Kg'] || 0, fett:f['Fett %'] || null, muskel:f['Muskel kg'] || null, quelle:f['Quelle'] || '' }; })
+      .filter(x=>x.datum && x.kg).sort((a,b)=> a.datum.localeCompare(b.datum));
+  }
+  // Withings: Status + Abgleich
+  let withingsStatus = null, withingsSyncing = false;
+  async function withingsSync(force){
+    if(withingsSyncing) return;
+    try{
+      if(!withingsStatus || force) withingsStatus = await kgApi('withings.php?action=status');
+      if(!withingsStatus.connected) return;
+      if(!force && withingsStatus.lastSync && Date.now()/1000 - withingsStatus.lastSync < 1800) return;
+      withingsSyncing = true; if(koerperView === 'gewicht') renderGewichtView();
+      await kgApi('withings.php?action=sync', {});
+      withingsStatus.lastSync = Math.floor(Date.now()/1000);
+      cacheDrop(TABLE_GEWICHT, ROUTINEN_BASE_ID);
+      gewichtCache = mapGewicht(await airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID));
+      const t = todayStr();
+      if(gewichtCache.some(x=>x.datum === t) && !xpHas('weight:' + t)) awardXP('weight:' + t, 'Gewicht (Withings)', WEIGHT_XP);
+    }catch(e){ /* still */ }
+    withingsSyncing = false;
+    if(koerperView === 'gewicht') renderGewichtView();
+  }
+
   async function loadKoerper(){
     try{
       const [u, p, t, g, e] = await Promise.all([
@@ -8465,7 +8559,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       plaeneCache = p.map(r=>{ let list = []; try{ list = JSON.parse((r.fields||{})['Uebungen'] || '[]'); }catch(_){ list = ((r.fields||{})['Uebungen'] || '').split('\n').filter(Boolean); } return { id:r.id, name:(r.fields||{})['Name'] || '', uebungen:list }; }).filter(x=>x.name);
       trainingsCache = t.map(r=>{ const f = r.fields || {}; let s = []; try{ s = JSON.parse(f['Saetze'] || '[]'); }catch(_){} return { id:r.id, datum:f['Datum'] || '', plan:f['Plan'] || '', dauer:f['Dauer (Min)'] || 0, saetze:s, volumen:f['Volumen (kg)'] || 0, notiz:f['Notiz'] || '' }; })
         .sort((a,b)=> (b.datum || '').localeCompare(a.datum || ''));
-      gewichtCache = g.map(r=>({ id:r.id, datum:(r.fields||{})['Datum'] || '', kg:(r.fields||{})['Kg'] || 0 })).filter(x=>x.datum && x.kg).sort((a,b)=> a.datum.localeCompare(b.datum));
+      gewichtCache = mapGewicht(g);
       ernCache = e.map(r=>{ const f = r.fields || {}; return { id:r.id, datum:f['Datum'] || '', kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, wasser:f['Wasser'] || 0, notiz:f['Notiz'] || '' }; }).filter(x=>x.datum).sort((a,b)=> b.datum.localeCompare(a.datum));
       renderKoerper();
     }catch(e){
@@ -8479,7 +8573,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     else if(koerperView === 'ernaehrung') renderErnaehrungView();
     else renderGewichtView();
   }
-  document.querySelectorAll('.k-tab').forEach(b=>b.onclick = ()=>{ koerperView = b.dataset.v; renderKoerper(); });
+  document.querySelectorAll('.k-tab').forEach(b=>b.onclick = ()=>{ koerperView = b.dataset.v; renderKoerper(); if(koerperView === 'gewicht') withingsSync(); });
 
   /* ----- Training: Übersicht ----- */
   function lastSetsFor(name){
@@ -8900,8 +8994,17 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
         ${pts.length >= 2 ? weightChartSvg(pts) : '<div class="hint" style="margin-top:12px;">Ab zwei Einträgen siehst du hier deinen Verlauf.</div>'}
         <div class="save-status" id="wStatus"></div>
       </div>
+      <div class="w-sync">${withingsStatus && withingsStatus.connected
+          ? `<span>⚖️ Withings verbunden${withingsSyncing ? ' · gleiche ab …' : withingsStatus.lastSync ? ' · zuletzt ' + new Date(withingsStatus.lastSync * 1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}</span><button type="button" class="aufg-link" id="wSyncBtn" ${withingsSyncing ? 'disabled' : ''}>Jetzt abgleichen</button>`
+          : `<span>⚖️ Withings-Waage nicht verbunden</span><button type="button" class="aufg-link" id="wConnBtn">Verbinden</button>`}</div>
+      ${last && (last.fett || last.muskel) ? `<div class="evening-sum" style="grid-template-columns:1fr 1fr; margin:0 0 14px;">
+          <div><span>${last.fett ? fmtNum(last.fett) + ' %' : '–'}</span><small>Körperfett</small></div>
+          <div><span>${last.muskel ? fmtNum(last.muskel) + ' kg' : '–'}</span><small>Muskelmasse</small></div>
+        </div>` : ''}
       <div class="step-label" style="margin-top:18px;">Einträge</div>
-      ${gewichtCache.length ? `<div class="card">${[...gewichtCache].reverse().slice(0,20).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})}</span><b>${fmtNum(x.kg)} kg</b></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch kein Gewicht eingetragen.</div></div>'}`;
+      ${gewichtCache.length ? `<div class="card">${[...gewichtCache].reverse().slice(0,20).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})}${x.quelle === 'Withings' ? ' <small style="color:var(--ink-soft);">· Withings</small>' : ''}</span><b>${fmtNum(x.kg)} kg${x.fett ? ` <small style="color:var(--ink-soft);font-weight:500;">· ${fmtNum(x.fett)} %</small>` : ''}</b></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch kein Gewicht eingetragen.</div></div>'}`;
+    const wsb = body.querySelector('#wSyncBtn'); if(wsb) wsb.onclick = ()=>withingsSync(true);
+    const wcb = body.querySelector('#wConnBtn'); if(wcb) wcb.onclick = ()=>openConnections();
     const sb = body.querySelector('#wSave');
     sb.onclick = async ()=>{
       if(sb.disabled) return;

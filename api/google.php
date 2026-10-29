@@ -129,6 +129,10 @@ switch ($action) {
     $ev = ['summary' => (string)($in['title'] ?? ''), 'location' => (string)($in['location'] ?? ''), 'description' => (string)($in['description'] ?? '')];
     if (!empty($in['allDay'])) { $ev['start'] = ['date' => $in['start']]; $ev['end'] = ['date' => $in['end']]; }
     else { $ev['start'] = ['dateTime' => $in['start'], 'timeZone' => 'Europe/Berlin']; $ev['end'] = ['dateTime' => $in['end'], 'timeZone' => 'Europe/Berlin']; }
+    if (array_key_exists('reminder', $in)) {
+      $ev['reminders'] = ($in['reminder'] === '' || $in['reminder'] === null) ? ['useDefault' => true]
+        : ['useDefault' => false, 'overrides' => ((int)$in['reminder'] < 0) ? [] : [['method' => 'popup', 'minutes' => (int)$in['reminder']]]];
+    }
     $base = 'https://www.googleapis.com/calendar/v3/calendars/' . rawurlencode($cid) . '/events';
     $j = $id ? g_api($uid, 'PATCH', $base . '/' . rawurlencode($id), $ev) : g_api($uid, 'POST', $base, $ev);
     kg_json(['ok' => true, 'id' => $j['id'] ?? null]);
