@@ -585,6 +585,52 @@
   @keyframes splashLoad{ 0%{ transform:translateX(-100%); } 100%{ transform:translateX(250%); } }
   @media (prefers-reduced-motion: reduce){ .splash *{ animation-duration:.01s !important; animation-delay:0s !important; } }
   .push-box{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line-soft); }
+  /* ---------- Körper ---------- */
+  .k-running{ display:flex; align-items:center; justify-content:space-between; gap:12px; border-color:rgba(34,227,211,.45); }
+  .k-running .primary{ flex-shrink:0; }
+  .k-plan-list{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .k-plan{ display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:14px; border-radius:14px; background:rgba(0,0,0,.3); border:1px solid var(--line-soft); color:var(--ink); text-align:left; cursor:pointer; }
+  .k-plan b{ font-size:15.5px; }
+  .k-plan span{ font-size:12.5px; color:var(--ink-soft); }
+  .k-plan:hover{ border-color:var(--forest); }
+  .k-plan.empty{ border-style:dashed; border-color:rgba(34,227,211,.35); }
+  .k-plan.empty b{ color:var(--forest); }
+  .k-plan-ex span{ flex:1; font-size:14.5px; }
+  .wo-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin:8px 0 16px; }
+  .wo-title{ font-size:24px; font-weight:800; letter-spacing:-.02em; }
+  .wo-time{ text-align:right; }
+  .wo-time span{ display:block; font-size:26px; font-weight:800; color:var(--forest); font-variant-numeric:tabular-nums; }
+  .wo-time small{ font-size:11px; color:var(--ink-soft); letter-spacing:.08em; text-transform:uppercase; }
+  .wo-ex{ padding:16px 14px !important; }
+  .wo-ex-head{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+  .wo-ex-name{ font-size:16.5px; font-weight:700; }
+  .wo-ex-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .wo-sets{ margin-top:10px; }
+  .wo-row{ display:grid; grid-template-columns:34px 1fr 1fr 44px; gap:8px; align-items:center; padding:4px 0; }
+  .wo-row-h span{ font-size:11px; color:var(--ink-soft); letter-spacing:.08em; text-transform:uppercase; }
+  .wo-row input{ width:100%; min-width:0; text-align:center; padding:10px 6px; font-weight:700; }
+  .wo-n{ text-align:center; color:var(--ink-soft); font-weight:700; }
+  .wo-check{ width:44px; height:42px; border-radius:12px; border:1.5px solid rgba(34,227,211,.5); background:transparent; color:#04110F; font-weight:800; font-size:16px; cursor:pointer; }
+  .wo-row.done .wo-check{ background:var(--forest); border-color:var(--forest); box-shadow:0 0 12px var(--forest-glow); }
+  .wo-row.done input{ border-color:rgba(34,227,211,.4); background:rgba(34,227,211,.06); }
+  .wo-ex-actions{ display:flex; justify-content:space-between; margin-top:6px; }
+  .rest-bar{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom)); z-index:75; width:calc(100% - 32px); max-width:600px;
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:16px; background:#0F1517; border:1px solid rgba(34,227,211,.45); box-shadow:0 10px 30px rgba(0,0,0,.6), 0 0 20px rgba(34,227,211,.15); }
+  .rest-bar span{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); }
+  .rest-bar b{ flex:1; font-size:24px; color:var(--forest); font-variant-numeric:tabular-nums; }
+  .rest-bar button{ min-height:40px; padding:8px 14px; font-size:13.5px; }
+  .rest-bar .primary::after{ content:''; }
+  .ern-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  .ern-grid label{ display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ink-soft); min-width:0; }
+  .ern-grid input{ text-align:center; font-weight:700; padding:10px 6px; }
+  .ern-grid small{ font-size:11px; font-weight:500; }
+  .w-top{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+  .w-now{ font-size:38px; font-weight:800; letter-spacing:-.03em; color:var(--ink); line-height:1.1; }
+  .w-now small{ font-size:15px; color:var(--ink-soft); font-weight:600; }
+  .w-input{ display:flex; gap:8px; }
+  .w-input input{ width:96px; text-align:center; font-weight:700; }
+  .w-input .primary::after{ content:''; }
+  .w-chart{ width:100%; height:130px; margin-top:14px; display:block; }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -626,6 +672,7 @@
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="aufgaben">Aufgaben</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
+      <button type="button" class="nav-menu-item" data-tab="koerper">Körper</button>
       <button type="button" class="nav-menu-item" data-tab="sprechuebung">Sprechübung</button>
       <button type="button" class="nav-menu-item" data-tab="lesen">Lesen</button>
       <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
@@ -667,6 +714,10 @@
       <button type="button" class="home-link" id="homeToAufgaben">
         <span class="home-link-title">Aufgaben</span>
         <span class="home-link-sub">Heute · Als Nächstes · Alle – nach Priorität</span>
+      </button>
+      <button type="button" class="home-link" id="homeToKoerper">
+        <span class="home-link-title">Körper</span>
+        <span class="home-link-sub">Training loggen, Ernährung & Gewicht</span>
       </button>
       <button type="button" class="home-link" id="homeToZiele">
         <span class="home-link-title">Ziele</span>
@@ -878,6 +929,18 @@
       <button class="modal-close" id="sprechuebungCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="sprechuebungExecution" style="margin-top:36px;"></div>
     </div>
+  </div>
+
+  <div id="panelKoerper" style="display:none;">
+    <div class="eyebrow">Körper <span class="data-badge">Airtable</span></div>
+    <h1>Körper</h1>
+    <div class="sub">Training, Ernährung und Gewicht an einem Ort.</div>
+    <div class="aufg-tabs">
+      <button type="button" class="aufg-tab k-tab active" data-v="training">Training</button>
+      <button type="button" class="aufg-tab k-tab" data-v="ernaehrung">Ernährung</button>
+      <button type="button" class="aufg-tab k-tab" data-v="gewicht">Gewicht</button>
+    </div>
+    <div id="koerperBody"><div class="loading">Lade ...</div></div>
   </div>
 
   <div id="panelAufgaben" style="display:none;">
@@ -1166,12 +1229,47 @@
       <button type="button" class="quick-btn" data-q="task"><span>✅</span>Neue Aufgabe</button>
       <button type="button" class="quick-btn" data-q="morning"><span>🌅</span>Morgenreflexion</button>
       <button type="button" class="quick-btn" data-q="evening"><span>🌙</span>Tagesreflexion</button>
+      <button type="button" class="quick-btn" data-q="training"><span>🏋️</span>Training starten</button>
+      <button type="button" class="quick-btn" data-q="weight"><span>⚖️</span>Gewicht eintragen</button>
       <button type="button" class="quick-btn" data-q="routine"><span>🔁</span>Routine starten</button>
       <button type="button" class="quick-btn" data-q="lesen"><span>📖</span>Lesen</button>
       <button type="button" class="quick-btn" data-q="sprech"><span>🗣️</span>Sprechübung</button>
       <button type="button" class="quick-btn" data-q="ziele"><span>🎯</span>Ziele</button>
       <button type="button" class="quick-btn" data-q="urge"><span>🛡️</span>Drang? Durchhalten</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="workoutOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 120px; position:relative;">
+    <button class="modal-close" id="workoutMinimize" aria-label="Minimieren" style="position:sticky; top:0; float:right; font-size:15px;">⌄</button>
+    <div id="workoutBody" style="margin-top:8px;"></div>
+  </div>
+  <div class="rest-bar" id="restBar" style="display:none;">
+    <span>Pause</span><b id="restTime">1:30</b>
+    <button type="button" class="ghost" id="restPlus">+30 s</button>
+    <button type="button" class="primary" id="restSkip">Weiter</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="kPickerOverlay" style="display:none; z-index:80;">
+  <div class="modal-card picker-card">
+    <button class="modal-close" id="kPickClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Übungen</div>
+    <div id="kPickerBody" style="margin-top:10px;"></div>
+    <div class="picker-foot">
+      <div class="picker-count" id="kPickCount"></div>
+      <button class="primary" id="kPickDone">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="kPlanOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="kPlanClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Trainingspläne</div>
+    <div class="modal-sub">Vorlagen für deine Einheiten, z. B. Push / Pull / Beine.</div>
+    <div id="kPlanBody"></div>
   </div>
 </div>
 
@@ -1540,9 +1638,10 @@
 
   const panelLesen = document.getElementById('panelLesen');
   const panelAufgaben = document.getElementById('panelAufgaben');
+  const panelKoerper = document.getElementById('panelKoerper');
   const panelAktivitaeten = document.getElementById('panelAktivitaeten');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper };
 
   const AKTIVITAETEN_TABS = ['work','affirmationen','wutjournal','satzergaenzung','worksheets'];
   // Zurück-Buttons: Hauptbereiche → Start, Aktivitäten-Unterseiten → Aktivitäten
@@ -1594,6 +1693,7 @@
   document.getElementById('homeToWorksheets').onclick = ()=>switchTab('worksheets');
   document.getElementById('homeToLesen').onclick = ()=>switchTab('lesen');
   document.getElementById('homeToAufgaben').onclick = ()=>switchTab('aufgaben');
+  document.getElementById('homeToKoerper').onclick = ()=>switchTab('koerper');
   document.getElementById('homeToAktivitaeten').onclick = ()=>switchTab('aktivitaeten');
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
@@ -3558,6 +3658,7 @@
   function detectStepLink(name){
     const n = (name || '').toLowerCase();
     const map = [
+      [/training|workout|gym|krafttraining/, 'koerper', 'Training'],
       [/lesen|buch/, 'lesen', 'Lesen'],
       [/sprech|stimme/, 'sprechuebung', 'Sprechübung'],
       [/reflexion|rückblick|rueckblick/, 'reflexion', 'Reflexion'],
@@ -6840,6 +6941,8 @@
       else if(q === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(q === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
       else if(q === 'routine') switchTab('routinen');
+      else if(q === 'training'){ switchTab('koerper'); koerperView = 'training'; renderKoerper(); if(activeWorkout) openWorkout(); }
+      else if(q === 'weight'){ switchTab('koerper'); koerperView = 'gewicht'; renderKoerper(); setTimeout(()=>{ const i = document.getElementById('wKg'); if(i) i.focus(); }, 50); }
       else if(q === 'lesen') switchTab('lesen');
       else if(q === 'sprech') switchTab('sprechuebung');
       else if(q === 'ziele') switchTab('ziele');
@@ -6933,6 +7036,516 @@
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
     }, 2800);
   })();
+
+  /* =========================================================
+     KÖRPER: Training · Ernährung · Gewicht
+     ========================================================= */
+  const TABLE_UEBUNGEN = 'tblrn1g8KScSlatsB';
+  const TABLE_PLAENE = 'tbld2qTG0mVLCyUnF';
+  const TABLE_TRAININGS = 'tblj24xBZj2pvBpst';
+  const TABLE_GEWICHT = 'tbleY0UkcFTlE0kOU';
+  const TABLE_ERNAEHRUNG = 'tblSEExi6OMd0fZcX';
+  const MUSKELGRUPPEN = ['Brust','Rücken','Beine','Schultern','Arme','Core','Cardio','Ganzkörper'];
+  const UEBUNG_KATALOG = {
+    'Brust': ['Bankdrücken','Schrägbankdrücken','Kurzhantel-Bankdrücken','Fliegende','Dips','Liegestütze','Butterfly'],
+    'Rücken': ['Kreuzheben','Klimmzüge','Latzug','Langhantelrudern','Kurzhantelrudern','Kabelrudern','Hyperextensions'],
+    'Beine': ['Kniebeuge','Beinpresse','Ausfallschritte','Rumänisches Kreuzheben','Beinstrecker','Beinbeuger','Hip Thrust','Wadenheben'],
+    'Schultern': ['Schulterdrücken','Kurzhantel-Schulterdrücken','Seitheben','Face Pulls','Frontheben','Reverse Flys'],
+    'Arme': ['Bizepscurls','Hammercurls','SZ-Curls','Trizepsdrücken am Kabel','French Press','Enges Bankdrücken'],
+    'Core': ['Plank','Crunches','Beinheben hängend','Russian Twists','Ab Wheel'],
+    'Cardio': ['Laufen','Rudergerät','Fahrrad','Seilspringen','Stairmaster'],
+    'Ganzkörper': ['Burpees','Kettlebell Swings','Thrusters','Clean & Press']
+  };
+  const REST_SECONDS = 90;
+  const ACTIVE_WORKOUT_KEY = 'kongrow_active_workout';
+  const ERN_TARGETS_KEY = 'kongrow_ern_targets';
+  const TRAINING_XP = 30, WEIGHT_XP = 5, FOOD_XP = 10;
+
+  let uebungenCustom = [];   // {id, name, gruppe}
+  let plaeneCache = [];      // {id, name, uebungen:[name]}
+  let trainingsCache = [];   // {id, datum, plan, dauer, saetze:[{u, sets:[{kg,wdh}]}], volumen, notiz}
+  let gewichtCache = [];     // {id, datum, kg}
+  let ernCache = [];         // {id, datum, kcal, protein, wasser, notiz}
+  let koerperView = 'training';
+  let activeWorkout = null;  // {plan, start, uebungen:[{name, sets:[{kg,wdh,done}]}], notiz}
+  let restTimer = null, restLeft = 0;
+
+  function allUebungen(){
+    const list = [];
+    MUSKELGRUPPEN.forEach(g=>(UEBUNG_KATALOG[g] || []).forEach(n=>list.push({ name:n, gruppe:g })));
+    uebungenCustom.forEach(u=>{ if(!list.some(x=>x.name.toLowerCase() === u.name.toLowerCase())) list.push({ name:u.name, gruppe:u.gruppe || 'Ganzkörper', custom:true }); });
+    return list;
+  }
+  function gruppeOf(name){ const u = allUebungen().find(x=>x.name === name); return u ? u.gruppe : ''; }
+  function fmtNum(n){ return (Math.round(n * 10) / 10).toLocaleString('de-DE'); }
+  function saveActiveWorkout(){ try{ if(activeWorkout) localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(activeWorkout)); else localStorage.removeItem(ACTIVE_WORKOUT_KEY); }catch(e){} }
+  try{ const aw = localStorage.getItem(ACTIVE_WORKOUT_KEY); if(aw) activeWorkout = JSON.parse(aw); }catch(e){}
+
+  async function loadKoerper(){
+    try{
+      const [u, p, t, g, e] = await Promise.all([
+        airtableList(TABLE_UEBUNGEN, ROUTINEN_BASE_ID), airtableList(TABLE_PLAENE, ROUTINEN_BASE_ID),
+        airtableList(TABLE_TRAININGS, ROUTINEN_BASE_ID), airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID),
+        airtableList(TABLE_ERNAEHRUNG, ROUTINEN_BASE_ID)
+      ]);
+      uebungenCustom = u.map(r=>({ id:r.id, name:(r.fields||{})['Name'] || '', gruppe:(r.fields||{})['Muskelgruppe'] || '' })).filter(x=>x.name);
+      plaeneCache = p.map(r=>{ let list = []; try{ list = JSON.parse((r.fields||{})['Uebungen'] || '[]'); }catch(_){ list = ((r.fields||{})['Uebungen'] || '').split('\n').filter(Boolean); } return { id:r.id, name:(r.fields||{})['Name'] || '', uebungen:list }; }).filter(x=>x.name);
+      trainingsCache = t.map(r=>{ const f = r.fields || {}; let s = []; try{ s = JSON.parse(f['Saetze'] || '[]'); }catch(_){} return { id:r.id, datum:f['Datum'] || '', plan:f['Plan'] || '', dauer:f['Dauer (Min)'] || 0, saetze:s, volumen:f['Volumen (kg)'] || 0, notiz:f['Notiz'] || '' }; })
+        .sort((a,b)=> (b.datum || '').localeCompare(a.datum || ''));
+      gewichtCache = g.map(r=>({ id:r.id, datum:(r.fields||{})['Datum'] || '', kg:(r.fields||{})['Kg'] || 0 })).filter(x=>x.datum && x.kg).sort((a,b)=> a.datum.localeCompare(b.datum));
+      ernCache = e.map(r=>{ const f = r.fields || {}; return { id:r.id, datum:f['Datum'] || '', kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, wasser:f['Wasser'] || 0, notiz:f['Notiz'] || '' }; }).filter(x=>x.datum).sort((a,b)=> b.datum.localeCompare(a.datum));
+      renderKoerper();
+    }catch(e){
+      document.getElementById('koerperBody').innerHTML = '<div class="card"><div class="empty">Daten konnten nicht geladen werden.</div></div>';
+    }
+  }
+
+  function renderKoerper(){
+    document.querySelectorAll('.k-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === koerperView));
+    if(koerperView === 'training') renderTrainingView();
+    else if(koerperView === 'ernaehrung') renderErnaehrungView();
+    else renderGewichtView();
+  }
+  document.querySelectorAll('.k-tab').forEach(b=>b.onclick = ()=>{ koerperView = b.dataset.v; renderKoerper(); });
+
+  /* ----- Training: Übersicht ----- */
+  function lastSetsFor(name){
+    for(const t of trainingsCache){ const ex = (t.saetze || []).find(x=>x.u === name); if(ex && ex.sets && ex.sets.length) return { datum:t.datum, sets:ex.sets }; }
+    return null;
+  }
+  function bestFor(name){
+    let best = 0;
+    trainingsCache.forEach(t=>(t.saetze || []).forEach(x=>{ if(x.u === name) (x.sets || []).forEach(s=>{ best = Math.max(best, Number(s.kg) || 0); }); }));
+    return best;
+  }
+  function weekStart(){ const d = new Date(); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return dayStr(d); }
+
+  function renderTrainingView(){
+    const body = document.getElementById('koerperBody');
+    const ws = weekStart();
+    const week = trainingsCache.filter(t=>t.datum >= ws);
+    const weekVol = week.reduce((s,t)=>s + (t.volumen || 0), 0);
+    const running = activeWorkout ? Math.round((Date.now() - activeWorkout.start) / 60000) : 0;
+    body.innerHTML = `
+      ${activeWorkout ? `<div class="card k-running">
+          <div><div class="step-label" style="margin:0 0 4px;">Training läuft</div><b>${escapeHtml(activeWorkout.plan || 'Freies Training')}</b> · ${running} Min</div>
+          <button type="button" class="primary" id="kResumeBtn">Fortsetzen</button>
+        </div>` : ''}
+      <div class="evening-sum" style="margin:0 0 14px;">
+        <div><span>${week.length}</span><small>Diese Woche</small></div>
+        <div><span>${fmtNum(weekVol / 1000)}t</span><small>Volumen</small></div>
+        <div><span>${trainingsCache.length}</span><small>Gesamt</small></div>
+      </div>
+      <div class="card">
+        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Training starten</div><button type="button" class="prio-edit-toggle" id="kPlansBtn">Pläne verwalten</button></div>
+        <div class="k-plan-list">
+          ${plaeneCache.map(p=>`<button type="button" class="k-plan" data-id="${p.id}"><b>${escapeHtml(p.name)}</b><span>${p.uebungen.length} Übungen · ${escapeHtml(p.uebungen.slice(0,3).join(', '))}${p.uebungen.length > 3 ? ' …' : ''}</span></button>`).join('')}
+          <button type="button" class="k-plan empty" id="kFreeBtn"><b>+ Freies Training</b><span>Übungen spontan hinzufügen</span></button>
+        </div>
+      </div>
+      <div class="step-label" style="margin-top:18px;">Verlauf</div>
+      <div id="kHistory">${trainingsCache.length ? '' : '<div class="card"><div class="empty">Noch keine Trainings gespeichert.</div></div>'}</div>`;
+    const rb = body.querySelector('#kResumeBtn'); if(rb) rb.onclick = openWorkout;
+    body.querySelector('#kPlansBtn').onclick = openPlanManager;
+    body.querySelector('#kFreeBtn').onclick = ()=>startWorkout(null);
+    body.querySelectorAll('.k-plan[data-id]').forEach(b=>b.onclick = ()=>startWorkout(plaeneCache.find(p=>p.id === b.dataset.id)));
+    const hist = body.querySelector('#kHistory');
+    if(trainingsCache.length){
+      hist.innerHTML = trainingsCache.slice(0, 30).map(t=>`
+        <div class="entry">
+          <div class="entry-head" data-key="${t.id}"><div>
+            <div class="entry-date">${new Date(t.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})} · ${t.dauer} Min · ${fmtNum(t.volumen)} kg</div>
+            <div class="entry-belief">${escapeHtml(t.plan || 'Freies Training')}</div>
+          </div></div>
+          <div class="entry-body" id="kh-${cssSafe(t.id)}">
+            ${(t.saetze || []).map(x=>`<div class="summary-q">${escapeHtml(x.u)}</div><div class="summary-a">${(x.sets || []).map(s=>`${fmtNum(s.kg)} kg × ${s.wdh}`).join(' · ') || '–'}</div>`).join('')}
+            ${t.notiz ? `<div class="summary-q">Notiz</div><div class="summary-a">${escapeHtml(t.notiz)}</div>` : ''}
+            <button class="entry-delete" data-key="${t.id}">Training löschen</button>
+          </div>
+        </div>`).join('');
+      hist.querySelectorAll('.entry-head').forEach(h=>h.onclick = ()=>document.getElementById('kh-' + cssSafe(h.dataset.key)).classList.toggle('open'));
+      hist.querySelectorAll('.entry-delete').forEach(btn=>{
+        let armed = false;
+        btn.onclick = async ev=>{
+          ev.stopPropagation();
+          if(btn.disabled) return;
+          if(!armed){ armed = true; btn.textContent = 'Wirklich löschen?'; return; }
+          btn.disabled = true;
+          try{ await airtableDelete(TABLE_TRAININGS, btn.dataset.key, ROUTINEN_BASE_ID); trainingsCache = trainingsCache.filter(x=>x.id !== btn.dataset.key); revokeXP('training:' + btn.dataset.key); renderTrainingView(); }
+          catch(e){ btn.disabled = false; btn.textContent = 'Fehler – erneut'; armed = false; }
+        };
+      });
+    }
+  }
+
+  /* ----- Übungsauswahl (Pop-up) ----- */
+  function openExercisePicker(onPick, multi, preselected){
+    const ov = document.getElementById('kPickerOverlay');
+    const body = document.getElementById('kPickerBody');
+    let q = '', sel = (preselected || []).slice();
+    const draw = ()=>{
+      const list = allUebungen().filter(u=>!q || u.name.toLowerCase().includes(q.toLowerCase()));
+      body.innerHTML = `
+        <input type="text" id="kPickSearch" placeholder="Übung suchen ..." value="${escapeHtml(q)}" style="margin-bottom:12px;">
+        ${MUSKELGRUPPEN.map(g=>{
+          const items = list.filter(u=>u.gruppe === g);
+          if(!items.length) return '';
+          return `<div class="pick-kat"><div class="pick-kat-title">${g}</div><div class="pick-chips">${items.map(u=>`<button type="button" class="pick-chip ${sel.includes(u.name)?'on':''}" data-n="${escapeHtml(u.name)}">${sel.includes(u.name)?'✓ ':''}${escapeHtml(u.name)}</button>`).join('')}</div></div>`;
+        }).join('')}
+        <div class="pick-kat"><div class="pick-kat-title">Eigene Übung</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="text" id="kNewEx" placeholder="Name" style="flex:2;min-width:140px;" value="${escapeHtml(q)}">
+            <select id="kNewExG" style="flex:1;min-width:110px;">${MUSKELGRUPPEN.map(g=>`<option>${g}</option>`).join('')}</select>
+            <button type="button" class="ghost" id="kNewExBtn">+ Anlegen</button>
+          </div>
+        </div>`;
+      document.getElementById('kPickCount').textContent = multi ? `${sel.length} gewählt` : '';
+      document.getElementById('kPickDone').style.display = multi ? '' : 'none';
+      const s = body.querySelector('#kPickSearch');
+      s.oninput = ()=>{ q = s.value; const pos = s.selectionStart; draw(); const s2 = body.querySelector('#kPickSearch'); s2.focus(); s2.setSelectionRange(pos, pos); };
+      body.querySelectorAll('.pick-chip[data-n]').forEach(b=>b.onclick = ()=>{
+        const n = b.dataset.n;
+        if(!multi){ ov.style.display = 'none'; onPick([n]); return; }
+        sel = sel.includes(n) ? sel.filter(x=>x !== n) : sel.concat([n]);
+        draw();
+      });
+      const nb = body.querySelector('#kNewExBtn');
+      nb.onclick = async ()=>{
+        const name = body.querySelector('#kNewEx').value.trim();
+        const gruppe = body.querySelector('#kNewExG').value;
+        if(!name || nb.disabled) return;
+        if(!allUebungen().some(u=>u.name.toLowerCase() === name.toLowerCase())){
+          nb.disabled = true;
+          try{ const id = await airtableCreate(TABLE_UEBUNGEN, { 'Name': name, 'Muskelgruppe': gruppe, 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID); uebungenCustom.push({ id, name, gruppe }); }
+          catch(e){ nb.disabled = false; return; }
+        }
+        if(!multi){ ov.style.display = 'none'; onPick([name]); return; }
+        if(!sel.includes(name)) sel.push(name);
+        q = ''; draw();
+      };
+    };
+    document.getElementById('kPickDone').onclick = ()=>{ ov.style.display = 'none'; onPick(sel); };
+    document.getElementById('kPickClose').onclick = ()=>{ ov.style.display = 'none'; };
+    draw();
+    ov.style.display = 'flex';
+  }
+
+  /* ----- Pläne verwalten ----- */
+  function openPlanManager(){
+    const ov = document.getElementById('kPlanOverlay');
+    const body = document.getElementById('kPlanBody');
+    let editing = null;  // {id?, name, uebungen}
+    const draw = ()=>{
+      if(!editing){
+        body.innerHTML = `
+          ${plaeneCache.length ? plaeneCache.map(p=>`<div class="lib-item"><div><div class="lib-item-text" style="font-weight:600;">${escapeHtml(p.name)}</div><div style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(p.uebungen.join(' · '))}</div></div>
+            <div class="lib-item-actions"><button class="use" data-id="${p.id}" data-a="edit">Bearbeiten</button><button class="del" data-id="${p.id}" data-a="del">Löschen</button></div></div>`).join('') : '<div class="hint">Noch keine Pläne. Leg z. B. „Push", „Pull" und „Beine" an.</div>'}
+          <button type="button" class="add-item-btn" id="kPlanNew" style="width:100%;margin-top:14px;">+ Neuer Plan</button>`;
+        body.querySelector('#kPlanNew').onclick = ()=>{ editing = { name:'', uebungen:[] }; draw(); };
+        body.querySelectorAll('[data-a="edit"]').forEach(b=>b.onclick = ()=>{ const p = plaeneCache.find(x=>x.id === b.dataset.id); editing = { id:p.id, name:p.name, uebungen:p.uebungen.slice() }; draw(); });
+        body.querySelectorAll('[data-a="del"]').forEach(b=>{
+          let armed = false;
+          b.onclick = async ()=>{
+            if(b.disabled) return;
+            if(!armed){ armed = true; b.textContent = 'Sicher?'; return; }
+            b.disabled = true;
+            try{ await airtableDelete(TABLE_PLAENE, b.dataset.id, ROUTINEN_BASE_ID); plaeneCache = plaeneCache.filter(x=>x.id !== b.dataset.id); draw(); renderKoerper(); }
+            catch(e){ b.disabled = false; }
+          };
+        });
+        return;
+      }
+      body.innerHTML = `
+        <div class="turn-title">Name des Plans</div>
+        <input type="text" id="kPlanName" placeholder="z. B. Push, Oberkörper A ..." value="${escapeHtml(editing.name)}" style="margin-bottom:12px;">
+        <div class="turn-title">Übungen (Reihenfolge)</div>
+        <div id="kPlanEx">${editing.uebungen.map((u,i)=>`<div class="list-input-row k-plan-ex"><span>${i+1}. ${escapeHtml(u)}</span>
+          <button type="button" class="aufg-mini" data-i="${i}" data-a="up" ${i===0?'disabled':''}>↑</button>
+          <button type="button" class="aufg-mini" data-i="${i}" data-a="rm" style="color:var(--danger);">×</button></div>`).join('') || '<div class="hint">Noch keine Übungen.</div>'}</div>
+        <button type="button" class="add-item-btn" id="kPlanAddEx" style="width:100%;margin-top:8px;">+ Übungen auswählen</button>
+        <div class="nav-row">
+          <button type="button" class="ghost" id="kPlanBack">Zurück</button>
+          <button type="button" class="primary" id="kPlanSave">Speichern</button>
+        </div>
+        <div class="save-status" id="kPlanStatus"></div>`;
+      const nameEl = body.querySelector('#kPlanName');
+      nameEl.oninput = ()=>{ editing.name = nameEl.value; };
+      body.querySelectorAll('[data-a="up"]').forEach(b=>b.onclick = ()=>{ const i = +b.dataset.i; [editing.uebungen[i-1], editing.uebungen[i]] = [editing.uebungen[i], editing.uebungen[i-1]]; draw(); });
+      body.querySelectorAll('[data-a="rm"]').forEach(b=>b.onclick = ()=>{ editing.uebungen.splice(+b.dataset.i, 1); draw(); });
+      body.querySelector('#kPlanAddEx').onclick = ()=>openExercisePicker(list=>{ editing.uebungen = list; draw(); }, true, editing.uebungen);
+      body.querySelector('#kPlanBack').onclick = ()=>{ editing = null; draw(); };
+      const sb = body.querySelector('#kPlanSave');
+      sb.onclick = async ()=>{
+        if(sb.disabled) return;
+        const name = editing.name.trim();
+        if(!name || !editing.uebungen.length){ body.querySelector('#kPlanStatus').textContent = 'Bitte Name und mindestens eine Übung angeben.'; return; }
+        sb.disabled = true;
+        const fields = { 'Name': name, 'Uebungen': JSON.stringify(editing.uebungen) };
+        try{
+          if(editing.id){
+            await airtableFetch(TABLE_PLAENE + '/' + editing.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID);
+            Object.assign(plaeneCache.find(x=>x.id === editing.id), { name, uebungen:editing.uebungen.slice() });
+          } else {
+            const id = await airtableCreate(TABLE_PLAENE, Object.assign({ 'Erstellt am': new Date().toISOString() }, fields), ROUTINEN_BASE_ID);
+            plaeneCache.push({ id, name, uebungen:editing.uebungen.slice() });
+          }
+          editing = null; draw(); renderKoerper();
+        }catch(e){ sb.disabled = false; body.querySelector('#kPlanStatus').textContent = 'Speichern fehlgeschlagen.'; }
+      };
+    };
+    document.getElementById('kPlanClose').onclick = ()=>{ ov.style.display = 'none'; };
+    draw();
+    ov.style.display = 'flex';
+  }
+
+  /* ----- Training live loggen ----- */
+  function setsFromLast(name){
+    const last = lastSetsFor(name);
+    if(last) return last.sets.map(s=>({ kg:s.kg, wdh:s.wdh, done:false }));
+    return [{ kg:'', wdh:'', done:false }, { kg:'', wdh:'', done:false }, { kg:'', wdh:'', done:false }];
+  }
+  function startWorkout(plan){
+    if(activeWorkout && !confirmReplace()) return;
+    activeWorkout = { plan: plan ? plan.name : '', start: Date.now(), uebungen: (plan ? plan.uebungen : []).map(n=>({ name:n, sets: setsFromLast(n) })), notiz:'' };
+    saveActiveWorkout();
+    openWorkout();
+  }
+  function confirmReplace(){ openWorkout(); return false; }   // laufendes Training zuerst beenden
+
+  let workoutTick = null;
+  function openWorkout(){
+    if(!activeWorkout) return;
+    document.getElementById('workoutOverlay').style.display = 'flex';
+    renderWorkout();
+    clearInterval(workoutTick);
+    workoutTick = setInterval(()=>{
+      const el = document.getElementById('woElapsed');
+      if(!el || !activeWorkout){ clearInterval(workoutTick); return; }
+      const s = Math.floor((Date.now() - activeWorkout.start) / 1000);
+      el.textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    }, 1000);
+  }
+  function closeWorkoutOverlay(){ document.getElementById('workoutOverlay').style.display = 'none'; clearInterval(workoutTick); renderKoerper(); }
+
+  function renderWorkout(){
+    const el = document.getElementById('workoutBody');
+    const w = activeWorkout;
+    const doneSets = w.uebungen.reduce((s,u)=>s + u.sets.filter(x=>x.done).length, 0);
+    el.innerHTML = `
+      <div class="wo-head">
+        <div><div class="step-label" style="margin:0;">Training</div><div class="wo-title">${escapeHtml(w.plan || 'Freies Training')}</div></div>
+        <div class="wo-time"><span id="woElapsed">0:00</span><small>${doneSets} Sätze</small></div>
+      </div>
+      ${w.uebungen.map((u,ui)=>{
+        const last = lastSetsFor(u.name);
+        const best = bestFor(u.name);
+        return `<div class="card wo-ex">
+          <div class="wo-ex-head">
+            <div><div class="wo-ex-name">${escapeHtml(u.name)}</div>
+              <div class="wo-ex-meta">${escapeHtml(gruppeOf(u.name))}${last ? ' · Letztes Mal: ' + last.sets.map(s=>`${fmtNum(s.kg)}×${s.wdh}`).join(', ') : ''}${best ? ' · Bestwert ' + fmtNum(best) + ' kg' : ''}</div></div>
+            <button type="button" class="aufg-mini" data-ui="${ui}" data-a="rmex" aria-label="Übung entfernen">×</button>
+          </div>
+          <div class="wo-sets">
+            <div class="wo-row wo-row-h"><span>Satz</span><span>kg</span><span>Wdh</span><span></span></div>
+            ${u.sets.map((s,si)=>`<div class="wo-row ${s.done?'done':''}">
+              <span class="wo-n">${si+1}</span>
+              <input type="number" inputmode="decimal" step="0.5" min="0" value="${s.kg}" data-ui="${ui}" data-si="${si}" data-f="kg" placeholder="kg">
+              <input type="number" inputmode="numeric" step="1" min="0" value="${s.wdh}" data-ui="${ui}" data-si="${si}" data-f="wdh" placeholder="Wdh">
+              <button type="button" class="wo-check" data-ui="${ui}" data-si="${si}">${s.done ? '✓' : ''}</button>
+            </div>`).join('')}
+          </div>
+          <div class="wo-ex-actions">
+            <button type="button" class="aufg-link" data-ui="${ui}" data-a="addset">+ Satz</button>
+            ${u.sets.length > 1 ? `<button type="button" class="aufg-link" data-ui="${ui}" data-a="rmset" style="color:var(--ink-soft);">− letzten Satz</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+      <button type="button" class="add-item-btn" id="woAddEx" style="width:100%;">+ Übung hinzufügen</button>
+      <div class="turn-title" style="margin-top:18px;">Notizen zum Training</div>
+      <textarea id="woNotiz" placeholder="Wie lief's? Energie, Technik, Schmerzen, nächstes Mal ...">${escapeHtml(w.notiz || '')}</textarea>
+      <div class="nav-row">
+        <button type="button" class="ghost" id="woDiscard">Verwerfen</button>
+        <button type="button" class="primary" id="woFinish">Training beenden</button>
+      </div>
+      <div class="save-status" id="woStatus"></div>`;
+    el.querySelectorAll('input[data-f]').forEach(inp=>inp.oninput = ()=>{
+      const s = w.uebungen[+inp.dataset.ui].sets[+inp.dataset.si];
+      s[inp.dataset.f] = inp.value === '' ? '' : Number(inp.value);
+      saveActiveWorkout();
+    });
+    el.querySelectorAll('.wo-check').forEach(b=>b.onclick = ()=>{
+      const s = w.uebungen[+b.dataset.ui].sets[+b.dataset.si];
+      s.done = !s.done;
+      if(s.done){ vibrateDevice(); startRest(); }
+      saveActiveWorkout(); renderWorkout();
+    });
+    el.querySelectorAll('[data-a="addset"]').forEach(b=>b.onclick = ()=>{
+      const sets = w.uebungen[+b.dataset.ui].sets; const prev = sets[sets.length-1] || { kg:'', wdh:'' };
+      sets.push({ kg:prev.kg, wdh:prev.wdh, done:false }); saveActiveWorkout(); renderWorkout();
+    });
+    el.querySelectorAll('[data-a="rmset"]').forEach(b=>b.onclick = ()=>{ w.uebungen[+b.dataset.ui].sets.pop(); saveActiveWorkout(); renderWorkout(); });
+    el.querySelectorAll('[data-a="rmex"]').forEach(b=>{
+      let armed = false;
+      b.onclick = ()=>{ if(!armed){ armed = true; b.textContent = '?'; b.style.color = 'var(--danger)'; return; } w.uebungen.splice(+b.dataset.ui, 1); saveActiveWorkout(); renderWorkout(); };
+    });
+    el.querySelector('#woAddEx').onclick = ()=>openExercisePicker(list=>{ list.forEach(n=>w.uebungen.push({ name:n, sets: setsFromLast(n) })); saveActiveWorkout(); renderWorkout(); }, false);
+    el.querySelector('#woNotiz').oninput = e=>{ w.notiz = e.target.value; saveActiveWorkout(); };
+    const disc = el.querySelector('#woDiscard'); let dArmed = false;
+    disc.onclick = ()=>{ if(!dArmed){ dArmed = true; disc.textContent = 'Wirklich verwerfen?'; return; } activeWorkout = null; saveActiveWorkout(); stopRest(); closeWorkoutOverlay(); };
+    el.querySelector('#woFinish').onclick = finishWorkout;
+  }
+
+  function startRest(){
+    stopRest();
+    restLeft = REST_SECONDS;
+    const bar = document.getElementById('restBar');
+    bar.style.display = 'flex';
+    const draw = ()=>{ document.getElementById('restTime').textContent = Math.floor(restLeft/60) + ':' + String(restLeft%60).padStart(2,'0'); };
+    draw();
+    restTimer = setInterval(()=>{ restLeft--; if(restLeft <= 0){ stopRest(); vibrateDevice(); playBeep(); return; } draw(); }, 1000);
+  }
+  function stopRest(){ clearInterval(restTimer); restTimer = null; const bar = document.getElementById('restBar'); if(bar) bar.style.display = 'none'; }
+  document.getElementById('restPlus').onclick = ()=>{ restLeft += 30; document.getElementById('restTime').textContent = Math.floor(restLeft/60) + ':' + String(restLeft%60).padStart(2,'0'); };
+  document.getElementById('restSkip').onclick = stopRest;
+  document.getElementById('workoutMinimize').onclick = ()=>{ closeWorkoutOverlay(); };
+
+  async function finishWorkout(){
+    const btn = document.getElementById('woFinish');
+    const status = document.getElementById('woStatus');
+    if(btn.disabled) return;
+    const w = activeWorkout;
+    // Abgehakte Sätze zählen; wurde gar nichts abgehakt, zählen alle ausgefüllten Sätze
+    const anyDone = w.uebungen.some(u=>u.sets.some(x=>x.done));
+    const saetze = w.uebungen.map(u=>({ u:u.name, sets: u.sets.filter(s=>(anyDone ? s.done : (s.kg !== '' && s.wdh !== '')) && Number(s.wdh) > 0).map(s=>({ kg:Number(s.kg) || 0, wdh:Number(s.wdh) || 0 })) })).filter(x=>x.sets.length);
+    if(!saetze.length){ status.textContent = 'Noch keine Sätze eingetragen – hak mindestens einen Satz ab oder trag kg/Wdh ein.'; return; }
+    const volumen = saetze.reduce((s,x)=>s + x.sets.reduce((a,b)=>a + b.kg * b.wdh, 0), 0);
+    const dauer = Math.max(1, Math.round((Date.now() - w.start) / 60000));
+    const prs = saetze.filter(x=>{ const prev = bestFor(x.u); const now = Math.max(...x.sets.map(s=>s.kg)); return prev > 0 && now > prev; }).map(x=>x.u);
+    btn.disabled = true; status.textContent = 'Speichere ...';
+    try{
+      const datum = todayStr();
+      const id = await airtableCreate(TABLE_TRAININGS, { 'Datum': datum, 'Plan': w.plan || 'Freies Training', 'Dauer (Min)': dauer, 'Saetze': JSON.stringify(saetze), 'Volumen (kg)': Math.round(volumen), 'Notiz': (w.notiz || '').trim(), 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID);
+      trainingsCache.unshift({ id, datum, plan: w.plan || 'Freies Training', dauer, saetze, volumen: Math.round(volumen), notiz: w.notiz || '' });
+      awardXP('training:' + id, 'Training: ' + (w.plan || 'Freies Training'), TRAINING_XP);
+      // Passendes Daily automatisch abhaken
+      const daily = prioCache.find(p=>/training|workout|gym|sport/i.test(p.titel) && p.erledigtAm !== todayStr());
+      if(daily) prioToggle(daily.id);
+      activeWorkout = null; saveActiveWorkout(); stopRest();
+      document.getElementById('workoutBody').innerHTML = `<div class="card" style="text-align:center;padding:36px 20px;">
+          <div class="step-label">Training gespeichert</div>
+          <div class="question" style="font-size:24px;">Stark. 💪</div>
+          <div class="evening-sum" style="margin:18px 0;">
+            <div><span>${dauer}</span><small>Minuten</small></div>
+            <div><span>${saetze.reduce((s,x)=>s + x.sets.length, 0)}</span><small>Sätze</small></div>
+            <div><span>${fmtNum(volumen)}</span><small>kg Volumen</small></div>
+          </div>
+          ${prs.length ? `<div class="hint" style="color:var(--forest);">🏆 Neue Bestwerte: ${prs.map(escapeHtml).join(', ')}</div>` : ''}
+          <button type="button" class="primary" id="woDone" style="width:100%;margin-top:10px;">Fertig</button>
+        </div>`;
+      document.getElementById('woDone').onclick = closeWorkoutOverlay;
+    }catch(e){ btn.disabled = false; status.textContent = 'Speichern fehlgeschlagen. Dein Training bleibt erhalten – bitte erneut versuchen.'; }
+  }
+
+  /* ----- Ernährung ----- */
+  function ernTargets(){ try{ return Object.assign({ kcal:2740, protein:170, wasser:3.7 }, JSON.parse(localStorage.getItem(ERN_TARGETS_KEY) || '{}')); }catch(e){ return { kcal:2740, protein:170, wasser:3.7 }; } }
+  function renderErnaehrungView(){
+    const body = document.getElementById('koerperBody');
+    const t = todayStr();
+    const today = ernCache.find(x=>x.datum === t) || { kcal:'', protein:'', wasser:'', notiz:'' };
+    const tg = ernTargets();
+    const bar = (v, max)=>`<div class="prio-progress" style="margin:6px 0 0;"><div style="width:${Math.min(100, Math.round((Number(v)||0) / max * 100))}%"></div></div>`;
+    body.innerHTML = `
+      <div class="card">
+        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Heute</div><button type="button" class="prio-edit-toggle" id="ernTargetsBtn">Ziele</button></div>
+        <div id="ernTargetsForm"></div>
+        <div class="ern-grid">
+          <label>Kalorien<input type="number" inputmode="numeric" id="ernKcal" value="${today.kcal || ''}" placeholder="kcal"><small>Ziel ${tg.kcal}</small>${bar(today.kcal, tg.kcal)}</label>
+          <label>Protein<input type="number" inputmode="numeric" id="ernProtein" value="${today.protein || ''}" placeholder="g"><small>Ziel ${tg.protein} g</small>${bar(today.protein, tg.protein)}</label>
+          <label>Wasser<input type="number" inputmode="decimal" step="0.1" id="ernWasser" value="${today.wasser || ''}" placeholder="Liter"><small>Ziel ${fmtNum(tg.wasser)} l</small>${bar(today.wasser, tg.wasser)}</label>
+        </div>
+        <textarea id="ernNotiz" placeholder="Notiz (optional) – z. B. was gut lief, Heißhunger ..." style="min-height:56px;margin-top:10px;">${escapeHtml(today.notiz || '')}</textarea>
+        <button type="button" class="primary" id="ernSave" style="width:100%;margin-top:12px;">Speichern</button>
+        <div class="save-status" id="ernStatus"></div>
+      </div>
+      <div class="step-label" style="margin-top:18px;">Letzte Tage</div>
+      ${ernCache.length ? `<div class="card">${ernCache.slice(0,14).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}</span><span style="color:var(--ink-soft);">${x.kcal || '–'} kcal · ${x.protein || '–'} g · ${x.wasser ? fmtNum(x.wasser) + ' l' : '–'}</span></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch keine Einträge.</div></div>'}`;
+    body.querySelector('#ernTargetsBtn').onclick = ()=>{
+      const f = body.querySelector('#ernTargetsForm');
+      if(f.innerHTML){ f.innerHTML = ''; return; }
+      f.innerHTML = `<div class="ern-grid" style="margin-bottom:12px;"><label>Ziel kcal<input type="number" id="tgK" value="${tg.kcal}"></label><label>Ziel Protein<input type="number" id="tgP" value="${tg.protein}"></label><label>Ziel Wasser<input type="number" step="0.1" id="tgW" value="${tg.wasser}"></label></div><button type="button" class="ghost" id="tgSave" style="width:100%;margin-bottom:12px;">Ziele übernehmen</button>`;
+      f.querySelector('#tgSave').onclick = ()=>{ try{ localStorage.setItem(ERN_TARGETS_KEY, JSON.stringify({ kcal:+f.querySelector('#tgK').value || 2740, protein:+f.querySelector('#tgP').value || 170, wasser:+f.querySelector('#tgW').value || 3.7 })); }catch(e){} renderErnaehrungView(); };
+    };
+    const sb = body.querySelector('#ernSave');
+    sb.onclick = async ()=>{
+      if(sb.disabled) return;
+      const fields = { 'Datum': t, 'Kcal': Number(body.querySelector('#ernKcal').value) || null, 'Protein': Number(body.querySelector('#ernProtein').value) || null, 'Wasser': Number(body.querySelector('#ernWasser').value) || null, 'Notiz': body.querySelector('#ernNotiz').value.trim() };
+      if(!fields['Kcal'] && !fields['Protein'] && !fields['Wasser']){ body.querySelector('#ernStatus').textContent = 'Bitte mindestens einen Wert eintragen.'; return; }
+      sb.disabled = true;
+      try{
+        const ex = ernCache.find(x=>x.datum === t);
+        if(ex){ await airtableFetch(TABLE_ERNAEHRUNG + '/' + ex.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID); Object.assign(ex, { kcal:fields['Kcal'] || 0, protein:fields['Protein'] || 0, wasser:fields['Wasser'] || 0, notiz:fields['Notiz'] }); }
+        else { const id = await airtableCreate(TABLE_ERNAEHRUNG, fields, ROUTINEN_BASE_ID); ernCache.unshift({ id, datum:t, kcal:fields['Kcal'] || 0, protein:fields['Protein'] || 0, wasser:fields['Wasser'] || 0, notiz:fields['Notiz'] }); }
+        awardXP('food:' + t, 'Ernährung geloggt', FOOD_XP);
+        renderErnaehrungView();
+        document.getElementById('ernStatus').textContent = 'Gespeichert ✓';
+      }catch(e){ sb.disabled = false; body.querySelector('#ernStatus').textContent = 'Speichern fehlgeschlagen.'; }
+    };
+  }
+
+  /* ----- Gewicht ----- */
+  function weightChartSvg(points){
+    if(points.length < 2) return '';
+    const W = 320, H = 120, P = 8;
+    const ks = points.map(p=>p.kg); const min = Math.min(...ks) - 0.5, max = Math.max(...ks) + 0.5;
+    const x = i=>P + i * (W - 2*P) / (points.length - 1);
+    const y = v=>H - P - (v - min) / (max - min) * (H - 2*P);
+    const d = points.map((p,i)=>(i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(p.kg).toFixed(1)).join(' ');
+    const area = d + ` L${x(points.length-1).toFixed(1)},${H-P} L${x(0).toFixed(1)},${H-P} Z`;
+    return `<svg viewBox="0 0 ${W} ${H}" class="w-chart" preserveAspectRatio="none">
+      <defs><linearGradient id="wg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#22E3D3" stop-opacity=".35"/><stop offset="1" stop-color="#22E3D3" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#wg)"/><path d="${d}" fill="none" stroke="#22E3D3" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${points.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(p.kg).toFixed(1)}" r="2.6" fill="#22E3D3"/>`).join('')}
+    </svg>`;
+  }
+  function renderGewichtView(){
+    const body = document.getElementById('koerperBody');
+    const t = todayStr();
+    const last = gewichtCache[gewichtCache.length - 1];
+    const weekAgo = [...gewichtCache].reverse().find(x=>x.datum <= shiftDay(t, -7));
+    const diff = last && weekAgo ? last.kg - weekAgo.kg : null;
+    const pts = gewichtCache.slice(-30);
+    body.innerHTML = `
+      <div class="card">
+        <div class="w-top">
+          <div><div class="step-label" style="margin:0;">Aktuell</div><div class="w-now">${last ? fmtNum(last.kg) : '–'}<small> kg</small></div>
+            ${diff !== null ? `<div class="hint" style="margin:0;">${diff > 0 ? '+' : ''}${fmtNum(diff)} kg zur Vorwoche</div>` : ''}</div>
+          <div class="w-input">
+            <input type="number" inputmode="decimal" step="0.1" id="wKg" placeholder="kg" value="${(gewichtCache.find(x=>x.datum === t) || {}).kg || ''}">
+            <button type="button" class="primary" id="wSave">Eintragen</button>
+          </div>
+        </div>
+        ${pts.length >= 2 ? weightChartSvg(pts) : '<div class="hint" style="margin-top:12px;">Ab zwei Einträgen siehst du hier deinen Verlauf.</div>'}
+        <div class="save-status" id="wStatus"></div>
+      </div>
+      <div class="step-label" style="margin-top:18px;">Einträge</div>
+      ${gewichtCache.length ? `<div class="card">${[...gewichtCache].reverse().slice(0,20).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})}</span><b>${fmtNum(x.kg)} kg</b></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch kein Gewicht eingetragen.</div></div>'}`;
+    const sb = body.querySelector('#wSave');
+    sb.onclick = async ()=>{
+      if(sb.disabled) return;
+      const kg = Number(body.querySelector('#wKg').value);
+      if(!kg || kg < 30 || kg > 300){ body.querySelector('#wStatus').textContent = 'Bitte ein gültiges Gewicht eintragen.'; return; }
+      sb.disabled = true;
+      try{
+        const ex = gewichtCache.find(x=>x.datum === t);
+        if(ex){ await airtableFetch(TABLE_GEWICHT + '/' + ex.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Kg': kg } }) }, ROUTINEN_BASE_ID); ex.kg = kg; }
+        else { const id = await airtableCreate(TABLE_GEWICHT, { 'Datum': t, 'Kg': kg }, ROUTINEN_BASE_ID); gewichtCache.push({ id, datum:t, kg }); }
+        awardXP('weight:' + t, 'Gewicht eingetragen', WEIGHT_XP);
+        renderGewichtView();
+      }catch(e){ sb.disabled = false; body.querySelector('#wStatus').textContent = 'Speichern fehlgeschlagen.'; }
+    };
+  }
+
+  loadKoerper();
 
   // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)
   (function(){
