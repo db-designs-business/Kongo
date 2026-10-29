@@ -655,6 +655,11 @@
   .auth-card button.primary{ width:100%; margin-top:18px; }
   .auth-err{ color:var(--danger); font-size:13.5px; min-height:20px; margin-top:10px; text-align:center; }
   .import-log{ font-size:12.5px; color:var(--ink-soft); max-height:180px; overflow-y:auto; margin-top:10px; white-space:pre-line; }
+  .aufg-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+  .aufg-head h1{ margin:0; }
+  .aufg-new-btn{ flex-shrink:0; white-space:nowrap; }
+  #aufgNewOverlay .aufg-new input[type=text]{ width:100%; }
+  #aufgNewOverlay .aufg-new-meta{ margin:12px 0 4px; }
 </style>
 </head>
 <body>
@@ -987,36 +992,11 @@
   </div>
 
   <div id="panelAufgaben" style="display:none;">
-    <div class="eyebrow">Aufgaben <span class="data-badge">Airtable</span></div>
-    <h1>Aufgaben</h1>
-    <div class="sub">Alles rein – aber nur sehen, was jetzt zählt.</div>
-
-    <div class="card">
-      <div class="aufg-new">
-        <input type="text" id="aufgNewInput" placeholder="Neue Aufgabe ..." enterkeyhint="done">
-        <button type="button" class="primary" id="aufgNewAdd">+</button>
-      </div>
-      <div class="aufg-new-meta">
-        <label><input type="checkbox" id="aufgNewHeute" checked> Für heute</label>
-        <button type="button" class="aufg-link" id="aufgNewMoreToggle">Details</button>
-      </div>
-      <div id="aufgNewMore" style="display:none;">
-        <div class="aufg-seg" id="aufgNewPrio">
-          <button type="button" class="prio-A" data-v="A">A · Muss</button>
-          <button type="button" class="prio-B" data-v="B">B · Sollte</button>
-          <button type="button" class="prio-C" data-v="C">C · Später</button>
-        </div>
-        <div class="aufg-seg" id="aufgNewBereich">
-          <button type="button" data-v="Business">Business</button>
-          <button type="button" data-v="Privat">Privat</button>
-        </div>
-        <div class="aufg-field-row">
-          <label class="aufg-label">Fällig</label>
-          <input type="date" id="aufgNewFaellig">
-        </div>
-      </div>
-      <div id="aufgabenStatus" class="save-status"></div>
+    <div class="aufg-head">
+      <h1>Aufgaben</h1>
+      <button type="button" class="primary aufg-new-btn" id="aufgNewOpen">+ Neue Aufgabe</button>
     </div>
+    <div id="aufgabenStatus" class="save-status"></div>
 
     <div class="aufg-tabs">
       <button type="button" class="aufg-tab active" data-view="heute">Heute<span class="cnt" id="aufgCountHeute"></span></button>
@@ -1313,6 +1293,37 @@
     <div class="modal-title">Trainingspläne</div>
     <div class="modal-sub">Vorlagen für deine Einheiten, z. B. Push / Pull / Beine.</div>
     <div id="kPlanBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="aufgNewOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="aufgNewClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Neue Aufgabe</div>
+      <div class="aufg-new">
+        <input type="text" id="aufgNewInput" placeholder="Neue Aufgabe ..." enterkeyhint="done">
+        
+      </div>
+      <div class="aufg-new-meta">
+        <label><input type="checkbox" id="aufgNewHeute" checked> Für heute</label>
+      </div>
+      <div id="aufgNewMore">
+        <div class="aufg-seg" id="aufgNewPrio">
+          <button type="button" class="prio-A" data-v="A">A · Muss</button>
+          <button type="button" class="prio-B" data-v="B">B · Sollte</button>
+          <button type="button" class="prio-C" data-v="C">C · Später</button>
+        </div>
+        <div class="aufg-seg" id="aufgNewBereich">
+          <button type="button" data-v="Business">Business</button>
+          <button type="button" data-v="Privat">Privat</button>
+        </div>
+        <div class="aufg-field-row">
+          <label class="aufg-label">Fällig</label>
+          <input type="date" id="aufgNewFaellig">
+        </div>
+      </div>
+    <button type="button" class="primary" id="aufgNewAdd" style="width:100%; margin-top:16px;">Hinzufügen</button>
+    <div id="aufgNewStatus" class="save-status"></div>
   </div>
 </div>
 
@@ -1859,10 +1870,10 @@
   const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper };
 
   const AKTIVITAETEN_TABS = ['work','affirmationen','wutjournal','satzergaenzung','worksheets'];
-  // Zurück-Buttons: Hauptbereiche → Start, Aktivitäten-Unterseiten → Aktivitäten
+  // Zurück-Buttons nur für Aktivitäten-Unterseiten (Start erreicht man über die Bottom-Bar)
   Object.keys(panels).forEach(k=>{
-    if(k === 'home') return;
     const sub = AKTIVITAETEN_TABS.includes(k);
+    if(!sub) return;
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'back-btn';
@@ -6547,7 +6558,17 @@
   (function(){
     const input = document.getElementById('aufgNewInput');
     const addBtn = document.getElementById('aufgNewAdd');
-    const moreBtn = document.getElementById('aufgNewMoreToggle');
+    const overlay = document.getElementById('aufgNewOverlay');
+    const newStatus = (m)=>{ document.getElementById('aufgNewStatus').textContent = m; };
+    const openNew = ()=>{
+      newStatus('');
+      document.getElementById('aufgNewHeute').checked = aufgabenView === 'heute';
+      overlay.style.display = 'flex';
+      setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 60);
+    };
+    window.__openAufgNew = openNew;
+    document.getElementById('aufgNewOpen').onclick = openNew;
+    document.getElementById('aufgNewClose').onclick = ()=>{ overlay.style.display = 'none'; };
     const more = document.getElementById('aufgNewMore');
     const paintNew = ()=>{
       more.querySelectorAll('#aufgNewPrio button').forEach(b=>b.classList.toggle('active', b.dataset.v === aufgabenNewPrio));
@@ -6555,12 +6576,11 @@
     };
     more.querySelectorAll('#aufgNewPrio button').forEach(b=>b.onclick = ()=>{ aufgabenNewPrio = b.dataset.v; paintNew(); });
     more.querySelectorAll('#aufgNewBereich button').forEach(b=>b.onclick = ()=>{ aufgabenNewBereich = b.dataset.v; try{ localStorage.setItem('kongrow_aufg_bereich', b.dataset.v); }catch(e){} paintNew(); });
-    moreBtn.onclick = ()=>{ const open = more.style.display === 'none'; more.style.display = open ? 'block' : 'none'; moreBtn.textContent = open ? 'Weniger' : 'Details'; };
     paintNew();
     const add = async ()=>{
       if(addBtn.disabled) return;
       const titel = input.value.trim();
-      if(!titel) return;
+      if(!titel){ newStatus('Bitte einen Titel eingeben.'); input.focus(); return; }
       const heute = document.getElementById('aufgNewHeute').checked ? todayStr() : '';
       if(heute){
         const count = aufgabenCache.filter(x=>aufgabeIsHeute(x) && !x.erledigtAm).length;
@@ -6581,15 +6601,14 @@
         document.getElementById('aufgNewFaellig').value = '';
         if(!(heute && count >= HEUTE_LIMIT)) aufgabenStatus('');
         renderAufgaben(); renderHomeAufgaben();
-        input.focus();
-      }catch(e){ aufgabenStatus('Speichern fehlgeschlagen. Bitte erneut versuchen.'); }
+        overlay.style.display = 'none';
+      }catch(e){ newStatus('Speichern fehlgeschlagen. Bitte erneut versuchen.'); }
       addBtn.disabled = false;
     };
     addBtn.onclick = add;
     input.onkeydown = (ev)=>{ if(ev.key === 'Enter') add(); };
     document.querySelectorAll('.aufg-tab').forEach(b=>b.onclick = ()=>{
       aufgabenView = b.dataset.view; aufgabenEditId = null;
-      document.getElementById('aufgNewHeute').checked = aufgabenView === 'heute';
       renderAufgaben();
     });
     document.querySelectorAll('.aufg-filter').forEach(b=>b.onclick = ()=>{ aufgabenFilter = b.dataset.f; renderAufgaben(); });
@@ -7149,7 +7168,7 @@
     b.onclick = ()=>{
       quickOverlay.style.display = 'none';
       const q = b.dataset.q;
-      if(q === 'task'){ switchTab('aufgaben'); setTimeout(()=>{ const i = document.getElementById('aufgNewInput'); if(i) i.focus(); }, 50); }
+      if(q === 'task'){ switchTab('aufgaben'); setTimeout(()=>{ if(window.__openAufgNew) window.__openAufgNew(); }, 50); }
       else if(q === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(q === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
       else if(q === 'routine') switchTab('routinen');
