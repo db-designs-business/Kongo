@@ -7,8 +7,8 @@ self.addEventListener('push', event => {
   try { if (event.data) data = Object.assign(data, event.data.json()); } catch (e) {}
   event.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
-    icon: 'icons/icon-192.png',
-    badge: 'icons/icon-192.png',
+    icon: 'icons/kg-192.png',
+    badge: 'icons/kg-192.png',
     data: { url: data.url || './' }
   }));
 });
