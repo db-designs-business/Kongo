@@ -62,7 +62,10 @@
   @media (min-width:480px){ .wrap{ padding:26px 20px 90px; } }
 
   /* ---------- Topbar ---------- */
-  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; position:relative; }
+  .topbar{ display:flex; align-items:center; gap:8px; margin-bottom:28px; position:relative; }
+  .topbar > .topbar-title{ order:0; margin-right:auto; min-width:0; }
+  .topbar > .topbar-chips{ order:1; }
+  .topbar > .hamburger-btn{ order:2; }
   .topbar-spacer{ width:40px; flex-shrink:0; }
   .topbar-title{ display:flex; align-items:center; gap:9px; }
   .logo-mark{
@@ -496,6 +499,26 @@
   .nofap-urge{ flex:1; color:var(--forest) !important; border-color:rgba(34,227,211,.45) !important; }
   .urge-timer{ font-size:56px; font-weight:800; letter-spacing:-.03em; color:var(--forest); text-shadow:0 0 22px var(--forest-glow); margin:16px 0; font-variant-numeric:tabular-nums; }
   .urge-timer.done{ font-size:34px; }
+  /* ---------- Top-Chips (Level / NoFap) ---------- */
+  .topbar-chips{ display:flex; gap:6px; flex-shrink:0; }
+  .top-chip{ position:relative; display:inline-flex; align-items:center; gap:5px; height:36px; padding:0 10px 0 4px; border-radius:999px;
+    background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--ink); font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  #chipNofap{ padding:0 10px; }
+  .top-chip:hover{ border-color:var(--forest); }
+  .chip-ring{ width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:conic-gradient(var(--forest) 0%, rgba(255,255,255,.08) 0%); }
+  .chip-ring span{ width:22px; height:22px; border-radius:999px; background:#0A0E10; display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:800; color:var(--forest); }
+  .chip-label{ font-size:10px; letter-spacing:.12em; color:var(--ink-soft); }
+  .chip-ico{ font-size:13px; }
+  .chip-dot{ display:none; position:absolute; top:2px; right:2px; width:9px; height:9px; border-radius:999px; background:#FF9A4D; box-shadow:0 0 8px rgba(255,154,77,.8); }
+  .chip-dot.on{ display:block; }
+  @media (max-width:400px){ .chip-label{ display:none; } }
+  @media (max-width:340px){ .logo-mark{ letter-spacing:.12em; font-size:14px; } }
+  .xp-history{ margin-top:16px; }
+  .xp-history .summary-q{ margin-top:12px; }
+  .xp-hist-row{ display:flex; justify-content:space-between; gap:10px; font-size:13.5px; padding:6px 0; border-bottom:1px solid var(--line-soft); }
+  .xp-hist-row b{ color:var(--forest); flex-shrink:0; }
+  #levelOverlay .xp-card, #nofapInfoOverlay .nofap-card{ margin-top:8px; }
+  #nofapOverlay{ z-index:70; }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -510,7 +533,10 @@
 <div class="wrap">
 
   <div class="topbar">
-    <div class="topbar-spacer"></div>
+    <div class="topbar-chips">
+      <button type="button" class="top-chip" id="chipLevel" aria-label="Level"><span class="chip-ring" id="chipLevelRing"><span id="chipLevelNum">–</span></span><span class="chip-label">LVL</span></button>
+      <button type="button" class="top-chip" id="chipNofap" aria-label="NoFap-Counter"><span class="chip-ico">🛡️</span><span id="chipNofapNum">–</span><span class="chip-dot" id="chipNofapDot"></span></button>
+    </div>
     <div class="topbar-title">
       <span class="logo-mark">KONGROW</span>
     </div>
@@ -540,22 +566,6 @@
     <h1 id="homeGreeting">Willkommen zurück</h1>
     <div class="sub">Schön, dass du dir Zeit nimmst.</div>
 
-    <div class="card xp-card" id="xpCard">
-      <div class="xp-top">
-        <div class="xp-badge"><small>LVL</small><span id="xpLevelNum">–</span></div>
-        <div class="xp-head">
-          <div class="xp-name" id="xpLevelName">Lade ...</div>
-          <div class="xp-total" id="xpTotal"></div>
-        </div>
-      </div>
-      <div class="xp-bar"><div id="xpLevelBar"></div></div>
-      <div class="xp-sub" id="xpSub"></div>
-      <div class="xp-day">
-        <div class="xp-day-label" id="xpDayLabel">Heute</div>
-        <div class="xp-bar"><div id="xpDayBar"></div></div>
-      </div>
-    </div>
-
     <div class="card prio-card" id="prioCard">
       <div class="prio-head">
         <div class="step-label" style="margin:0;">Dailys · Jeden Tag</div>
@@ -566,14 +576,6 @@
       <div class="daily-streak" id="dailyStreak"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
       <div id="prioStatus" class="save-status"></div>
-    </div>
-
-    <div class="card nofap-card" id="nofapCard">
-      <div class="home-aufg-head">
-        <div class="step-label" style="margin:0;">NoFap-Counter</div>
-        <span class="xp-sub" id="nofapUrgeInfo"></span>
-      </div>
-      <div id="nofapBody"><div class="loading">Lade ...</div></div>
     </div>
 
     <div class="card" id="homeAufgabenCard">
@@ -1063,6 +1065,44 @@
       <input type="text" id="libNewInput" placeholder="Neuen Glaubenssatz hinzufügen ...">
       <button class="primary" id="libAddBtn">Hinzufügen</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="levelOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="levelOverlayClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Dein Level</div>
+    <div class="xp-card" id="xpCard">
+      <div class="xp-top">
+        <div class="xp-badge"><small>LVL</small><span id="xpLevelNum">–</span></div>
+        <div class="xp-head">
+          <div class="xp-name" id="xpLevelName">Lade ...</div>
+          <div class="xp-total" id="xpTotal"></div>
+        </div>
+      </div>
+      <div class="xp-bar"><div id="xpLevelBar"></div></div>
+      <div class="xp-sub" id="xpSub"></div>
+      <div class="xp-day">
+        <div class="xp-day-label" id="xpDayLabel">Heute</div>
+        <div class="xp-bar"><div id="xpDayBar"></div></div>
+      </div>
+    </div>
+
+    <div class="xp-history" id="xpHistory"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="nofapInfoOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="nofapInfoClose" aria-label="Schließen">×</button>
+    <div class="nofap-card" id="nofapCard">
+      <div class="home-aufg-head">
+        <div class="modal-title" style="margin:0;">NoFap-Counter</div>
+        <span class="xp-sub" id="nofapUrgeInfo"></span>
+      </div>
+      <div id="nofapBody"><div class="loading">Lade ...</div></div>
+    </div>
+
   </div>
 </div>
 
@@ -6110,7 +6150,34 @@
     card.classList.toggle('driven', driven);
     card.querySelector('#xpTotal').textContent = total + ' XP gesamt';
     renderDailyStreak();
+    // Chip in der Kopfzeile
+    document.getElementById('chipLevelNum').textContent = info.level;
+    document.getElementById('chipLevelRing').style.background = `conic-gradient(var(--forest) ${Math.round(info.into / info.need * 100)}%, rgba(255,255,255,.08) 0%)`;
+    renderXPHistory();
   }
+
+  function renderXPHistory(){
+    const el = document.getElementById('xpHistory');
+    if(!el) return;
+    const byDay = {};
+    xpEntries.forEach(e=>{ (byDay[e.datum] = byDay[e.datum] || []).push(e); });
+    const days = Object.keys(byDay).filter(Boolean).sort().reverse().slice(0, 7);
+    if(!days.length){ el.innerHTML = '<div class="hint">Noch keine XP gesammelt. Hak deine Dailys ab!</div>'; return; }
+    el.innerHTML = days.map(d=>{
+      const sum = byDay[d].reduce((s,e)=>s + (e.xp||0), 0);
+      const label = d === todayStr() ? 'Heute' : d === shiftDay(todayStr(), -1) ? 'Gestern' : new Date(d + 'T12:00').toLocaleDateString('de-DE',{ weekday:'long', day:'2-digit', month:'2-digit' });
+      return `<div class="summary-q">${label} · ${sum} XP</div>` +
+        byDay[d].map(e=>`<div class="xp-hist-row"><span>${escapeHtml(e.aktion)}</span><b>+${e.xp}</b></div>`).join('');
+    }).join('');
+  }
+
+  function openOverlay(id){ document.getElementById(id).style.display = 'flex'; }
+  function closeOverlay(id){ document.getElementById(id).style.display = 'none'; }
+  document.getElementById('chipLevel').onclick = ()=>openOverlay('levelOverlay');
+  document.getElementById('chipNofap').onclick = ()=>openOverlay('nofapInfoOverlay');
+  document.getElementById('levelOverlayClose').onclick = ()=>closeOverlay('levelOverlay');
+  document.getElementById('nofapInfoClose').onclick = ()=>closeOverlay('nofapInfoOverlay');
+  ['levelOverlay','nofapInfoOverlay'].forEach(id=>document.getElementById(id).addEventListener('click', e=>{ if(e.target.id === id) closeOverlay(id); }));
 
   // Bereits heute abgehakte Prioritäten (z.B. vor dem Laden) nachträglich gutschreiben
   let prioLoaded = false;
@@ -6268,9 +6335,16 @@
     });
   }
 
+  function renderNofapChip(){
+    const run = nofapCurrent();
+    document.getElementById('chipNofapNum').textContent = run ? nofapDays(run) : 'Start';
+    document.getElementById('chipNofapDot').classList.toggle('on', !!(run && nofapOpenDays(run).length));
+  }
+
   function renderNofap(){
     const body = document.getElementById('nofapBody');
     if(!body) return;
+    renderNofapChip();
     const run = nofapCurrent();
     if(!run){
       body.innerHTML = `<div class="hint" style="margin-bottom:12px;">Starte deinen Counter. Bist du schon länger dabei, wähl das Datum, seit dem du clean bist – die Tage davor zählen mit, bringen aber keine XP.</div>
