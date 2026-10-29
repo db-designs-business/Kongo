@@ -65,7 +65,7 @@
   /* ---------- Topbar ---------- */
   .topbar{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-bottom:22px; position:relative; }
   .topbar > .topbar-chips{ justify-self:start; }
-  .topbar > #menuBtn{ justify-self:end; }
+  .topbar > .topbar-right{ justify-self:end; display:flex; gap:8px; }
   .top-menu-btn{ width:40px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:12px; cursor:pointer;
     background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--ink); padding:0; }
   .top-menu-btn svg{ width:22px; height:22px; }
@@ -543,11 +543,18 @@
   .bb-item svg{ width:24px; height:24px; }
   .bb-item.active{ color:var(--forest); }
   .bb-item.active svg{ filter:drop-shadow(0 0 6px var(--forest-glow)); }
-  .bb-plus{ justify-self:center; align-self:center; width:58px; height:58px; margin-top:-22px; border-radius:999px; border:none; cursor:pointer;
-    background:linear-gradient(180deg,#4FEFE2,var(--forest) 60%,#1AD2C3); color:#04110F; display:flex; align-items:center; justify-content:center;
-    box-shadow:0 0 24px var(--forest-glow), 0 8px 20px rgba(0,0,0,.5); }
-  .bb-plus svg{ width:26px; height:26px; }
-  .bb-plus:active{ transform:scale(.95); }
+  .bb-center{ justify-self:center; align-self:center; width:60px; height:60px !important; margin-top:-24px; border-radius:999px; padding:0;
+    background:linear-gradient(180deg,#4FEFE2,var(--forest) 60%,#1AD2C3) !important; color:#04110F !important;
+    box-shadow:0 0 18px rgba(34,227,211,.35), 0 8px 20px rgba(0,0,0,.5); }
+  .bb-center span{ display:none; }
+  .bb-center svg{ width:27px !important; height:27px !important; filter:none !important; }
+  .bb-center.active{ box-shadow:0 0 30px var(--forest-glow), 0 8px 20px rgba(0,0,0,.5); }
+  .bb-center:active{ transform:scale(.95); }
+  .bb-desk{ display:none !important; }
+  .bb-item{ position:relative; }
+  .nav-badge{ position:absolute; top:8px; left:calc(50% + 6px); min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:#FF5A5A; color:#fff; font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .nav-menu-item .nav-badge{ position:static; display:inline-flex; margin-left:8px; vertical-align:middle; }
+  .top-plus svg{ width:20px; height:20px; }
   .wrap{ padding-bottom:calc(var(--bb-h) + 40px + env(safe-area-inset-bottom)) !important; }
   #routinePausedBanner{ bottom:calc(var(--bb-h) + env(safe-area-inset-bottom)) !important; padding-bottom:12px !important; z-index:44 !important; }
   .xp-toast{ bottom:calc(var(--bb-h) + 24px + env(safe-area-inset-bottom)) !important; }
@@ -660,7 +667,7 @@
   .auth-err{ color:var(--danger); font-size:13.5px; min-height:20px; margin-top:10px; text-align:center; }
   .import-log{ font-size:12.5px; color:var(--ink-soft); max-height:180px; overflow-y:auto; margin-top:10px; white-space:pre-line; }
   .aufg-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
-  .aufg-head h1{ margin:0; }
+  .aufg-head h1{ margin:0; white-space:nowrap; }
   .aufg-new-btn{ flex-shrink:0; white-space:nowrap; }
   #aufgNewOverlay .aufg-new input[type=text]{ width:100%; }
   #aufgNewOverlay .aufg-new-meta{ margin:12px 0 4px; }
@@ -709,12 +716,17 @@
     body{ padding-left:var(--side-w); }
     .wrap{ max-width:1180px; padding-left:40px !important; padding-right:40px !important; padding-top:28px !important; padding-bottom:60px !important; }
     .wrap > [id^="panel"]:not(#panelHome){ max-width:880px; margin-left:auto; margin-right:auto; }
+    .wrap > #panelKalender{ max-width:1100px; }
     /* Bottom-Bar wird zur Seitenleiste */
     .bottom-bar{ top:0; bottom:0; left:0; right:auto; width:var(--side-w); height:auto; display:flex; flex-direction:column; align-items:stretch;
       gap:4px; padding:26px 14px; border-top:none; border-right:1px solid var(--line-soft); }
     .bottom-bar::before{ order:-2; content:'KONGROW'; font-weight:800; letter-spacing:.3em; font-size:15px; color:var(--ink); padding:0 12px 22px; }
-    .bb-plus{ order:-1; width:100%; height:46px; margin:0 0 16px; border-radius:14px; align-self:stretch; }
-    .bb-plus::after{ content:'Neu'; font-weight:800; font-size:15px; margin-left:6px; }
+    .bb-center{ order:-1; width:auto; height:46px !important; margin:0; border-radius:12px; align-self:stretch; justify-self:auto; background:none !important; color:var(--ink-soft) !important; box-shadow:none !important; }
+    .bb-center span{ display:inline; }
+    .bb-center svg{ width:20px !important; height:20px !important; }
+    .bb-center.active{ color:var(--forest) !important; background:rgba(34,227,211,.08) !important; }
+    .bb-desk{ display:flex !important; }
+    .nav-badge{ position:static; margin-left:auto; }
     .bb-item{ height:46px; flex-direction:row; justify-content:flex-start; gap:12px; padding:0 14px; border-radius:12px; font-size:14.5px; }
     .bb-item svg{ width:20px; height:20px; }
     .bb-item:hover{ color:var(--ink); background:rgba(255,255,255,.03); }
@@ -723,13 +735,14 @@
     .xp-toast{ bottom:24px !important; }
     .rest-bar{ left:calc(50% + var(--side-w) / 2); }
     /* Startseite: zweispaltig */
-    #panelHome{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys ziele" "dailys aufg" "links links"; gap:0 22px; align-items:start; }
+    #panelHome{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys termine" "dailys ziele" "aufg ziele" "links links"; gap:0 22px; align-items:start; }
+    #homeTermineCard{ grid-area:termine; }
     #panelHome[style*="none"]{ display:none; }
     #prioCard{ grid-area:dailys; }
     #homeZieleCard{ grid-area:ziele; }
     #homeAufgabenCard{ grid-area:aufg; }
     #panelHome > .home-links{ grid-area:links; }
-    #panelHome > :not(#prioCard):not(#homeZieleCard):not(#homeAufgabenCard):not(.home-links){ grid-column:1 / -1; }
+    #panelHome > :not(#prioCard):not(#homeZieleCard):not(#homeAufgabenCard):not(#homeTermineCard):not(.home-links){ grid-column:1 / -1; }
     .home-links{ grid-template-columns:repeat(3, minmax(0,1fr)); }
     /* Vollbild-Abläufe mittig statt über die ganze Breite */
     .modal-overlay[style*="align-items:stretch"] > div{ max-width:780px; width:100%; margin-left:auto !important; margin-right:auto !important; }
@@ -737,8 +750,136 @@
     .card:hover{ border-color:rgba(255,255,255,.1); }
   }
   @media (min-width:1400px){
-    #panelHome{ grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys ziele aufg" "links links links"; }
+    #panelHome{ grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys termine ziele" "dailys aufg ziele" "links links links"; }
   }
+  /* ---------- Kalender ---------- */
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .cal-head h1{ margin:0; font-size:26px; }
+  .cal-actions{ display:flex; gap:6px; align-items:center; }
+  .cal-nav{ height:36px; min-width:36px; padding:0 11px; border-radius:11px; border:1px solid var(--line-soft); background:rgba(255,255,255,.03); color:var(--ink); font-weight:700; font-size:14px; cursor:pointer; }
+  .cal-nav:hover{ border-color:var(--forest); }
+  .cal-new{ height:36px; padding:0 14px; font-size:14px; white-space:nowrap; }
+  .cal-month{ padding:10px !important; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
+  .cal-wd div{ text-align:center; font-size:11px; letter-spacing:.1em; color:var(--ink-soft); padding:4px 0 6px; font-weight:700; }
+  .cal-cell{ min-height:56px; border-radius:10px; border:1px solid transparent; background:rgba(255,255,255,.02); color:var(--ink); padding:5px 4px; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; overflow:hidden; }
+  .cal-cell.out{ opacity:.38; }
+  .cal-cell.sel{ border-color:var(--forest); background:rgba(34,227,211,.07); }
+  .cal-num{ font-size:13px; font-weight:700; width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:999px; }
+  .cal-cell.today .cal-num{ background:var(--forest); color:#04110F; }
+  .cal-cell-evs{ display:flex; gap:3px; flex-wrap:wrap; justify-content:center; width:100%; }
+  .cal-cell-ev i{ display:block; width:6px; height:6px; border-radius:999px; background:var(--c); }
+  .cal-cell-ev em{ display:none; }
+  .cal-more{ font-size:9.5px; color:var(--ink-soft); }
+  .cal-day-agenda{ margin-top:14px; }
+  .cal-day-title{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--forest); font-weight:700; margin-bottom:8px; }
+  .cal-ev{ display:flex; gap:12px; align-items:baseline; width:100%; text-align:left; padding:11px 12px; margin-bottom:6px; border-radius:12px; cursor:pointer;
+    background:rgba(255,255,255,.03); border:1px solid var(--line-soft); border-left:3px solid var(--c); color:var(--ink); }
+  .cal-ev:hover{ background:rgba(255,255,255,.05); }
+  .cal-ev-time{ flex-shrink:0; font-size:12.5px; color:var(--ink-soft); min-width:84px; font-variant-numeric:tabular-nums; }
+  .cal-ev-title{ font-weight:600; font-size:14.5px; min-width:0; overflow-wrap:break-word; }
+  .cal-add-day{ margin-top:4px; }
+  .cal-week{ display:flex; flex-direction:column; gap:12px; }
+  .cal-week-day{ background:rgba(255,255,255,.02); border:1px solid var(--line-soft); border-radius:14px; padding:10px; }
+  .cal-week-day.today{ border-color:rgba(34,227,211,.5); }
+  .cal-week-head{ display:flex; gap:8px; align-items:baseline; margin-bottom:8px; font-size:13px; color:var(--ink-soft); }
+  .cal-week-head b{ color:var(--ink); }
+  .cal-week-day .cal-ev{ flex-direction:column; gap:2px; }
+  .cal-week-day .cal-ev-time{ min-width:0; }
+  .cal-week-empty{ color:var(--ink-soft); font-size:13px; padding:2px 2px 4px; }
+  .cal-dot{ display:inline-block; width:10px; height:10px; border-radius:999px; background:var(--c); margin-right:4px; flex-shrink:0; }
+  .cal-detail-row{ font-size:14.5px; margin:8px 0; overflow-wrap:anywhere; }
+  .cal-detail-desc{ font-size:14px; color:var(--ink-soft); white-space:pre-wrap; margin-top:10px; padding-top:10px; border-top:1px solid var(--line-soft); overflow-wrap:anywhere; }
+  .cal-detail-row a, .cal-detail-desc a, .msg-body a, .slack-text a{ color:var(--forest); }
+  .cal-pick{ display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line-soft); font-size:14.5px; cursor:pointer; }
+  .ev-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; }
+  .ev-grid label, .ev-lbl{ display:flex; flex-direction:column; gap:4px; font-size:12.5px; color:var(--ink-soft); }
+  .ev-lbl{ margin-top:10px; }
+  .ev-grid input, .ev-lbl select{ width:100%; font-family:var(--font); font-size:16px; color:var(--ink); background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:10px 12px; color-scheme:dark; }
+  .home-ev{ display:flex; gap:12px; width:100%; text-align:left; padding:8px 0 8px 10px; border:none; border-left:3px solid var(--c); background:none; color:var(--ink); cursor:pointer; margin:4px 0; }
+  .home-ev-time{ font-size:13px; color:var(--ink-soft); min-width:82px; font-variant-numeric:tabular-nums; }
+  .home-ev-title{ font-weight:600; font-size:14.5px; min-width:0; overflow-wrap:break-word; }
+  @media (min-width:700px){
+    .cal-cell{ min-height:92px; align-items:stretch; }
+    .cal-num{ align-self:flex-end; }
+    .cal-cell-evs{ flex-direction:column; flex-wrap:nowrap; gap:2px; }
+    .cal-cell-ev{ display:flex; align-items:center; gap:4px; font-size:11px; padding:1px 4px; border-radius:5px; background:color-mix(in srgb, var(--c) 22%, transparent); }
+    .cal-cell-ev i{ display:none; }
+    .cal-cell-ev em{ display:block; font-style:normal; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+    .cal-more{ font-size:11px; text-align:left; padding-left:4px; }
+    .cal-week{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:8px; }
+    .cal-week-day{ min-height:200px; padding:8px; }
+    .cal-week-day .cal-ev{ padding:7px 8px; }
+    .cal-week-day .cal-ev-title{ font-size:13px; }
+  }
+  /* ---------- Nachrichten ---------- */
+  .msg-filters{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .msg-filters .aufg-filter b{ display:inline-block; min-width:18px; padding:0 5px; border-radius:999px; background:#FF5A5A; color:#fff; font-size:11px; margin-left:4px; }
+  .msg-err{ font-size:13px; color:#FFC56B; margin:0 0 8px; overflow-wrap:anywhere; }
+  .msg-card{ padding:4px 6px !important; }
+  .msg-item{ display:flex; gap:12px; width:100%; text-align:left; padding:12px 8px; background:none; border:none; border-bottom:1px solid var(--line-soft); color:var(--ink); cursor:pointer; border-radius:10px; }
+  .msg-item:last-child{ border-bottom:none; }
+  .msg-item:hover{ background:rgba(255,255,255,.03); }
+  .msg-ico{ font-size:18px; flex-shrink:0; width:24px; text-align:center; padding-top:1px; }
+  .msg-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .msg-top{ display:flex; justify-content:space-between; gap:10px; }
+  .msg-from{ font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink-soft); }
+  .msg-time{ font-size:12px; color:var(--ink-soft); flex-shrink:0; }
+  .msg-subj{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink-soft); }
+  .msg-snip{ font-size:12.5px; color:#6E787B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .msg-acc{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:#5C6568; }
+  .msg-item.unread .msg-from, .msg-item.unread .msg-subj{ color:var(--ink); font-weight:700; }
+  .msg-item.unread .msg-ico{ position:relative; }
+  .msg-item.unread .msg-ico::after{ content:''; position:absolute; top:0; right:-2px; width:8px; height:8px; border-radius:999px; background:var(--forest); box-shadow:0 0 8px var(--forest-glow); }
+  .msg-sheet{ width:100%; max-width:820px; margin:0 auto; background:#07090A; display:flex; flex-direction:column; min-height:100%; padding:calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); overflow-y:auto; }
+  .msg-sheet-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; }
+  .msg-sheet-src{ font-size:12px; color:var(--ink-soft); text-align:right; overflow-wrap:anywhere; }
+  .msg-subject{ font-size:20px; font-weight:800; letter-spacing:-.01em; margin-bottom:10px; overflow-wrap:anywhere; }
+  .msg-meta{ font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:14px; overflow-wrap:anywhere; }
+  .msg-meta b{ color:var(--ink); }
+  .msg-body{ font-size:14.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; padding:14px; border-radius:14px; background:rgba(255,255,255,.02); border:1px solid var(--line-soft); }
+  .slack-thread{ display:flex; flex-direction:column; gap:8px; }
+  .slack-msg{ max-width:88%; padding:9px 12px; border-radius:14px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); align-self:flex-start; }
+  .slack-msg.mine{ align-self:flex-end; background:rgba(34,227,211,.08); border-color:rgba(34,227,211,.3); }
+  .slack-meta{ font-size:11.5px; color:var(--ink-soft); margin-bottom:3px; }
+  .slack-text{ font-size:14.5px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .msg-compose{ margin-top:16px; padding-top:14px; border-top:1px solid var(--line-soft); position:sticky; bottom:0; background:#07090A; }
+  .msg-ai-row{ display:flex; gap:8px; margin-bottom:8px; }
+  .msg-ai-row input{ flex:1; min-width:0; font-size:14px !important; }
+  .msg-ai-btn{ flex-shrink:0; white-space:nowrap; }
+  .msg-compose textarea{ min-height:120px; }
+  .msg-send-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:8px; }
+  @media (max-width:520px){ .msg-ai-row{ flex-direction:column; } }
+  /* ---------- Verbindungen ---------- */
+  .conn-sec{ padding:14px 0; border-top:1px solid var(--line-soft); }
+  .conn-h{ font-weight:700; font-size:15px; margin-bottom:8px; }
+  .conn-h span{ font-weight:500; font-size:12.5px; color:var(--ink-soft); margin-left:6px; }
+  .conn-ok{ color:var(--forest); font-size:14px; margin-bottom:8px; overflow-wrap:anywhere; }
+  .conn-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; font-size:14px; }
+  .conn-row small{ display:block; color:var(--ink-soft); font-size:11.5px; }
+  .conn-uri{ display:flex; gap:8px; align-items:center; margin:6px 0; }
+  .conn-uri code{ flex:1; min-width:0; font-size:11.5px; padding:8px; border-radius:8px; background:rgba(0,0,0,.4); border:1px solid var(--line-soft); overflow-wrap:anywhere; }
+  .conn-add summary{ cursor:pointer; color:var(--forest); font-weight:600; font-size:14px; margin:6px 0; }
+  .conn-add select{ font-family:var(--font); color:var(--ink); background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:10px 12px; }
+  .conn-note{ padding:10px 12px; border-radius:12px; background:rgba(34,227,211,.08); border:1px solid rgba(34,227,211,.35); color:var(--forest); font-size:14px; margin-bottom:10px; }
+  /* ---------- Erfolgs-Animation ---------- */
+  .celebrate{ position:fixed; inset:0; z-index:1200; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 45%, rgba(34,227,211,.18), rgba(0,0,0,.88) 60%); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); animation:celIn .3s ease both; cursor:pointer; }
+  .celebrate.out{ animation:celOut .4s ease both; }
+  .cel-inner{ position:relative; text-align:center; padding:20px; }
+  .cel-check{ width:132px; height:132px; filter:drop-shadow(0 0 24px var(--forest-glow)); animation:celPop .55s cubic-bezier(.2,1.6,.4,1) both; }
+  .cel-check circle{ fill:rgba(34,227,211,.12); stroke:var(--forest); stroke-width:5; stroke-dasharray:330; stroke-dashoffset:330; animation:celDraw .6s ease .1s forwards; }
+  .cel-check path{ fill:none; stroke:var(--forest); stroke-width:9; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:80; stroke-dashoffset:80; animation:celDraw .4s ease .55s forwards; }
+  .cel-title{ font-size:28px; font-weight:800; letter-spacing:-.02em; margin-top:18px; animation:celUp .5s ease .6s both; }
+  .cel-sub{ font-size:15px; color:var(--forest); font-weight:700; margin-top:8px; animation:celUp .5s ease .75s both; }
+  .cel-burst{ position:absolute; left:50%; top:86px; width:0; height:0; }
+  .cel-burst i{ position:absolute; width:9px; height:14px; border-radius:2px; opacity:0; animation:celConf 1.5s cubic-bezier(.1,.7,.3,1) calc(.35s + var(--d)) forwards; }
+  @keyframes celIn{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes celOut{ to{ opacity:0; transform:scale(1.04); } }
+  @keyframes celPop{ from{ transform:scale(.3); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  @keyframes celDraw{ to{ stroke-dashoffset:0; } }
+  @keyframes celUp{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+  @keyframes celConf{ 0%{ opacity:1; transform:translate(0,0) rotate(0); } 100%{ opacity:0; transform:translate(var(--x), calc(var(--y) + 140px)) rotate(var(--r)); } }
+  @media (prefers-reduced-motion: reduce){ .celebrate *, .celebrate{ animation-duration:.01s !important; animation-delay:0s !important; } }
 </style>
 </head>
 <body>
@@ -791,16 +932,22 @@
       <button type="button" class="top-chip" id="chipNofap" aria-label="NoFap-Counter"><span class="chip-ico">🛡️</span><span id="chipNofapNum">–</span><span class="chip-dot" id="chipNofapDot"></span></button>
     </div>
     <div class="topbar-title"><span class="top-username" id="topUsername">Kongrow</span></div>
+    <div class="topbar-right">
+    <button type="button" class="top-menu-btn top-plus" id="bbPlus" aria-label="Schnell hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button type="button" class="top-menu-btn" id="menuBtn" aria-label="Menü"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
     <div class="nav-menu" id="navMenu" style="display:none;">
       <div class="nav-user" id="navUser"></div>
       <button type="button" class="nav-menu-item active" data-tab="home">Start</button>
+      <button type="button" class="nav-menu-item" data-tab="kalender">Kalender</button>
+      <button type="button" class="nav-menu-item" data-tab="nachrichten">Nachrichten</button>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="aufgaben">Aufgaben</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="koerper">Körper</button>
       <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
+      <button type="button" class="nav-menu-item" id="openConnMenuBtn">🔗 Verbindungen</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -819,6 +966,14 @@
         <button type="button" class="refl-quick-btn" id="homeEveningBtn">🌙 Abendreflexion</button>
       </div>
       <div id="prioStatus" class="save-status"></div>
+    </div>
+
+    <div class="card" id="homeTermineCard">
+      <div class="home-aufg-head">
+        <div class="step-label" style="margin:0;">Termine · Heute</div>
+        <button type="button" class="prio-edit-toggle" id="homeTermineAll">Kalender →</button>
+      </div>
+      <div id="homeTermineList"><div class="loading">Lade ...</div></div>
     </div>
 
     <div class="card" id="homeZieleCard">
@@ -1274,6 +1429,41 @@
     </div>
   </div>
 
+  <div id="panelKalender" style="display:none;">
+    <div class="cal-head">
+      <h1 id="calTitle">Kalender</h1>
+      <div class="cal-actions">
+        <button type="button" class="cal-nav" id="calPrev" aria-label="Zurück">‹</button>
+        <button type="button" class="cal-nav" id="calTodayBtn">Heute</button>
+        <button type="button" class="cal-nav" id="calNext" aria-label="Weiter">›</button>
+        <button type="button" class="primary cal-new" id="calNew">+ Termin</button>
+      </div>
+    </div>
+    <div class="aufg-tabs" id="calViews">
+      <button type="button" class="aufg-tab active" data-v="monat">Monat</button>
+      <button type="button" class="aufg-tab" data-v="woche">Woche</button>
+      <button type="button" class="aufg-tab" data-v="liste">Liste</button>
+    </div>
+    <div id="calBody"><div class="loading">Lade ...</div></div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:14px;">
+      <button type="button" class="aufg-link" id="calCalendarsBtn">Kalender ein-/ausblenden</button>
+      <button type="button" class="aufg-link" id="calConnBtn">Verbindungen</button>
+    </div>
+  </div>
+
+  <div id="panelNachrichten" style="display:none;">
+    <div class="aufg-head">
+      <h1>Nachrichten</h1>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="cal-nav" id="msgRefresh" aria-label="Aktualisieren">↻</button>
+        <button type="button" class="cal-nav" id="msgConnBtn" aria-label="Verbindungen" title="Verbindungen">🔗</button>
+      </div>
+    </div>
+    <div class="msg-filters" id="msgFilters"></div>
+    <div id="msgErrors"></div>
+    <div id="msgList"><div class="loading">Lade ...</div></div>
+  </div>
+
   <div id="panelLesen" style="display:none;">
     <div class="eyebrow">Lesen</div>
     <h1>Lesen</h1>
@@ -1311,24 +1501,41 @@
 </div>
 
 <nav class="bottom-bar" id="bottomBar">
-  <button type="button" class="bb-item active" data-tab="home">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
-    <span>Start</span>
-  </button>
   <button type="button" class="bb-item" data-tab="aufgaben">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 9 2 2 4-4"/><path d="M8 15h8"/></svg>
     <span>Aufgaben</span>
   </button>
-  <button type="button" class="bb-plus" id="bbPlus" aria-label="Schnell hinzufügen">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  <button type="button" class="bb-item" data-tab="kalender">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+    <span>Kalender</span>
   </button>
-  <button type="button" class="bb-item" data-tab="routinen">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>
-    <span>Routinen</span>
+  <button type="button" class="bb-item bb-center active" data-tab="home" aria-label="Start">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
+    <span>Start</span>
+  </button>
+  <button type="button" class="bb-item" data-tab="nachrichten">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z"/></svg>
+    <span>Nachrichten</span>
   </button>
   <button type="button" class="bb-item" data-tab="koerper">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg>
     <span>Body</span>
+  </button>
+  <button type="button" class="bb-item bb-desk" data-tab="reflexion">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/></svg>
+    <span>Reflexion</span>
+  </button>
+  <button type="button" class="bb-item bb-desk" data-tab="routinen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>
+    <span>Routinen</span>
+  </button>
+  <button type="button" class="bb-item bb-desk" data-tab="ziele">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>
+    <span>Ziele</span>
+  </button>
+  <button type="button" class="bb-item bb-desk" data-tab="aktivitaeten">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
+    <span>Aktivitäten</span>
   </button>
 </nav>
 
@@ -1454,6 +1661,40 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="calEventOverlay" style="display:none;">
+  <div class="modal-card" id="calEventCard"></div>
+</div>
+
+<div class="modal-overlay" id="msgOverlay" style="display:none; align-items:stretch;">
+  <div class="msg-sheet">
+    <div class="msg-sheet-head">
+      <button type="button" class="back-btn" id="msgClose" style="margin:0;">← Nachrichten</button>
+      <span class="msg-sheet-src" id="msgSrc"></span>
+    </div>
+    <div id="msgDetail"></div>
+    <div class="msg-compose" id="msgCompose">
+      <div class="msg-ai-row">
+        <input type="text" id="msgAiHint" placeholder="Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“">
+        <button type="button" class="ghost msg-ai-btn" id="msgAiBtn">✨ KI-Entwurf</button>
+      </div>
+      <textarea id="msgReply" rows="6" placeholder="Antwort schreiben ..."></textarea>
+      <div class="msg-send-row">
+        <span class="save-status" id="msgStatus" style="margin:0;"></span>
+        <button type="button" class="primary" id="msgSend">Senden</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="connOverlay" style="display:none;">
+  <div class="modal-card" style="max-width:560px;">
+    <button class="modal-close" id="connClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Verbindungen</div>
+    <div class="modal-sub">Zugangsdaten liegen verschlüsselt auf deinem Server – nur du kommst mit deinem Login daran.</div>
+    <div id="connBody"><div class="loading">Lade ...</div></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="levelOverlay" style="display:none;">
   <div class="modal-card">
     <button class="modal-close" id="levelOverlayClose" aria-label="Schließen">×</button>
@@ -1535,6 +1776,11 @@
       <button class="primary" id="settingsSaveBtn">Speichern</button>
     </div>
     <div id="settingsStatus" class="save-status"></div>
+    <div class="push-box">
+      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔗 Verbindungen</div>
+      <div class="hint" style="margin-bottom:10px;">Google Kalender & Gmail, GMX, netcup, Slack</div>
+      <button type="button" class="ghost" id="openConnectionsBtn">Verbindungen verwalten</button>
+    </div>
     <div class="push-box">
       <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔐 Konto</div>
       <div class="hint" style="margin-bottom:10px;" id="accountInfo">Angemeldet</div>
@@ -1994,7 +2240,7 @@
   const panelKoerper = document.getElementById('panelKoerper');
   const panelAktivitaeten = document.getElementById('panelAktivitaeten');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper, kalender: document.getElementById('panelKalender'), nachrichten: document.getElementById('panelNachrichten') };
 
   const AKTIVITAETEN_TABS = ['sprechuebung','lesen','work','affirmationen','wutjournal','satzergaenzung','worksheets'];
   // Zurück-Buttons nur für Aktivitäten-Unterseiten (Start erreicht man über die Bottom-Bar)
@@ -7062,7 +7308,7 @@
     const n = prioCache.length;
     const done = prioCache.filter(p=>p.erledigtAm === t).length;
     if(n === DAILY_QUEST_MIN && done === n){
-      if(!xpHas('dq:' + t)){ awardXP('dq:' + t, 'Daily Quest: alle Prioritäten', DAILY_QUEST_XP); setTimeout(()=>xpToast('Daily Quest geschafft · +' + DAILY_QUEST_XP + ' XP', true), 1600); }
+      if(!xpHas('dq:' + t)){ awardXP('dq:' + t, 'Daily Quest: alle Prioritäten', DAILY_QUEST_XP); setTimeout(()=>celebrateDailys(), 450); }
     } else {
       revokeXP('dq:' + t);
     }
@@ -7116,6 +7362,31 @@
   /* =========================================================
      DAILY-STREAK (nur Tage mit kompletter Daily Quest)
      ========================================================= */
+
+  /* ---------- Erfolgs-Animation: alle Dailys erledigt ---------- */
+  function celebrateDailys(){
+    const old = document.getElementById('celebrate'); if(old) old.remove();
+    let streak = 0; try{ streak = dailyStreakInfo().cur; }catch(e){}
+    const el = document.createElement('div');
+    el.id = 'celebrate'; el.className = 'celebrate';
+    const colors = ['#22E3D3','#4FEFE2','#FFFFFF','#FFC56B','#1AD2C3'];
+    let conf = '';
+    for(let i=0;i<46;i++){
+      const ang = Math.random() * Math.PI * 2, dist = 120 + Math.random() * 260;
+      conf += `<i style="--x:${Math.cos(ang)*dist}px;--y:${Math.sin(ang)*dist - 60}px;--r:${Math.random()*720-360}deg;--d:${(Math.random()*0.25).toFixed(2)}s;background:${colors[i % colors.length]};${i % 3 ? '' : 'border-radius:999px;'}"></i>`;
+    }
+    el.innerHTML = `<div class="cel-inner">
+      <div class="cel-burst">${conf}</div>
+      <svg class="cel-check" viewBox="0 0 120 120"><circle cx="60" cy="60" r="52"/><path d="M38 62 L54 77 L84 45"/></svg>
+      <div class="cel-title">Alle Dailys erledigt!</div>
+      <div class="cel-sub">Daily Quest geschafft · +${DAILY_QUEST_XP} XP${streak ? ' · 🔥 ' + streak + (streak === 1 ? ' Tag' : ' Tage') : ''}</div>
+    </div>`;
+    document.body.appendChild(el);
+    try{ if(navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80]); }catch(e){}
+    const close = ()=>{ el.classList.add('out'); setTimeout(()=>el.remove(), 450); };
+    el.onclick = close;
+    setTimeout(close, 3200);
+  }
   function dqDates(){ return new Set(xpEntries.filter(e=>e.key.startsWith('dq:')).map(e=>e.key.slice(3))); }
   function shiftDay(str, n){ const d = new Date(str + 'T12:00'); d.setDate(d.getDate()+n); return dayStr(d); }
   function weekKeyOf(str){ const d = new Date(str + 'T12:00'); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return dayStr(d); }
@@ -7547,11 +7818,509 @@
     pushTestBtn.disabled = false;
   };
 
+  /* =========================================================
+     KALENDER (Google) · NACHRICHTEN (Gmail, IMAP, Slack) · VERBINDUNGEN
+     ========================================================= */
+  async function kgApi(path, body, method){
+    await authReady;
+    const opt = { method: method || (body ? 'POST' : 'GET'), credentials:'same-origin', headers:{'Content-Type':'application/json'} };
+    if(body) opt.body = JSON.stringify(body);
+    let res = await fetch(API_BASE + path, opt);
+    if(res.status === 401){ authLost(); await authReady; res = await fetch(API_BASE + path, opt); }
+    let data = {}; try{ data = await res.json(); }catch(e){}
+    if(!res.ok){ const err = new Error((data.error && data.error.message) || ('Fehler ' + res.status)); err.type = data.error && data.error.type; err.status = res.status; throw err; }
+    return data;
+  }
+  const dKey = d=>d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+  const WD = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+  const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  function startOfWeek(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const wd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - wd); return x; }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function fmtTime(d){ return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function fmtDayLong(d){ return ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][d.getDay()] + ', ' + d.getDate() + '. ' + MONTHS[d.getMonth()]; }
+  function evStart(e){ return e.allDay ? new Date(e.start + 'T00:00:00') : new Date(e.start); }
+  function evEnd(e){ return e.allDay ? new Date(e.end + 'T00:00:00') : new Date(e.end); }
+  function evOnDay(e, day){ const s = evStart(e), en = evEnd(e); const ds = new Date(day.getFullYear(), day.getMonth(), day.getDate()), de = addDays(ds, 1); return s < de && (en > ds || (+en === +s && s >= ds)); }
+  function evTimeLabel(e, day){
+    if(e.allDay) return 'Ganztägig';
+    const s = evStart(e), en = evEnd(e);
+    if(day && dKey(s) !== dKey(day)) return 'bis ' + fmtTime(en);
+    return fmtTime(s) + '–' + fmtTime(en);
+  }
+
+  /* ---------- Kalender ---------- */
+  const cal = { view:'monat', cursor:new Date(), selected:new Date(), events:[], loadedKey:'', status:null, calendars:null };
+  try{ const v = localStorage.getItem('kongrow_cal_view'); if(v) cal.view = v; }catch(e){}
+  function calRange(){
+    if(cal.view === 'monat'){
+      const first = new Date(cal.cursor.getFullYear(), cal.cursor.getMonth(), 1);
+      const from = startOfWeek(first); return [from, addDays(from, 42)];
+    }
+    if(cal.view === 'woche'){ const from = startOfWeek(cal.cursor); return [from, addDays(from, 7)]; }
+    const from = new Date(); from.setHours(0,0,0,0); return [from, addDays(from, 45)];
+  }
+  async function loadGoogleStatus(){ try{ cal.status = await kgApi('google.php?action=status'); }catch(e){ cal.status = { connected:false, error:e.message }; } return cal.status; }
+  async function loadCalendar(force){
+    const body = document.getElementById('calBody');
+    if(!cal.status) await loadGoogleStatus();
+    renderCalHead();
+    if(!cal.status.connected){
+      body.innerHTML = `<div class="card"><div class="hint" style="margin-bottom:12px;">Verbinde deinen Google-Workspace-Kalender, dann siehst du hier alle Termine und kannst neue anlegen.</div>
+        <button type="button" class="primary" id="calConnectNow">Google verbinden</button></div>`;
+      document.getElementById('calConnectNow').onclick = openConnections;
+      return;
+    }
+    const [from, to] = calRange();
+    const key = cal.view + dKey(from) + dKey(to);
+    if(force || key !== cal.loadedKey){
+      if(!cal.events.length || key !== cal.loadedKey) body.innerHTML = '<div class="loading">Lade Termine ...</div>';
+      try{
+        const j = await kgApi('google.php?action=events&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()));
+        cal.events = j.events || []; cal.loadedKey = key;
+      }catch(e){ body.innerHTML = '<div class="card"><div class="empty">Termine konnten nicht geladen werden: ' + escapeHtml(e.message) + '</div></div>'; return; }
+    }
+    renderCalendar();
+  }
+  function renderCalHead(){
+    const t = document.getElementById('calTitle');
+    if(cal.view === 'monat') t.textContent = MONTHS[cal.cursor.getMonth()] + ' ' + cal.cursor.getFullYear();
+    else if(cal.view === 'woche'){ const s = startOfWeek(cal.cursor), e = addDays(s, 6); t.textContent = s.getDate() + '.' + (s.getMonth()+1) + '. – ' + e.getDate() + '.' + (e.getMonth()+1) + '.'; }
+    else t.textContent = 'Nächste Termine';
+    document.querySelectorAll('#calViews .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === cal.view));
+    document.getElementById('calPrev').style.visibility = cal.view === 'liste' ? 'hidden' : '';
+    document.getElementById('calNext').style.visibility = cal.view === 'liste' ? 'hidden' : '';
+  }
+  function evChip(e, day){
+    return `<button type="button" class="cal-ev" data-id="${escapeHtml(e.id)}" data-cal="${escapeHtml(e.calendarId)}" style="--c:${escapeHtml(e.color)}">
+      <span class="cal-ev-time">${escapeHtml(evTimeLabel(e, day))}</span><span class="cal-ev-title">${escapeHtml(e.title)}</span></button>`;
+  }
+  function dayAgendaHtml(day){
+    const evs = cal.events.filter(e=>evOnDay(e, day));
+    return `<div class="cal-day-agenda">
+      <div class="cal-day-title">${escapeHtml(fmtDayLong(day))}${dKey(day) === dKey(new Date()) ? ' · Heute' : ''}</div>
+      ${evs.length ? evs.map(e=>evChip(e, day)).join('') : '<div class="hint" style="margin:4px 0 0;">Keine Termine.</div>'}
+      <button type="button" class="aufg-link cal-add-day" data-day="${dKey(day)}">+ Termin an diesem Tag</button>
+    </div>`;
+  }
+  function renderCalendar(){
+    renderCalHead();
+    const body = document.getElementById('calBody');
+    const todayK = dKey(new Date());
+    if(cal.view === 'monat'){
+      const [from] = calRange(); const m = cal.cursor.getMonth();
+      let html = '<div class="card cal-month"><div class="cal-grid cal-wd">' + WD.map(w=>`<div>${w}</div>`).join('') + '</div><div class="cal-grid">';
+      for(let i=0;i<42;i++){
+        const d = addDays(from, i); const evs = cal.events.filter(e=>evOnDay(e, d));
+        html += `<button type="button" class="cal-cell ${d.getMonth() !== m ? 'out' : ''} ${dKey(d) === todayK ? 'today' : ''} ${dKey(d) === dKey(cal.selected) ? 'sel' : ''}" data-day="${dKey(d)}">
+          <span class="cal-num">${d.getDate()}</span>
+          <span class="cal-cell-evs">${evs.slice(0,3).map(e=>`<span class="cal-cell-ev" style="--c:${escapeHtml(e.color)}"><i></i><em>${escapeHtml(e.allDay ? e.title : fmtTime(evStart(e)) + ' ' + e.title)}</em></span>`).join('')}${evs.length > 3 ? `<span class="cal-more">+${evs.length-3}</span>` : ''}</span>
+        </button>`;
+      }
+      html += '</div></div>' + dayAgendaHtml(cal.selected);
+      body.innerHTML = html;
+      body.querySelectorAll('.cal-cell').forEach(c=>c.onclick = ()=>{ cal.selected = new Date(c.dataset.day + 'T12:00:00'); renderCalendar(); });
+    } else if(cal.view === 'woche'){
+      const s = startOfWeek(cal.cursor);
+      body.innerHTML = '<div class="cal-week">' + [0,1,2,3,4,5,6].map(i=>{
+        const d = addDays(s, i); const evs = cal.events.filter(e=>evOnDay(e, d));
+        return `<div class="cal-week-day ${dKey(d) === todayK ? 'today' : ''}">
+          <div class="cal-week-head"><span>${WD[i]}</span><b>${d.getDate()}.${d.getMonth()+1}.</b></div>
+          ${evs.map(e=>evChip(e, d)).join('') || '<div class="cal-week-empty">–</div>'}
+          <button type="button" class="aufg-link cal-add-day" data-day="${dKey(d)}">+</button>
+        </div>`;
+      }).join('') + '</div>';
+    } else {
+      const [from] = calRange(); let html = '';
+      for(let i=0;i<45;i++){
+        const d = addDays(from, i); const evs = cal.events.filter(e=>evOnDay(e, d));
+        if(!evs.length) continue;
+        html += `<div class="cal-day-agenda"><div class="cal-day-title">${escapeHtml(fmtDayLong(d))}${dKey(d) === todayK ? ' · Heute' : ''}</div>${evs.map(e=>evChip(e, d)).join('')}</div>`;
+      }
+      body.innerHTML = html || '<div class="card"><div class="empty">Keine Termine in den nächsten Wochen.</div></div>';
+    }
+    body.querySelectorAll('.cal-ev').forEach(b=>b.onclick = (ev)=>{ ev.stopPropagation(); const e = cal.events.find(x=>x.id === b.dataset.id && x.calendarId === b.dataset.cal); if(e) openEventDetail(e); });
+    body.querySelectorAll('.cal-add-day').forEach(b=>b.onclick = ()=>openEventForm(null, new Date(b.dataset.day + 'T09:00:00')));
+  }
+  document.querySelectorAll('#calViews .aufg-tab').forEach(b=>b.onclick = ()=>{ cal.view = b.dataset.v; try{ localStorage.setItem('kongrow_cal_view', cal.view); }catch(e){} loadCalendar(); });
+  document.getElementById('calPrev').onclick = ()=>{
+    if(cal.view === 'monat') cal.cursor = new Date(cal.cursor.getFullYear(), cal.cursor.getMonth() - 1, 1); else cal.cursor = addDays(cal.cursor, -7);
+    loadCalendar();
+  };
+  document.getElementById('calNext').onclick = ()=>{
+    if(cal.view === 'monat') cal.cursor = new Date(cal.cursor.getFullYear(), cal.cursor.getMonth() + 1, 1); else cal.cursor = addDays(cal.cursor, 7);
+    loadCalendar();
+  };
+  document.getElementById('calTodayBtn').onclick = ()=>{ cal.cursor = new Date(); cal.selected = new Date(); loadCalendar(); };
+  document.getElementById('calNew').onclick = ()=>openEventForm(null, (()=>{ const d = new Date(cal.selected); const n = new Date(); d.setHours(n.getHours() + 1, 0, 0, 0); return d; })());
+  document.getElementById('calConnBtn').onclick = ()=>openConnections();
+
+  const calEventOverlay = document.getElementById('calEventOverlay');
+  const calEventCard = document.getElementById('calEventCard');
+  function closeEventOverlay(){ calEventOverlay.style.display = 'none'; }
+  function linkify(t){ return escapeHtml(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
+  function openEventDetail(e){
+    const s = evStart(e), en = evEnd(e);
+    const when = e.allDay ? (fmtDayLong(s) + (dKey(addDays(en,-1)) !== dKey(s) ? ' – ' + fmtDayLong(addDays(en,-1)) : '') + ' · Ganztägig')
+      : (fmtDayLong(s) + ' · ' + fmtTime(s) + '–' + fmtTime(en));
+    calEventCard.innerHTML = `<button class="modal-close" data-x aria-label="Schließen">×</button>
+      <div class="modal-title">${escapeHtml(e.title)}</div>
+      <div class="modal-sub"><span class="cal-dot" style="--c:${escapeHtml(e.color)}"></span> ${escapeHtml(e.calendar)}</div>
+      <div class="cal-detail-row">🕒 ${escapeHtml(when)}</div>
+      ${e.location ? `<div class="cal-detail-row">📍 ${linkify(e.location)}</div>` : ''}
+      ${e.meet ? `<div class="cal-detail-row">🎥 <a href="${escapeHtml(e.meet)}" target="_blank" rel="noopener">Google Meet beitreten</a></div>` : ''}
+      ${e.description ? `<div class="cal-detail-desc">${linkify(kgStripHtml(e.description))}</div>` : ''}
+      <div class="nav-row" style="margin-top:16px;">
+        ${e.writable ? '<button type="button" class="ghost" data-del>Löschen</button>' : '<span></span>'}
+        ${e.writable ? '<button type="button" class="primary" data-edit>Bearbeiten</button>' : (e.link ? `<a class="aufg-link" href="${escapeHtml(e.link)}" target="_blank" rel="noopener">In Google öffnen</a>` : '')}
+      </div>
+      <div class="save-status" data-st></div>`;
+    calEventCard.querySelector('[data-x]').onclick = closeEventOverlay;
+    const ed = calEventCard.querySelector('[data-edit]'); if(ed) ed.onclick = ()=>openEventForm(e);
+    const del = calEventCard.querySelector('[data-del]');
+    if(del) del.onclick = async ()=>{
+      if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
+      del.disabled = true;
+      try{ await kgApi('google.php?action=event_delete', { calendarId:e.calendarId, id:e.id }); closeEventOverlay(); cal.loadedKey = ''; loadCalendar(true); renderHomeTermine(true); }
+      catch(err){ calEventCard.querySelector('[data-st]').textContent = err.message; del.disabled = false; }
+    };
+    calEventOverlay.style.display = 'flex';
+  }
+  function kgStripHtml(h){ const d = document.createElement('div'); d.innerHTML = (h || '').replace(/<br\s*\/?>/gi, '\n'); return d.textContent || ''; }
+  async function openEventForm(e, defaultStart){
+    if(!cal.status || !cal.status.connected){ openConnections(); return; }
+    if(!cal.calendars){ try{ cal.calendars = (await kgApi('google.php?action=calendars')).calendars; }catch(err){ cal.calendars = []; } }
+    const writable = cal.calendars.filter(c=>c.writable);
+    const s = e ? evStart(e) : defaultStart; const en = e ? evEnd(e) : new Date(+defaultStart + 3600000);
+    const allDay = e ? e.allDay : false;
+    const endDay = allDay ? addDays(en, -1) : en;
+    calEventCard.innerHTML = `<button class="modal-close" data-x aria-label="Schließen">×</button>
+      <div class="modal-title">${e ? 'Termin bearbeiten' : 'Neuer Termin'}</div>
+      <input type="text" id="evTitle" placeholder="Titel" value="${escapeHtml(e ? e.title : '')}" style="margin:8px 0 12px;">
+      <label style="display:inline-flex;gap:8px;align-items:center;margin-bottom:10px;font-size:14.5px;cursor:pointer;"><input type="checkbox" id="evAllDay" ${allDay ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--forest);"> Ganztägig</label>
+      <div class="ev-grid">
+        <label>Start<input type="date" id="evStartDate" value="${dKey(s)}"></label>
+        <label class="ev-time">Uhrzeit<input type="time" id="evStartTime" value="${fmtTime(s)}"></label>
+        <label>Ende<input type="date" id="evEndDate" value="${dKey(endDay)}"></label>
+        <label class="ev-time">Uhrzeit<input type="time" id="evEndTime" value="${fmtTime(en)}"></label>
+      </div>
+      <label class="ev-lbl">Kalender
+        <select id="evCal" ${e ? 'disabled' : ''}>${(e ? cal.calendars.filter(c=>c.id === e.calendarId) : writable).map(c=>`<option value="${escapeHtml(c.id)}" ${c.primary ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}</select>
+      </label>
+      <input type="text" id="evLoc" placeholder="Ort (optional)" value="${escapeHtml(e ? e.location : '')}" style="margin-top:10px;">
+      <textarea id="evDesc" rows="3" placeholder="Beschreibung (optional)" style="margin-top:10px;">${escapeHtml(e ? kgStripHtml(e.description) : '')}</textarea>
+      <button type="button" class="primary" id="evSave" style="width:100%;margin-top:14px;">Speichern</button>
+      <div class="save-status" id="evStatus"></div>`;
+    const syncAllDay = ()=>{ const ad = document.getElementById('evAllDay').checked; calEventCard.querySelectorAll('.ev-time').forEach(x=>x.style.display = ad ? 'none' : ''); };
+    document.getElementById('evAllDay').onchange = syncAllDay; syncAllDay();
+    document.getElementById('evStartDate').onchange = ()=>{ const sd = document.getElementById('evStartDate').value, ed = document.getElementById('evEndDate'); if(ed.value < sd) ed.value = sd; };
+    document.getElementById('evStartTime').onchange = ()=>{
+      const st = document.getElementById('evStartTime').value, et = document.getElementById('evEndTime');
+      if(document.getElementById('evStartDate').value === document.getElementById('evEndDate').value && et.value <= st){ const [h,m] = st.split(':').map(Number); et.value = pad2(Math.min(23, h + 1)) + ':' + pad2(m); }
+    };
+    calEventCard.querySelector('[data-x]').onclick = closeEventOverlay;
+    document.getElementById('evSave').onclick = async ()=>{
+      const btn = document.getElementById('evSave'); const st = document.getElementById('evStatus');
+      if(btn.disabled) return;
+      const title = document.getElementById('evTitle').value.trim();
+      if(!title){ st.textContent = 'Bitte einen Titel eingeben.'; return; }
+      const ad = document.getElementById('evAllDay').checked;
+      const sd = document.getElementById('evStartDate').value, ed = document.getElementById('evEndDate').value || sd;
+      let start, end;
+      if(ad){ start = sd; end = dKey(addDays(new Date(ed + 'T12:00:00'), 1)); }
+      else {
+        const sdt = new Date(sd + 'T' + document.getElementById('evStartTime').value), edt = new Date(ed + 'T' + document.getElementById('evEndTime').value);
+        if(!(edt > sdt)){ st.textContent = 'Das Ende muss nach dem Start liegen.'; return; }
+        start = sd + 'T' + document.getElementById('evStartTime').value + ':00'; end = ed + 'T' + document.getElementById('evEndTime').value + ':00';
+      }
+      btn.disabled = true; st.textContent = 'Speichere ...';
+      try{
+        await kgApi('google.php?action=event_save', { id: e ? e.id : '', calendarId: e ? e.calendarId : document.getElementById('evCal').value, title, allDay: ad, start, end,
+          location: document.getElementById('evLoc').value.trim(), description: document.getElementById('evDesc').value.trim() });
+        closeEventOverlay(); cal.selected = new Date(sd + 'T12:00:00'); cal.loadedKey = ''; loadCalendar(true); renderHomeTermine(true);
+      }catch(err){ st.textContent = err.message; btn.disabled = false; }
+    };
+    calEventOverlay.style.display = 'flex';
+    if(!e) setTimeout(()=>{ try{ document.getElementById('evTitle').focus(); }catch(_){ } }, 60);
+  }
+  document.getElementById('calCalendarsBtn').onclick = async ()=>{
+    if(!cal.status || !cal.status.connected){ openConnections(); return; }
+    calEventCard.innerHTML = '<div class="loading">Lade ...</div>'; calEventOverlay.style.display = 'flex';
+    try{ cal.calendars = (await kgApi('google.php?action=calendars')).calendars; }catch(err){ calEventCard.innerHTML = escapeHtml(err.message); return; }
+    calEventCard.innerHTML = `<button class="modal-close" data-x aria-label="Schließen">×</button><div class="modal-title">Kalender</div>
+      <div class="modal-sub">Welche Kalender sollen angezeigt werden?</div>
+      ${cal.calendars.map(c=>`<label class="cal-pick"><input type="checkbox" value="${escapeHtml(c.id)}" ${c.visible ? 'checked' : ''}><span class="cal-dot" style="--c:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</label>`).join('')}
+      <button type="button" class="primary" data-save style="width:100%;margin-top:14px;">Übernehmen</button>`;
+    calEventCard.querySelector('[data-x]').onclick = closeEventOverlay;
+    calEventCard.querySelector('[data-save]').onclick = async ()=>{
+      const hidden = [...calEventCard.querySelectorAll('.cal-pick input')].filter(i=>!i.checked).map(i=>i.value);
+      try{ await kgApi('google.php?action=calendars_visibility', { hidden }); }catch(err){}
+      closeEventOverlay(); cal.loadedKey = ''; loadCalendar(true); renderHomeTermine(true);
+    };
+  };
+
+  // Startseite: Termine heute
+  let homeTermineLoaded = 0;
+  async function renderHomeTermine(force){
+    const el = document.getElementById('homeTermineList'); if(!el) return;
+    if(!force && Date.now() - homeTermineLoaded < 120000) return;
+    homeTermineLoaded = Date.now();
+    const st = cal.status || await loadGoogleStatus();
+    if(!st.connected){ el.innerHTML = '<div class="hint" style="margin:8px 0 0;">Google-Kalender noch nicht verbunden.</div><button type="button" class="aufg-link" id="homeTermineConn" style="margin-top:6px;">Jetzt verbinden</button>'; document.getElementById('homeTermineConn').onclick = openConnections; return; }
+    const from = new Date(); from.setHours(0,0,0,0); const to = addDays(from, 2);
+    try{
+      const evs = (await kgApi('google.php?action=events&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()))).events || [];
+      const today = evs.filter(e=>evOnDay(e, from)), tomorrow = evs.filter(e=>evOnDay(e, addDays(from,1)));
+      const row = (e, d)=>`<button type="button" class="home-ev" data-id="${escapeHtml(e.id)}" style="--c:${escapeHtml(e.color)}"><span class="home-ev-time">${escapeHtml(evTimeLabel(e, d))}</span><span class="home-ev-title">${escapeHtml(e.title)}</span></button>`;
+      el.innerHTML = (today.length ? today.map(e=>row(e, from)).join('') : '<div class="hint" style="margin:6px 0;">Heute keine Termine.</div>')
+        + (tomorrow.length ? `<div class="hz-cat-label" style="margin-top:10px;">Morgen</div>` + tomorrow.slice(0,3).map(e=>row(e, addDays(from,1))).join('') : '');
+      el.querySelectorAll('.home-ev').forEach(b=>b.onclick = ()=>{ const e = evs.find(x=>x.id === b.dataset.id); if(e){ cal.events = cal.events.length ? cal.events : evs; openEventDetail(e); } });
+    }catch(e){ el.innerHTML = '<div class="hint">Termine konnten nicht geladen werden.</div>'; }
+  }
+  document.getElementById('homeTermineAll').onclick = ()=>{ switchTab('kalender'); window.scrollTo(0,0); };
+
+  /* ---------- Nachrichten ---------- */
+  const msg = { items:[], filter:'alle', unreadOnly:false, loading:false, current:null, loadedAt:0 };
+  try{ msg.filter = localStorage.getItem('kongrow_msg_filter') || 'alle'; msg.unreadOnly = localStorage.getItem('kongrow_msg_unread') === '1'; }catch(e){}
+  const SRC_ICON = { gmail:'✉️', mail:'✉️', slack:'💬' };
+  async function loadMessages(force){
+    if(msg.loading) return;
+    if(!force && Date.now() - msg.loadedAt < 60000 && msg.items.length){ renderMessages(); return; }
+    msg.loading = true;
+    const listEl = document.getElementById('msgList');
+    if(!msg.items.length) listEl.innerHTML = '<div class="loading">Lade Nachrichten ...</div>';
+    const errors = []; const jobs = [];
+    const [gs, ms, ss] = await Promise.all([
+      kgApi('google.php?action=status').catch(()=>({})), kgApi('mail.php?action=accounts').catch(()=>({ accounts:[] })), kgApi('slack.php?action=status').catch(()=>({ teams:[] }))
+    ]);
+    if(gs.connected) jobs.push(kgApi('google.php?action=mail_list&max=30').then(j=>j.messages).catch(e=>{ errors.push('Gmail: ' + e.message); return []; }));
+    (ms.accounts || []).forEach(a=>jobs.push(kgApi('mail.php?action=list&account=' + encodeURIComponent(a.id)).then(j=>j.messages).catch(e=>{ errors.push(e.message); return []; })));
+    if((ss.teams || []).length) jobs.push(kgApi('slack.php?action=list' + (force ? '&fresh=1' : '')).then(j=>{ (j.errors || []).forEach(x=>errors.push('Slack ' + x)); return j.messages; }).catch(e=>{ errors.push('Slack: ' + e.message); return []; }));
+    const none = !gs.connected && !(ms.accounts || []).length && !(ss.teams || []).length;
+    const results = await Promise.all(jobs);
+    msg.items = [].concat(...results).sort((a,b)=>b.date.localeCompare(a.date));
+    msg.loadedAt = Date.now(); msg.loading = false; msg.none = none;
+    document.getElementById('msgErrors').innerHTML = errors.map(e=>`<div class="msg-err">⚠️ ${escapeHtml(e)}</div>`).join('');
+    renderMessages();
+    updateMsgBadge();
+  }
+  function msgAccounts(){ const s = new Map(); msg.items.forEach(m=>s.set(m.source + '|' + m.account, { src:m.source, account:m.account })); return [...s.values()]; }
+  function msgMatches(m){
+    if(msg.unreadOnly && !m.unread) return false;
+    if(msg.filter === 'alle') return true;
+    if(msg.filter === 'email') return m.source === 'gmail' || m.source === 'mail';
+    if(msg.filter === 'slack') return m.source === 'slack';
+    return (m.source + '|' + m.account) === msg.filter;
+  }
+  function relTime(iso){
+    const d = new Date(iso), n = new Date();
+    if(dKey(d) === dKey(n)) return fmtTime(d);
+    if(dKey(d) === dKey(addDays(n, -1))) return 'Gestern';
+    return d.getDate() + '.' + (d.getMonth()+1) + '.';
+  }
+  function fromName(f){ const m = /^\s*"?([^"<]+?)"?\s*<[^>]+>/.exec(f || ''); return m ? m[1] : (f || '').replace(/[<>]/g, ''); }
+  function renderMessages(){
+    const chips = [['alle','Alle'],['email','E-Mail'],['slack','Slack']].concat(msgAccounts().length > 1 ? msgAccounts().map(a=>[a.src + '|' + a.account, a.account]) : []);
+    const cnt = k=>msg.items.filter(m=>m.unread && (k === 'alle' || (k === 'email' ? (m.source !== 'slack') : k === 'slack' ? m.source === 'slack' : (m.source + '|' + m.account) === k))).length;
+    document.getElementById('msgFilters').innerHTML = chips.map(([k,l])=>`<button type="button" class="aufg-filter ${msg.filter === k ? 'active' : ''}" data-f="${escapeHtml(k)}">${escapeHtml(l)}${cnt(k) ? ` <b>${cnt(k)}</b>` : ''}</button>`).join('')
+      + `<button type="button" class="aufg-filter ${msg.unreadOnly ? 'active' : ''}" data-u="1">Nur ungelesen</button>`;
+    document.querySelectorAll('#msgFilters [data-f]').forEach(b=>b.onclick = ()=>{ msg.filter = b.dataset.f; try{ localStorage.setItem('kongrow_msg_filter', msg.filter); }catch(e){} renderMessages(); });
+    document.querySelector('#msgFilters [data-u]').onclick = ()=>{ msg.unreadOnly = !msg.unreadOnly; try{ localStorage.setItem('kongrow_msg_unread', msg.unreadOnly ? '1' : '0'); }catch(e){} renderMessages(); };
+    const listEl = document.getElementById('msgList');
+    if(msg.none){ listEl.innerHTML = `<div class="card"><div class="hint" style="margin-bottom:12px;">Noch keine Quelle verbunden. Verbinde Google, deine E-Mail-Postfächer und Slack.</div><button type="button" class="primary" id="msgConnNow">Verbindungen einrichten</button></div>`; document.getElementById('msgConnNow').onclick = openConnections; return; }
+    const items = msg.items.filter(msgMatches);
+    listEl.innerHTML = items.length ? '<div class="card msg-card">' + items.map((m, i)=>`<button type="button" class="msg-item ${m.unread ? 'unread' : ''}" data-i="${msg.items.indexOf(m)}">
+        <span class="msg-ico">${SRC_ICON[m.source] || '•'}</span>
+        <span class="msg-main">
+          <span class="msg-top"><span class="msg-from">${escapeHtml(m.source === 'slack' ? m.subject : fromName(m.from))}</span><span class="msg-time">${escapeHtml(relTime(m.date))}</span></span>
+          <span class="msg-subj">${escapeHtml(m.source === 'slack' ? (m.from + ': ' + m.snippet) : m.subject)}</span>
+          ${m.source !== 'slack' && m.snippet ? `<span class="msg-snip">${escapeHtml(m.snippet)}</span>` : ''}
+          <span class="msg-acc">${escapeHtml(m.account)}</span>
+        </span>
+      </button>`).join('') + '</div>' : '<div class="card"><div class="empty">Keine Nachrichten für diesen Filter.</div></div>';
+    listEl.querySelectorAll('.msg-item').forEach(b=>b.onclick = ()=>openMessage(msg.items[+b.dataset.i]));
+  }
+  function updateMsgBadge(){
+    const n = msg.items.filter(m=>m.unread).length;
+    document.querySelectorAll('[data-tab="nachrichten"]').forEach(b=>{ let s = b.querySelector('.nav-badge'); if(!s){ s = document.createElement('span'); s.className = 'nav-badge'; b.appendChild(s); } s.textContent = n ? (n > 99 ? '99+' : n) : ''; s.style.display = n ? '' : 'none'; });
+  }
+  document.getElementById('msgRefresh').onclick = ()=>loadMessages(true);
+  document.getElementById('msgConnBtn').onclick = ()=>openConnections();
+
+  const msgOverlay = document.getElementById('msgOverlay');
+  document.getElementById('msgClose').onclick = ()=>{ msgOverlay.style.display = 'none'; renderMessages(); updateMsgBadge(); };
+  function addrOnly(s){ const m = /<([^>]+)>/.exec(s || ''); return m ? m[1] : (s || '').trim(); }
+  async function openMessage(m){
+    msg.current = { item:m, detail:null };
+    document.getElementById('msgSrc').textContent = (SRC_ICON[m.source] || '') + ' ' + m.account;
+    document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; document.getElementById('msgStatus').textContent = '';
+    const det = document.getElementById('msgDetail');
+    det.innerHTML = '<div class="loading">Lade ...</div>';
+    msgOverlay.style.display = 'flex';
+    try{
+      if(m.source === 'slack'){
+        const j = await kgApi('slack.php?action=history&team=' + encodeURIComponent(m.team) + '&channel=' + encodeURIComponent(m.id));
+        msg.current.detail = j;
+        det.innerHTML = `<div class="msg-subject">${escapeHtml(m.subject)}</div><div class="slack-thread">${(j.messages || []).map(x=>`<div class="slack-msg ${x.mine ? 'mine' : ''}"><div class="slack-meta"><b>${escapeHtml(x.user)}</b> · ${escapeHtml(relTime(x.date))}${x.replies ? ' · ' + x.replies + ' Antworten im Thread' : ''}</div><div class="slack-text">${linkify(x.text)}</div></div>`).join('')}</div>`;
+        const th = det.querySelector('.slack-thread'); if(th) th.scrollTop = th.scrollHeight;
+        document.getElementById('msgReply').placeholder = 'Nachricht an ' + m.subject + ' ...';
+      } else {
+        const j = m.source === 'gmail' ? await kgApi('google.php?action=mail_get&id=' + encodeURIComponent(m.id)) : await kgApi('mail.php?action=get&account=' + encodeURIComponent(m.accountId) + '&id=' + encodeURIComponent(m.id));
+        msg.current.detail = j;
+        det.innerHTML = `<div class="msg-subject">${escapeHtml(j.subject || m.subject)}</div>
+          <div class="msg-meta"><b>${escapeHtml(j.from)}</b><br>an ${escapeHtml(j.to)}${j.cc ? '<br>cc ' + escapeHtml(j.cc) : ''}<br>${escapeHtml(j.date)}</div>
+          <div class="msg-body">${linkify(j.text || '')}</div>`;
+        document.getElementById('msgReply').placeholder = 'Antwort an ' + fromName(j.replyTo || j.from) + ' ...';
+      }
+      if(m.unread){ m.unread = false; updateMsgBadge(); }
+    }catch(e){ det.innerHTML = '<div class="msg-err">⚠️ ' + escapeHtml(e.message) + '</div>'; }
+  }
+  document.getElementById('msgAiBtn').onclick = async ()=>{
+    const btn = document.getElementById('msgAiBtn'); const st = document.getElementById('msgStatus');
+    if(btn.disabled || !msg.current || !msg.current.detail) return;
+    const m = msg.current.item, d = msg.current.detail;
+    const hint = document.getElementById('msgAiHint').value.trim();
+    const draft = document.getElementById('msgReply').value.trim();
+    let context;
+    if(m.source === 'slack') context = 'Slack-Verlauf in ' + m.subject + ' (Workspace ' + m.account + '), älteste zuerst:\n' + (d.messages || []).slice(-15).map(x=>(x.mine ? 'Ich (Dominic)' : x.user) + ': ' + x.text).join('\n');
+    else context = 'E-Mail von: ' + d.from + '\nAn: ' + d.to + '\nBetreff: ' + d.subject + '\n\n' + (d.text || '').slice(0, 6000);
+    const prompt = `Du schreibst eine Antwort im Namen von Dominic Brecht (Inhaber der Digitalagentur BDRIVEN aus Bruchsal: Webdesign, Local SEO, Kundengewinnung für Pflegedienste, Physiotherapie & Gesundheitsbetriebe).
+${m.source === 'slack' ? 'Kanal: Slack – kurz, locker-professionell, keine Grußformel, keine Signatur.' : 'Kanal: E-Mail – mit passender Anrede und Gruß, Signatur nur "Viele Grüße\nDominic" (bzw. "Beste Grüße\nDominic Brecht" wenn formell).'}
+Sprache: wie die eingehende Nachricht (meist Deutsch). Übernimm Du/Sie so, wie der Absender schreibt. Klar, freundlich, auf den Punkt, keine Floskeln, keine erfundenen Fakten, Termine oder Preise – wo etwas fehlt, setze [Platzhalter].
+${hint ? 'Anweisung von Dominic: ' + hint + '\n' : ''}${draft ? 'Dominics Stichpunkte/Entwurf (ausformulieren und verbessern):\n' + draft + '\n' : ''}
+Kontext:
+${context}
+
+Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '✨ Schreibe ...'; st.textContent = '';
+    try{ const text = await callClaudeCoach(prompt); document.getElementById('msgReply').value = text.trim(); st.textContent = 'Entwurf eingefügt – bitte prüfen und anpassen.'; }
+    catch(e){ st.textContent = e.message; }
+    btn.disabled = false; btn.textContent = old;
+  };
+  document.getElementById('msgSend').onclick = async ()=>{
+    const btn = document.getElementById('msgSend'); const st = document.getElementById('msgStatus');
+    if(btn.disabled || !msg.current) return;
+    const text = document.getElementById('msgReply').value.trim();
+    if(!text){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
+    const m = msg.current.item, d = msg.current.detail || {};
+    if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
+    btn.dataset.armed = ''; btn.disabled = true; btn.textContent = 'Sende ...';
+    try{
+      if(m.source === 'slack') await kgApi('slack.php?action=send', { team:m.team, channel:m.id, text });
+      else {
+        const subj = /^re:/i.test(d.subject || '') ? d.subject : 'Re: ' + (d.subject || m.subject);
+        const to = d.replyTo || d.from;
+        const payload = { to, subject: subj, body: text, inReplyTo: d.messageId || '', references: d.references || '' };
+        if(m.source === 'gmail'){ payload.thread = d.thread; await kgApi('google.php?action=mail_send', payload); }
+        else { payload.account = m.accountId; await kgApi('mail.php?action=send', payload); }
+      }
+      st.textContent = 'Gesendet ✓';
+      document.getElementById('msgReply').value = '';
+      if(m.source === 'slack') openMessage(m); else setTimeout(()=>{ if(msg.current && msg.current.item === m){ msgOverlay.style.display = 'none'; renderMessages(); } }, 900);
+      msg.loadedAt = 0;
+    }catch(e){ st.textContent = e.message; }
+    btn.disabled = false; btn.textContent = 'Senden';
+  };
+
+  /* ---------- Verbindungen ---------- */
+  const connOverlay = document.getElementById('connOverlay');
+  document.getElementById('connClose').onclick = ()=>{ connOverlay.style.display = 'none'; };
+  function openConnections(note){ connOverlay.style.display = 'flex'; renderConnections(note); }
+  window.openConnections = openConnections;
+  async function renderConnections(note){
+    const body = document.getElementById('connBody');
+    body.innerHTML = '<div class="loading">Lade ...</div>';
+    const [g, m, s] = await Promise.all([
+      kgApi('google.php?action=status').catch(e=>({ error:e.message })), kgApi('mail.php?action=accounts').catch(e=>({ accounts:[], error:e.message })), kgApi('slack.php?action=status').catch(e=>({ teams:[], error:e.message }))
+    ]);
+    cal.status = g.error ? cal.status : g;
+    const copyRow = uri=>`<div class="conn-uri"><code>${escapeHtml(uri)}</code><button type="button" class="aufg-link" data-copy="${escapeHtml(uri)}">Kopieren</button></div>`;
+    body.innerHTML = `${note ? `<div class="conn-note">${escapeHtml(note)}</div>` : ''}
+      <div class="conn-sec">
+        <div class="conn-h">📅 Google Workspace <span>Kalender + Gmail</span></div>
+        ${g.connected ? `<div class="conn-ok">✓ Verbunden${g.email ? ' als ' + escapeHtml(g.email) : ''}</div><button type="button" class="ghost" data-g-disc>Trennen</button>`
+          : g.configured ? `<button type="button" class="primary" data-g-conn>Mit Google verbinden</button><button type="button" class="aufg-link" data-g-reset style="margin-left:10px;">Zugangsdaten ändern</button>`
+          : `<div class="hint">Einmalig: OAuth-Client aus der Google Cloud Console eintragen. Weiterleitungs-URI dort hinterlegen:</div>${copyRow(g.redirect_uri || '')}
+             <input type="text" id="gCid" placeholder="Client-ID (…apps.googleusercontent.com)" autocomplete="off" style="margin:8px 0;">
+             <input type="password" id="gSec" placeholder="Client-Secret" autocomplete="off" style="margin-bottom:8px;">
+             <button type="button" class="primary" data-g-save>Speichern</button>`}
+      </div>
+      <div class="conn-sec">
+        <div class="conn-h">✉️ E-Mail-Postfächer <span>GMX, netcup, …</span></div>
+        ${(m.accounts || []).map(a=>`<div class="conn-row"><span>${escapeHtml(a.label)}<small>${escapeHtml(a.imap_host)}</small></span><button type="button" class="aufg-link" data-m-del="${escapeHtml(a.id)}">Entfernen</button></div>`).join('')}
+        <details class="conn-add" ${(m.accounts || []).length ? '' : 'open'}><summary>+ Postfach hinzufügen</summary>
+          <select id="mPreset" style="width:100%;margin:8px 0;"><option value="gmx">GMX</option><option value="netcup">netcup (Webhosting)</option><option value="">Anderer Anbieter</option></select>
+          <input type="text" id="mEmail" placeholder="E-Mail-Adresse" autocomplete="off" style="margin-bottom:8px;">
+          <input type="password" id="mPass" placeholder="Passwort des Postfachs" autocomplete="new-password" style="margin-bottom:8px;">
+          <input type="text" id="mName" placeholder="Absendername (optional), z. B. Dominic Brecht" style="margin-bottom:8px;">
+          <div id="mCustom" style="display:none;">
+            <input type="text" id="mImap" placeholder="IMAP-Server" style="margin-bottom:8px;">
+            <input type="text" id="mSmtp" placeholder="SMTP-Server (SSL, Port 465)" style="margin-bottom:8px;">
+          </div>
+          <div class="hint" id="mHint">Bei GMX muss in den GMX-Einstellungen „POP3/IMAP Abruf“ aktiviert sein.</div>
+          <button type="button" class="primary" data-m-add>Postfach prüfen & speichern</button>
+        </details>
+      </div>
+      <div class="conn-sec">
+        <div class="conn-h">💬 Slack <span>mehrere Workspaces</span></div>
+        ${s.configured ? `${(s.teams || []).map(t=>`<div class="conn-row"><span>${escapeHtml(t.team_name)}</span><button type="button" class="aufg-link" data-s-del="${escapeHtml(t.team_id)}">Trennen</button></div>`).join('')}
+             <button type="button" class="primary" data-s-conn>+ Workspace verbinden</button>`
+          : `<div class="hint">Einmalig: Slack-App anlegen und Client-ID/Secret eintragen. Redirect-URL in der Slack-App:</div>${copyRow(s.redirect_uri || '')}
+             <input type="text" id="sCid" placeholder="Client ID (z. B. 1234567890.1234567890)" autocomplete="off" style="margin:8px 0;">
+             <input type="password" id="sSec" placeholder="Client Secret" autocomplete="off" style="margin-bottom:8px;">
+             <button type="button" class="primary" data-s-save>Speichern</button>`}
+      </div>
+      <div class="save-status" id="connStatus"></div>`;
+    const st = msgTxt=>{ document.getElementById('connStatus').textContent = msgTxt; };
+    const q = sel=>body.querySelector(sel);
+    body.querySelectorAll('[data-copy]').forEach(b=>b.onclick = ()=>{ try{ navigator.clipboard.writeText(b.dataset.copy); b.textContent = 'Kopiert ✓'; }catch(e){} });
+    if(q('[data-g-save]')) q('[data-g-save]').onclick = async ()=>{ try{ await kgApi('google.php?action=config', { client_id:q('#gCid').value, client_secret:q('#gSec').value }); renderConnections(); }catch(e){ st(e.message); } };
+    if(q('[data-g-reset]')) q('[data-g-reset]').onclick = ()=>{ q('[data-g-reset]').closest('.conn-sec').innerHTML = `<div class="conn-h">📅 Google Workspace</div>${copyRow(g.redirect_uri || '')}<input type="text" id="gCid" placeholder="Client-ID" style="margin:8px 0;"><input type="password" id="gSec" placeholder="Client-Secret" style="margin-bottom:8px;"><button type="button" class="primary" id="gSave2">Speichern</button>`;
+      document.getElementById('gSave2').onclick = async ()=>{ try{ await kgApi('google.php?action=config', { client_id:document.getElementById('gCid').value, client_secret:document.getElementById('gSec').value }); renderConnections(); }catch(e){ st(e.message); } }; };
+    if(q('[data-g-conn]')) q('[data-g-conn]').onclick = async ()=>{ try{ const j = await kgApi('google.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
+    if(q('[data-g-disc]')) q('[data-g-disc]').onclick = async ()=>{ const b = q('[data-g-disc]'); if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich trennen?'; return; } await kgApi('google.php?action=disconnect', {}).catch(()=>{}); cal.status = null; renderConnections(); };
+    const preset = q('#mPreset');
+    if(preset) preset.onchange = ()=>{ q('#mCustom').style.display = preset.value ? 'none' : 'block'; q('#mHint').style.display = preset.value === 'gmx' ? '' : 'none'; };
+    if(q('[data-m-add]')) q('[data-m-add]').onclick = async ()=>{
+      const b = q('[data-m-add]'); if(b.disabled) return; b.disabled = true; st('Prüfe Anmeldung am Postfach ...');
+      try{
+        await kgApi('mail.php?action=account_save', { preset:preset.value, email:q('#mEmail').value, pass:q('#mPass').value, name:q('#mName').value,
+          imap_host:q('#mImap').value, smtp_host:q('#mSmtp').value, imap_port:993, smtp_port:465, smtp_secure:'ssl' });
+        msg.loadedAt = 0; renderConnections('Postfach verbunden ✓');
+      }catch(e){ st(e.message); b.disabled = false; }
+    };
+    body.querySelectorAll('[data-m-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('mail.php?action=account_delete', { id:b.dataset.mDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
+    if(q('[data-s-save]')) q('[data-s-save]').onclick = async ()=>{ try{ await kgApi('slack.php?action=config', { client_id:q('#sCid').value, client_secret:q('#sSec').value }); renderConnections(); }catch(e){ st(e.message); } };
+    if(q('[data-s-conn]')) q('[data-s-conn]').onclick = async ()=>{ try{ const j = await kgApi('slack.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
+    body.querySelectorAll('[data-s-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('slack.php?action=disconnect', { team_id:b.dataset.sDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
+  }
+  document.getElementById('openConnectionsBtn').onclick = ()=>{ document.getElementById('settingsModalOverlay').style.display = 'none'; openConnections(); };
+
+  // Tabs beim Öffnen laden + Startseite
+  const _switchTabOrig = switchTab;
+  switchTab = function(key){
+    _switchTabOrig(key);
+    if(key === 'kalender') loadCalendar();
+    if(key === 'nachrichten') loadMessages();
+    if(key === 'home') renderHomeTermine();
+  };
+  authReady.then(()=>{ setTimeout(()=>{ renderHomeTermine(true); loadMessages(); }, 1500); });
+  setInterval(()=>{ if(document.visibilityState === 'visible'){ msg.loadedAt = 0; loadMessages(); } }, 5 * 60 * 1000);
+
+
+  document.getElementById('openConnMenuBtn').onclick = ()=>{ navMenu.style.display = 'none'; openConnections(); };
+
   // Aus einer Benachrichtigung geöffnet: passende Reflexion starten
   (function(){
-    const open = new URLSearchParams(location.search).get('open');
+    const params = new URLSearchParams(location.search);
+    const open = params.get('open');
     if(!open) return;
     history.replaceState(null, '', location.pathname);
+    if(open === 'settings'){
+      const g = params.get('google'), sl = params.get('slack');
+      const note = g === 'ok' ? 'Google verbunden ✓' : g === 'error' ? 'Google-Verbindung fehlgeschlagen – bitte erneut versuchen.' : sl === 'ok' ? 'Slack-Workspace verbunden ✓' : sl === 'error' ? 'Slack-Verbindung fehlgeschlagen.' : '';
+      authReady.then(()=>setTimeout(()=>openConnections(note), 400));
+      return;
+    }
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
