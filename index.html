@@ -880,6 +880,15 @@
   @keyframes celUp{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
   @keyframes celConf{ 0%{ opacity:1; transform:translate(0,0) rotate(0); } 100%{ opacity:0; transform:translate(var(--x), calc(var(--y) + 140px)) rotate(var(--r)); } }
   @media (prefers-reduced-motion: reduce){ .celebrate *, .celebrate{ animation-duration:.01s !important; animation-delay:0s !important; } }
+  .aufg-has-note{ color:var(--ink-soft); font-size:13px; margin-left:4px; }
+  .k-fokus{ cursor:pointer; text-align:center; padding:12px 6px; border-radius:14px; background:rgba(0,0,0,.3); border:1px solid var(--line-soft); color:inherit; font:inherit; display:block; width:100%; }
+  .k-fokus:hover{ border-color:var(--forest); }
+  .fokus-opt{ display:flex; flex-direction:column; gap:3px; width:100%; text-align:left; padding:12px 14px; margin-top:8px; border-radius:14px; cursor:pointer;
+    background:rgba(0,0,0,.3); border:1px solid var(--line-soft); color:var(--ink); }
+  .fokus-opt b{ font-size:16px; }
+  .fokus-opt span{ font-size:13px; color:var(--ink-soft); }
+  .fokus-opt.active{ border-color:var(--forest); background:rgba(34,227,211,.08); }
+  .fokus-opt.active b{ color:var(--forest); }
 </style>
 </head>
 <body>
@@ -933,7 +942,7 @@
     </div>
     <div class="topbar-title"><span class="top-username" id="topUsername">Kongrow</span></div>
     <div class="topbar-right">
-    <button type="button" class="top-menu-btn top-plus" id="bbPlus" aria-label="Schnell hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button type="button" class="top-menu-btn top-plus" id="bbPlus" style="display:none;" aria-label="Schnell hinzufügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <button type="button" class="top-menu-btn" id="menuBtn" aria-label="Menü"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
     <div class="nav-menu" id="navMenu" style="display:none;">
@@ -1617,6 +1626,7 @@
           <input type="date" id="aufgNewFaellig">
         </div>
       </div>
+    <textarea id="aufgNewNotiz" placeholder="Beschreibung (optional)" style="min-height:70px; margin-top:10px;"></textarea>
     <button type="button" class="primary" id="aufgNewAdd" style="width:100%; margin-top:16px;">Hinzufügen</button>
     <div id="aufgNewStatus" class="save-status"></div>
   </div>
@@ -1692,6 +1702,14 @@
     <div class="modal-title">Verbindungen</div>
     <div class="modal-sub">Zugangsdaten liegen verschlüsselt auf deinem Server – nur du kommst mit deinem Login daran.</div>
     <div id="connBody"><div class="loading">Lade ...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="aufgEditOverlay" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="aufgEditClose" aria-label="Schließen">×</button>
+    <div class="modal-title">Aufgabe</div>
+    <div class="aufg-edit" id="aufgEdit" style="border:none;padding-top:10px;"></div>
   </div>
 </div>
 
@@ -2366,6 +2384,7 @@
       if(r){
         profil.id = r.id;
         profil.username = r.fields['Benutzername'];
+        profil.fokus = r.fields['Fokus'] || '';
         try{ localStorage.setItem('kongrow_username', profil.username); }catch(e){}
         renderHome();
       }
@@ -6836,10 +6855,40 @@
       renderAufgaben();
       renderHomeAufgaben();
       if(typeof zieleCache !== 'undefined' && zieleCache.length) renderZieleListen();
+      seedSetupTasks();
     }catch(e){
       document.getElementById('aufgabenList').innerHTML = '<div class="card"><div class="empty">Aufgaben konnten nicht geladen werden.</div></div>';
       document.getElementById('homeAufgabenList').innerHTML = '<div class="empty">Aufgaben konnten nicht geladen werden.</div>';
     }
+  }
+
+
+  // Einmalig: offene Einrichtungs-Schritte als Aufgaben anlegen (doppelte werden über den Titel vermieden)
+  const SETUP_TASKS = [
+    { t:'Kongrow: Google Workspace verbinden (Kalender + Gmail)', p:'A', n:'1) console.cloud.google.com (Workspace-Konto) → neues Projekt „Kongrow“\n2) APIs & Dienste → Bibliothek: Google Calendar API + Gmail API aktivieren\n3) OAuth-Zustimmungsbildschirm: Nutzertyp „Intern“\n4) Clients → Webanwendung, Weiterleitungs-URI: https://kongrow.bdriven-digital.com/api/google.php?action=callback\n5) Client-ID + Secret in Kongrow → ☰ → Verbindungen eintragen → „Mit Google verbinden“' },
+    { t:'Kongrow: Slack-App anlegen + Workspaces verbinden', p:'B', n:'1) api.slack.com/apps → Create New App → From scratch „Kongrow“\n2) OAuth & Permissions → Redirect URL: https://kongrow.bdriven-digital.com/api/slack.php?action=callback\n3) User Token Scopes: channels:history, channels:read, groups:history, groups:read, im:history, im:read, mpim:history, mpim:read, users:read, chat:write\n4) Manage Distribution → aktivieren (für mehrere Workspaces)\n5) Client ID + Secret in Kongrow → Verbindungen → für jeden Workspace „+ Workspace verbinden“' },
+    { t:'Kongrow: GMX-Postfach verbinden', p:'B', n:'1) GMX → Einstellungen → POP3/IMAP Abruf aktivieren\n2) Kongrow → Verbindungen → Postfach hinzufügen → GMX, Adresse + Passwort' },
+    { t:'Kongrow: netcup-Postfach verbinden', p:'B', n:'Kongrow → Verbindungen → Postfach hinzufügen → netcup, Adresse + Postfach-Passwort' },
+    { t:'Kongrow: Anthropic-Key auf neuer Adresse eintragen (KI-Antworten & Coaching)', p:'B', n:'Kongrow → ☰ → Einstellungen → Anthropic API Key' },
+    { t:'Kongrow: Withings-Waage mit Gewicht-Tab verknüpfen (Idee)', p:'C', n:'Über die Withings-API möglich: Entwickler-App auf developer.withings.com anlegen, dann holt Kongrow die Messungen (Gewicht, ggf. Körperfett) automatisch.' }
+  ];
+  let setupSeeded = false;
+  async function seedSetupTasks(){
+    if(setupSeeded) return; setupSeeded = true;
+    try{ if(localStorage.getItem('kongrow_seed_setup_v1')) return; }catch(e){}
+    const have = new Set(aufgabenCache.map(t=>t.titel));
+    let added = 0;
+    for(const x of SETUP_TASKS){
+      if(have.has(x.t)) continue;
+      const fields = { 'Titel': x.t, 'Prio': x.p, 'Bereich': 'Privat', 'Notiz': x.n, 'Erstellt am': new Date().toISOString() };
+      try{
+        const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
+        aufgabenCache.push({ id, titel:x.t, prio:x.p, bereich:'Privat', faellig:'', heute:'', erledigtAm:'', zielId:'', notiz:x.n, createdAt: fields['Erstellt am'] });
+        added++;
+      }catch(e){ setupSeeded = false; return; }
+    }
+    try{ localStorage.setItem('kongrow_seed_setup_v1', '1'); }catch(e){}
+    if(added){ renderAufgaben(); renderHomeAufgaben(); }
   }
 
   async function patchAufgabe(t, fields){
@@ -6860,12 +6909,12 @@
     return `<div class="aufg-item ${done ? 'done' : ''}" data-id="${t.id}">
       <button type="button" class="aufg-check prio-${t.prio}" data-id="${t.id}" aria-label="Erledigt">${done ? '✓' : ''}</button>
       <div class="aufg-main" data-id="${t.id}">
-        <div class="aufg-title">${escapeHtml(t.titel)}</div>
+        <div class="aufg-title">${escapeHtml(t.titel)}${t.notiz ? ' <span class="aufg-has-note" title="Hat Beschreibung">≡</span>' : ''}</div>
         <div class="aufg-chips">${chips}</div>
       </div>
       ${opts.compact ? '' : `<button type="button" class="aufg-star ${t.heute === todayStr() ? 'on' : ''}" data-id="${t.id}" aria-label="Für heute">★</button>`}
     </div>
-    ${aufgabenEditId === t.id && !opts.compact ? `<div class="aufg-edit" id="aufgEdit"></div>` : ''}`;
+`;
   }
 
   function wireAufgabenRows(container, rerender){
@@ -6907,9 +6956,7 @@
     });
     container.querySelectorAll('.aufg-main').forEach(el=>{
       el.onclick = ()=>{
-        if(container.id === 'homeAufgabenList'){ switchTab('aufgaben'); aufgabenView = 'heute'; aufgabenEditId = el.dataset.id; renderAufgaben(); return; }
-        aufgabenEditId = aufgabenEditId === el.dataset.id ? null : el.dataset.id;
-        rerender();
+        openAufgabeEdit(el.dataset.id);
       };
     });
   }
@@ -6979,7 +7026,6 @@
     const dt = document.getElementById('aufgDoneToggle');
     if(dt) dt.onclick = ()=>{ aufgabenShowDone = !aufgabenShowDone; renderAufgaben(); };
 
-    if(aufgabenEditId) renderAufgabeEdit();
   }
 
   async function carryAufgabenToTomorrow(btn, onDone){
@@ -7006,6 +7052,13 @@
     if(onDone) onDone();
   }
 
+  function openAufgabeEdit(id){
+    aufgabenEditId = id;
+    document.getElementById('aufgEditOverlay').style.display = 'flex';
+    renderAufgabeEdit();
+  }
+  document.getElementById('aufgEditClose').onclick = ()=>closeAufgabeEdit();
+  function closeAufgabeEdit(){ aufgabenEditId = null; document.getElementById('aufgEditOverlay').style.display = 'none'; }
   function renderAufgabeEdit(){
     const host = document.getElementById('aufgEdit');
     const t = aufgabenCache.find(x=>x.id === aufgabenEditId);
@@ -7028,7 +7081,8 @@
           ${t.zielId && !ziele.find(z=>z.id===t.zielId) && zielById(t.zielId) ? `<option value="${t.zielId}" selected>${escapeHtml(zielById(t.zielId).text)}</option>` : ''}
         </select>
       </div>
-      <textarea id="aufgEditNotiz" placeholder="Notiz (optional)" style="min-height:60px;margin-top:4px;">${escapeHtml(t.notiz)}</textarea>
+      <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink-soft);">Beschreibung</div>
+      <textarea id="aufgEditNotiz" placeholder="Beschreibung (optional)" style="min-height:110px;margin-top:6px;">${escapeHtml(t.notiz)}</textarea>
       <div class="nav-row" style="margin-top:12px;">
         <button type="button" class="entry-delete" id="aufgEditDelete" style="margin:0;">Löschen</button>
         <div style="display:flex;gap:8px;">
@@ -7041,12 +7095,12 @@
     host.querySelectorAll('#aufgEditBereich button').forEach(b=>b.onclick = ()=>{ bereich = b.dataset.v; host.querySelectorAll('#aufgEditBereich button').forEach(x=>x.classList.toggle('active', x===b)); });
     const clr = host.querySelector('#aufgEditFaelligClear');
     if(clr) clr.onclick = ()=>{ host.querySelector('#aufgEditFaellig').value = ''; clr.remove(); };
-    host.querySelector('#aufgEditCancel').onclick = ()=>{ aufgabenEditId = null; renderAufgaben(); };
+    host.querySelector('#aufgEditCancel').onclick = closeAufgabeEdit;
     const saveBtn = host.querySelector('#aufgEditSave');
     saveBtn.onclick = async ()=>{
       if(saveBtn.disabled) return;
       const titel = host.querySelector('#aufgEditTitel').value.trim();
-      if(!titel){ aufgabenStatus('Bitte einen Titel eingeben.'); return; }
+      if(!titel){ host.querySelector('#aufgEditTitel').focus(); return; }
       const fields = {
         'Titel': titel, 'Prio': prio, 'Bereich': bereich,
         'Faellig': host.querySelector('#aufgEditFaellig').value || '',
@@ -7057,7 +7111,7 @@
       try{
         await patchAufgabe(t, fields);
         Object.assign(t, { titel, prio, bereich, faellig: fields['Faellig'], zielId: fields['ZielId'], notiz: fields['Notiz'] });
-        aufgabenEditId = null;
+        closeAufgabeEdit();
         aufgabenStatus('');
         renderAufgaben(); renderHomeAufgaben();
       }catch(e){ saveBtn.disabled = false; aufgabenStatus('Speichern fehlgeschlagen.'); }
@@ -7071,7 +7125,7 @@
       try{
         await airtableDelete(TABLE_AUFGABEN, t.id, ROUTINEN_BASE_ID);
         aufgabenCache = aufgabenCache.filter(x=>x.id !== t.id);
-        aufgabenEditId = null;
+        closeAufgabeEdit();
         renderAufgaben(); renderHomeAufgaben();
       }catch(e){ delBtn.disabled = false; armed = false; delBtn.textContent = 'Löschen'; aufgabenStatus('Löschen fehlgeschlagen.'); }
     };
@@ -7129,12 +7183,14 @@
         'Titel': titel, 'Prio': aufgabenNewPrio, 'Bereich': aufgabenNewBereich,
         'Faellig': document.getElementById('aufgNewFaellig').value || '',
         'Heute': (heute && count < HEUTE_LIMIT) ? heute : '',
+        'Notiz': (document.getElementById('aufgNewNotiz').value || '').trim(),
         'Erstellt am': new Date().toISOString()
       };
       addBtn.disabled = true;
       try{
         const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
-        aufgabenCache.push({ id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig: fields['Faellig'], heute: fields['Heute'], erledigtAm:'', zielId:'', notiz:'', createdAt: fields['Erstellt am'] });
+        aufgabenCache.push({ id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig: fields['Faellig'], heute: fields['Heute'], erledigtAm:'', zielId:'', notiz: fields['Notiz'], createdAt: fields['Erstellt am'] });
+        document.getElementById('aufgNewNotiz').value = '';
         input.value = '';
         document.getElementById('aufgNewFaellig').value = '';
         if(!(heute && count >= HEUTE_LIMIT)) aufgabenStatus('');
@@ -8327,6 +8383,33 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     }, 2800);
   })();
 
+
+  /* ---------- Körper: aktueller Fokus (Bulk / Cut / Cruise) ---------- */
+  const FOKUS_INFO = {
+    Bulk: 'Aufbauphase – leichter Kalorienüberschuss, Kraft & Muskeln aufbauen.',
+    Cut: 'Diätphase – Kaloriendefizit, Fett verlieren, Kraft halten.',
+    Cruise: 'Erhaltungsphase – Gewicht halten, Form stabilisieren.'
+  };
+  function openFokusPicker(){
+    const card = document.getElementById('calEventCard');
+    card.innerHTML = `<button class="modal-close" data-x aria-label="Schließen">×</button>
+      <div class="modal-title">Aktueller Fokus</div>
+      <div class="modal-sub">In welcher Phase bist du gerade?</div>
+      ${Object.keys(FOKUS_INFO).map(k=>`<button type="button" class="fokus-opt ${profil.fokus === k ? 'active' : ''}" data-v="${k}"><b>${k}</b><span>${FOKUS_INFO[k]}</span></button>`).join('')}
+      <div class="save-status" data-st></div>`;
+    card.querySelector('[data-x]').onclick = ()=>{ document.getElementById('calEventOverlay').style.display = 'none'; };
+    card.querySelectorAll('.fokus-opt').forEach(b=>b.onclick = async ()=>{
+      const prev = profil.fokus; profil.fokus = b.dataset.v;
+      try{
+        if(profil.id) await airtableFetch(TABLE_PROFIL + '/' + profil.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Fokus': profil.fokus, 'Fokus seit': todayStr() } }) }, ROUTINEN_BASE_ID);
+        else { profil.id = await airtableCreate(TABLE_PROFIL, { 'Benutzername': profil.username || 'Kongolongo', 'Fokus': profil.fokus, 'Fokus seit': todayStr() }, ROUTINEN_BASE_ID); }
+        document.getElementById('calEventOverlay').style.display = 'none';
+        renderKoerper();
+      }catch(e){ profil.fokus = prev; card.querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
+    });
+    document.getElementById('calEventOverlay').style.display = 'flex';
+  }
+
   /* =========================================================
      KÖRPER: Training · Ernährung · Gewicht
      ========================================================= */
@@ -8421,10 +8504,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
           <div><div class="step-label" style="margin:0 0 4px;">Training läuft</div><b>${escapeHtml(activeWorkout.plan || 'Freies Training')}</b> · ${running} Min</div>
           <button type="button" class="primary" id="kResumeBtn">Fortsetzen</button>
         </div>` : ''}
-      <div class="evening-sum" style="margin:0 0 14px;">
-        <div><span>${week.length}</span><small>Diese Woche</small></div>
-        <div><span>${fmtNum(weekVol / 1000)}t</span><small>Volumen</small></div>
-        <div><span>${trainingsCache.length}</span><small>Gesamt</small></div>
+      <div class="evening-sum" style="margin:0 0 14px; grid-template-columns:1fr 1fr;">
+        <div><span>${week.length}</span><small>Trainings diese Woche</small></div>
+        <button type="button" class="k-fokus" id="kFokusBtn"><span>${profil.fokus ? escapeHtml(profil.fokus) : '–'}</span><small>Fokus${profil.fokus ? ' · ändern' : ' wählen'}</small></button>
       </div>
       <div class="card">
         <div class="home-aufg-head"><div class="step-label" style="margin:0;">Training starten</div><button type="button" class="prio-edit-toggle" id="kPlansBtn">Pläne verwalten</button></div>
@@ -8437,6 +8519,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       <div id="kHistory">${trainingsCache.length ? '' : '<div class="card"><div class="empty">Noch keine Trainings gespeichert.</div></div>'}</div>`;
     const rb = body.querySelector('#kResumeBtn'); if(rb) rb.onclick = openWorkout;
     body.querySelector('#kPlansBtn').onclick = openPlanManager;
+    body.querySelector('#kFokusBtn').onclick = openFokusPicker;
     body.querySelector('#kFreeBtn').onclick = ()=>startWorkout(null);
     body.querySelectorAll('.k-plan[data-id]').forEach(b=>b.onclick = ()=>startWorkout(plaeneCache.find(p=>p.id === b.dataset.id)));
     const hist = body.querySelector('#kHistory');
