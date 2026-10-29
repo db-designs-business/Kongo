@@ -1,6 +1,8 @@
 <?php
 // Schickt eine Testnachricht an genau das Gerät, das sie anfordert
 require __DIR__ . '/lib.php';
+require __DIR__ . '/../api/lib.php';
+kg_require_user();
 header('Content-Type: application/json');
 $in = json_decode(file_get_contents('php://input'), true);
 $endpoint = $in['endpoint'] ?? '';

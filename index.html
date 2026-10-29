@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/kg-fav-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/kg-apple-180.png">
+<script>if(/github\.io$/.test(location.hostname)){location.replace('https://kongrow.bdriven-digital.com/');}</script>
 <link rel="manifest" href="manifest.json?v=3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -136,12 +137,12 @@
   }
   .question{ font-family:var(--font); font-weight:600; font-size:19px; letter-spacing:-.01em; line-height:1.3; margin:0 0 8px; color:var(--ink); }
   .hint{ font-size:13.5px; color:var(--ink-soft); margin-bottom:16px; }
-  textarea, input[type=text]{
+  textarea, input[type=text], input[type=password]{
     width:100%; font-family:var(--font); font-size:16px; color:var(--ink);
     background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px;
     padding:12px 14px; resize:vertical; min-height:64px; transition:border-color .2s, box-shadow .2s;
   }
-  input[type=text]{min-height:auto;}
+  input[type=text], input[type=password]{min-height:auto;}
   textarea::placeholder, input::placeholder{ color:#5C6568; }
   textarea:focus, input:focus, select:focus{
     outline:none; border-color:var(--forest); box-shadow:0 0 0 3px rgba(34,227,211,.15);
@@ -643,9 +644,44 @@
     font-size:13.5px; font-weight:600; cursor:pointer; transition:all .2s;
   }
   .back-btn:hover, .back-btn:active{ color:var(--forest); border-color:rgba(34,227,211,.5); }
+  /* ---------- Login ---------- */
+  .auth-screen{ position:fixed; inset:0; z-index:1100; background:#000; display:none; align-items:center; justify-content:center; padding:24px 16px; overflow-y:auto; }
+  .auth-screen.show{ display:flex; }
+  .auth-card{ width:100%; max-width:380px; }
+  .auth-card .splash-mark{ width:64px; height:auto; display:block; margin:0 auto 14px; }
+  .auth-card .auth-logo{ text-align:center; font-weight:800; letter-spacing:.32em; font-size:18px; margin-bottom:6px; }
+  .auth-card .auth-sub{ text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:22px; }
+  .auth-card label{ display:block; font-size:13px; font-weight:600; margin:12px 0 6px; }
+  .auth-card button.primary{ width:100%; margin-top:18px; }
+  .auth-err{ color:var(--danger); font-size:13.5px; min-height:20px; margin-top:10px; text-align:center; }
+  .import-log{ font-size:12.5px; color:var(--ink-soft); max-height:180px; overflow-y:auto; margin-top:10px; white-space:pre-line; }
 </style>
 </head>
 <body>
+<div class="auth-screen" id="authScreen">
+  <form class="auth-card" id="authForm" autocomplete="on" onsubmit="return false;">
+    <svg class="splash-mark" viewBox="0 0 398 306" aria-hidden="true" style="fill:var(--forest);stroke:var(--forest);stroke-width:72;stroke-linecap:round;">
+      <rect x="0" y="174" width="72" height="132" rx="36" stroke="none"/><rect x="85" y="95" width="72" height="211" rx="36" stroke="none"/><rect x="170" y="0" width="74" height="306" rx="37" stroke="none"/>
+      <line x1="293" y1="112" x2="361" y2="44"/><line x1="293" y1="200" x2="361" y2="270"/>
+    </svg>
+    <div class="auth-logo">KONGROW</div>
+    <div class="auth-sub" id="authSub">Anmelden</div>
+    <div id="authSetupFields" style="display:none;">
+      <label for="authCode">Einrichtungscode</label>
+      <input type="text" id="authCode" autocapitalize="characters" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX">
+    </div>
+    <label for="authUser">Benutzername</label>
+    <input type="text" id="authUser" autocapitalize="off" autocomplete="username" autocorrect="off" spellcheck="false">
+    <label for="authPass">Passwort</label>
+    <input type="password" id="authPass" autocomplete="current-password">
+    <div id="authPass2Wrap" style="display:none;">
+      <label for="authPass2">Passwort wiederholen</label>
+      <input type="password" id="authPass2" autocomplete="new-password">
+    </div>
+    <button type="submit" class="primary" id="authSubmit">Anmelden</button>
+    <div class="auth-err" id="authErr"></div>
+  </form>
+</div>
 <div id="splash" class="splash" aria-hidden="true">
   <div class="splash-inner">
     <svg class="splash-mark" viewBox="0 0 398 306" aria-hidden="true">
@@ -1342,12 +1378,10 @@
   <div class="modal-card">
     <button class="modal-close" id="settingsModalCloseBtn" aria-label="Schließen">×</button>
     <div class="modal-title">Einstellungen</div>
-    <div class="modal-sub">Die Schlüssel werden nur in diesem Browser gespeichert – nie im Code oder auf GitHub.</div>
+    <div class="modal-sub">Deine Daten liegen auf deinem eigenen Server (kongrow.bdriven-digital.com), geschützt durch dein Login.</div>
     <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Benutzername</div>
     <input type="text" id="settingsUsernameInput" placeholder="z.B. Kongolongo" autocapitalize="off" autocomplete="username" style="margin-bottom:16px;">
-    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Airtable Personal Access Token</div>
-    <input type="text" id="settingsTokenInput" placeholder="pat..." style="margin-bottom:16px;">
-    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching)</div>
+    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching, nur in diesem Browser gespeichert)</div>
     <input type="text" id="settingsAnthropicInput" placeholder="sk-ant-...">
     <div class="push-box">
       <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔔 Erinnerungen</div>
@@ -1363,11 +1397,186 @@
       <button class="primary" id="settingsSaveBtn">Speichern</button>
     </div>
     <div id="settingsStatus" class="save-status"></div>
+    <div class="push-box">
+      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔐 Konto</div>
+      <div class="hint" style="margin-bottom:10px;" id="accountInfo">Angemeldet</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="ghost" id="pwChangeToggle">Passwort ändern</button>
+        <button type="button" class="ghost" id="logoutBtn">Abmelden</button>
+      </div>
+      <div id="pwChangeBox" style="display:none; margin-top:12px;">
+        <input type="password" id="pwOld" placeholder="Altes Passwort" autocomplete="current-password" style="margin-bottom:8px;">
+        <input type="password" id="pwNew" placeholder="Neues Passwort (min. 10 Zeichen)" autocomplete="new-password" style="margin-bottom:8px;">
+        <button type="button" class="primary" id="pwSaveBtn">Passwort speichern</button>
+      </div>
+      <div class="save-status" id="accountStatus"></div>
+    </div>
+    <div class="push-box">
+      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">📦 Daten aus Airtable übernehmen</div>
+      <div class="hint" style="margin-bottom:10px;">Kopiert alle bisherigen Einträge einmalig auf deinen Server. Mehrfaches Ausführen erzeugt keine Duplikate.</div>
+      <input type="text" id="importTokenInput" placeholder="Airtable-Token (pat...)" autocomplete="off" style="margin-bottom:8px;">
+      <button type="button" class="ghost" id="importBtn">Übernahme starten</button>
+      <div class="import-log" id="importLog"></div>
+    </div>
   </div>
 </div>
 
 <script>
 (function(){
+
+  /* =========================================================
+     LOGIN & EIGENER SERVER (api/)
+     ========================================================= */
+  const API_BASE = 'api/';
+  let authResolve = null;
+  let authReady = new Promise(r=>{ authResolve = r; });
+  let authResolved = false;
+  let authMode = 'login';
+  const authScreen = document.getElementById('authScreen');
+  const authErr = document.getElementById('authErr');
+
+  function markAuthed(){ authScreen.classList.remove('show'); if(!authResolved){ authResolved = true; authResolve(); } }
+  function showAuth(mode){
+    authMode = mode;
+    const setup = mode === 'setup';
+    document.getElementById('authSetupFields').style.display = setup ? 'block' : 'none';
+    document.getElementById('authPass2Wrap').style.display = setup ? 'block' : 'none';
+    document.getElementById('authSub').textContent = setup ? 'Konto einrichten – nur einmalig möglich' : 'Anmelden';
+    document.getElementById('authSubmit').textContent = setup ? 'Konto anlegen' : 'Anmelden';
+    document.getElementById('authPass').setAttribute('autocomplete', setup ? 'new-password' : 'current-password');
+    authErr.textContent = '';
+    authScreen.classList.add('show');
+    setTimeout(()=>{ try{ document.getElementById(setup ? 'authCode' : 'authUser').focus(); }catch(e){} }, 50);
+  }
+  function authLost(){
+    if(authResolved){ authResolved = false; authReady = new Promise(r=>{ authResolve = r; }); }
+    showAuth('login');
+  }
+  async function authApi(action, body){
+    const res = await fetch(API_BASE + 'auth.php?action=' + action, {
+      method: body ? 'POST' : 'GET', credentials:'same-origin',
+      headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined
+    });
+    let data = {}; try{ data = await res.json(); }catch(e){}
+    if(!res.ok) throw new Error((data.error && data.error.message) || ('Fehler ' + res.status));
+    return data;
+  }
+  (async ()=>{
+    try{
+      const st = await authApi('status');
+      if(st.loggedIn){
+        markAuthed();
+        let just = null; try{ just = localStorage.getItem('kongrow_just_setup'); localStorage.removeItem('kongrow_just_setup'); }catch(e){}
+        if(just) setTimeout(()=>{ try{ openSettingsModal(); }catch(e){} }, 300);
+      }
+      else showAuth(st.setupNeeded ? 'setup' : 'login');
+    }catch(e){
+      // offline o.ä.: App mit zwischengespeicherten Daten starten
+      markAuthed();
+    }
+  })();
+  document.getElementById('authSubmit').onclick = async ()=>{
+    const btn = document.getElementById('authSubmit');
+    if(btn.disabled) return;
+    const username = document.getElementById('authUser').value.trim();
+    const password = document.getElementById('authPass').value;
+    authErr.textContent = '';
+    if(!username || !password){ authErr.textContent = 'Bitte Benutzername und Passwort eingeben.'; return; }
+    btn.disabled = true;
+    try{
+      if(authMode === 'setup'){
+        if(password !== document.getElementById('authPass2').value){ throw new Error('Die Passwörter stimmen nicht überein.'); }
+        await authApi('setup', { code: document.getElementById('authCode').value.trim(), username, password });
+        try{ localStorage.setItem('kongrow_just_setup', '1'); }catch(e){}
+        location.reload();
+        return;
+      }
+      await authApi('login', { username, password });
+      document.getElementById('authPass').value = '';
+      markAuthed();
+    }catch(e){ authErr.textContent = e.message; }
+    btn.disabled = false;
+  };
+
+  function clearDataCache(){
+    try{ Object.keys(localStorage).filter(k=>k.startsWith('kgc1:')).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+  }
+
+  // Konto-Bereich in den Einstellungen
+  document.getElementById('logoutBtn').onclick = async ()=>{
+    try{ await authApi('logout', {}); }catch(e){}
+    clearDataCache();
+    location.reload();
+  };
+  document.getElementById('pwChangeToggle').onclick = ()=>{
+    const b = document.getElementById('pwChangeBox'); b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  };
+  document.getElementById('pwSaveBtn').onclick = async ()=>{
+    const btn = document.getElementById('pwSaveBtn'); const st = document.getElementById('accountStatus');
+    if(btn.disabled) return; btn.disabled = true; st.textContent = '';
+    try{
+      await authApi('password', { old: document.getElementById('pwOld').value, new: document.getElementById('pwNew').value });
+      st.textContent = 'Passwort geändert. Andere Geräte wurden abgemeldet.';
+      document.getElementById('pwOld').value = ''; document.getElementById('pwNew').value = '';
+    }catch(e){ st.textContent = e.message; }
+    btn.disabled = false;
+  };
+  async function refreshAccountInfo(){
+    try{ const st = await authApi('status'); document.getElementById('accountInfo').textContent = st.loggedIn ? ('Angemeldet als ' + st.username) : 'Nicht angemeldet'; }catch(e){}
+  }
+
+  // Einmalige Übernahme aller Airtable-Daten (gleiche IDs -> keine Duplikate)
+  const IMPORT_PAIRS = [
+    ['appfl5KfwVXCa2t82',['tblhbBilacGsggKuN','tblyCEqtMZZkFbbHw','tbllnTfT4scPXRVvF']],
+    ['appFqTB9ogHBBIFU9',['tblsXSoo7KR1iZXqd','tbln1rGiklO3toc4u','tbll8w2Ctc954GCgN','tblz6r2sMHhzTTckw','tblibWJMIvlTBELVO','tblCwW4UQbRslWftE','tbl5cwi9htwni25l4','tbl7pXJ8Nz9W0nYI0','tblrn1g8KScSlatsB','tbld2qTG0mVLCyUnF','tblj24xBZj2pvBpst','tbleY0UkcFTlE0kOU','tblSEExi6OMd0fZcX']],
+    ['applIwXn4a9wcivpn',['tbls9DvMzlCJiEtP1']],
+    ['appqRrxrudIdpcmY3',['tblVhZcFVGaUs3ogQ']],
+    ['app5noyNqCeKHbBLT',['tblfs1sZRt5htoLgf']],
+    ['appxNywjTPthjPhc2',['tbl94eDCVRNkrtQAC']],
+    ['apppAAnwKDLks5oDb',['tblHJML6lcHcYeCvq']],
+    ['appgXlKSZGE011EfE',['tblrGArnd45Nm44ZK','tblBAYntDe3msMpkc']],
+    ['appGT825Xgfp7LkS3',['tblMcgJn4U28gXFLy','tblwTTMdF8SGGbKEZ']],
+    ['apptff52DgiZB9mZJ',['tbl4BUBzvORW43wIp']],
+    ['appb0On2W6yCzWj8w',['tblINhCe4txqYtTcq','tbla604W3lFpBoPFJ']],
+    ['appmdR675jZybMJj1',['tbl6aS17BQ0opqwJd']]
+  ];
+  async function importFromAirtable(token, log){
+    let total = 0, failed = [];
+    for(const [base, tables] of IMPORT_PAIRS){
+      for(const tbl of tables){
+        try{
+          let recs = [], offset;
+          do{
+            const r = await fetch('https://api.airtable.com/v0/' + base + '/' + tbl + (offset ? '?offset=' + encodeURIComponent(offset) : ''), { headers:{ 'Authorization':'Bearer ' + token } });
+            const d = await r.json();
+            if(!r.ok) throw new Error((d.error && (d.error.message || d.error.type || d.error)) || r.status);
+            recs = recs.concat(d.records || []); offset = d.offset;
+          } while(offset);
+          for(let i = 0; i < recs.length; i += 200){
+            const res = await fetch(API_BASE + 'data.php?import=1&p=' + encodeURIComponent(base + '/' + tbl), {
+              method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ records: recs.slice(i, i + 200) })
+            });
+            if(!res.ok) throw new Error('Server ' + res.status);
+          }
+          total += recs.length;
+          log(tbl + ': ' + recs.length + ' Einträge ✓');
+        }catch(e){ failed.push(tbl); log(tbl + ': Fehler – ' + e.message); }
+      }
+    }
+    return { total, failed };
+  }
+  document.getElementById('importBtn').onclick = async ()=>{
+    const btn = document.getElementById('importBtn'); const logEl = document.getElementById('importLog');
+    if(btn.disabled) return;
+    const token = document.getElementById('importTokenInput').value.trim();
+    if(!token){ logEl.textContent = 'Bitte Airtable-Token eintragen.'; return; }
+    btn.disabled = true; logEl.textContent = 'Übernahme läuft …\n';
+    const res = await importFromAirtable(token, line=>{ logEl.textContent += line + '\n'; logEl.scrollTop = logEl.scrollHeight; });
+    logEl.textContent += '\nFertig: ' + res.total + ' Einträge übernommen' + (res.failed.length ? (', ' + res.failed.length + ' Tabelle(n) mit Fehler – einfach nochmal starten.') : '. App wird neu geladen …');
+    btn.disabled = false;
+    if(!res.failed.length){ clearDataCache(); setTimeout(()=>location.reload(), 1800); }
+  };
 
   /* =========================================================
      AIRTABLE-ANBINDUNG ÜBER DIREKTE REST-API
@@ -1449,20 +1658,19 @@
   async function airtableFetch(path, options, baseId){
     options = options || {};
     baseId = baseId || AIRTABLE_BASE_ID;
-    const token = getAirtableToken();
-    if(!token){
-      throw new Error('Kein Airtable-Token hinterlegt. Bitte in den Einstellungen eintragen.');
-    }
-    const res = await fetch('https://api.airtable.com/v0/' + baseId + '/' + path, {
+    await authReady;
+    const cleanPath = path.split('?')[0];
+    const doFetch = ()=>fetch(API_BASE + 'data.php?p=' + encodeURIComponent(baseId + '/' + cleanPath), {
       method: options.method || 'GET',
-      headers: Object.assign({
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      }, options.headers || {}),
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
       body: options.body
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error((data.error && data.error.message) || 'Airtable-Fehler (' + res.status + ')');
+    let res = await doFetch();
+    if(res.status === 401){ authLost(); await authReady; res = await doFetch(); }
+    let data = {};
+    try{ data = await res.json(); }catch(e){}
+    if(!res.ok) throw new Error((data.error && data.error.message) || 'Server-Fehler (' + res.status + ')');
     if(options.method && options.method !== 'GET') cacheDrop(path.split('/')[0].split('?')[0], baseId);
     if(options.method === 'PATCH') xpOnPatch(path, options.body);
     return data;
@@ -1569,7 +1777,7 @@
     statusEl.innerHTML = '';
     const msg = document.createElement('div');
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'Speichern in Airtable fehlgeschlagen. Dein Eintrag bleibt hier stehen — nichts ist verloren.';
+    msg.textContent = 'Speichern fehlgeschlagen. Dein Eintrag bleibt hier stehen — nichts ist verloren.';
     statusEl.appendChild(msg);
 
     const btnRow = document.createElement('div');
@@ -1706,12 +1914,12 @@
 
   /* ---------- Einstellungen (Airtable- und Anthropic-Token, nur lokal im Browser) ---------- */
   const settingsOverlay = document.getElementById('settingsModalOverlay');
-  const settingsTokenInput = document.getElementById('settingsTokenInput');
   const settingsAnthropicInput = document.getElementById('settingsAnthropicInput');
   const settingsStatus = document.getElementById('settingsStatus');
 
   function openSettingsModal(){
-    settingsTokenInput.value = getAirtableToken();
+    document.getElementById('importTokenInput').value = getAirtableToken();
+    refreshAccountInfo();
     settingsAnthropicInput.value = getAnthropicToken();
     document.getElementById('settingsUsernameInput').value = profil.username || '';
     settingsStatus.textContent = '';
@@ -1725,7 +1933,6 @@
   document.getElementById('settingsSaveBtn').onclick = async ()=>{
     const btn = document.getElementById('settingsSaveBtn');
     if(btn.disabled) return;
-    setAirtableToken(settingsTokenInput.value.trim());
     setAnthropicToken(settingsAnthropicInput.value.trim());
     const name = document.getElementById('settingsUsernameInput').value.trim();
     if(name && name !== profil.username){
@@ -1739,9 +1946,6 @@
     setTimeout(closeSettingsModal, 900);
   };
 
-  if(!getAirtableToken()){
-    setTimeout(openSettingsModal, 0);   // nach der Initialisierung (Profil) öffnen
-  }
 
   /* ---------- Begrüßung & täglicher Impuls ---------- */
   const QUOTES = [

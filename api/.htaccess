@@ -1,0 +1,6 @@
+<FilesMatch "^(lib)\.php$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+</IfModule>

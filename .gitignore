@@ -1,2 +1,4 @@
 push/data/*
 !push/data/.htaccess
+api/data/*
+!api/data/.htaccess
