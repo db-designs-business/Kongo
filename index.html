@@ -893,6 +893,9 @@
   .aufg-cal-toggle{ display:flex; align-items:center; gap:10px; font-size:14.5px; font-weight:600; cursor:pointer; }
   .aufg-cal-toggle input{ width:18px; height:18px; accent-color:var(--forest); }
   .w-sync{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--ink-soft); margin:12px 2px; }
+  #nofapOverlayBody > .card{ background:none; border:none; box-shadow:none; padding:0; margin:0; }
+  .checkin-honest{ display:flex; align-items:flex-start; gap:10px; }
+  .checkin-honest input{ flex-shrink:0; margin-top:2px; width:18px; height:18px; accent-color:var(--forest); }
 </style>
 </head>
 <body>
@@ -1767,9 +1770,9 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="nofapOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
-  <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
-    <div id="nofapOverlayBody" style="margin-top:20px;"></div>
+<div class="modal-overlay" id="nofapOverlay" style="display:none;">
+  <div class="modal-card">
+    <div id="nofapOverlayBody"></div>
   </div>
 </div>
 
@@ -7594,7 +7597,7 @@
     renderNofapChip();
     const run = nofapCurrent();
     if(!run){
-      body.innerHTML = `<div class="hint" style="margin-bottom:12px;">Starte deinen Counter. Bist du schon länger dabei, wähl das Datum, seit dem du clean bist – die Tage davor zählen mit, bringen aber keine XP.</div>
+      body.innerHTML = `<div class="hint" style="margin-bottom:12px;">Starte deinen Counter. Bist du schon länger dabei, wähl das Datum, seit dem du clean bist. Die Tage davor zählen mit, bringen aber keine XP.</div>
         <div class="aufg-field-row"><label class="aufg-label">Seit</label><input type="date" id="nofapStartInput" value="${todayStr()}" max="${todayStr()}"></div>
         <button type="button" class="primary" id="nofapStartBtn" style="margin-top:8px;">Counter starten</button>`;
       const btn = body.querySelector('#nofapStartBtn');
@@ -7623,7 +7626,7 @@
     const canEditStart = run.trackingAb === todayStr() && nofapRuns.length === 1;   // nur beim allerersten Einrichten
     body.innerHTML = `
       ${open.length ? `<div class="nofap-checkin">
-          <div><b>Check-in offen</b> · ${open.length === 1 ? fmtDay(open[0]) : open.length + ' Tage (' + fmtDay(open[0]) + ' – ' + fmtDay(open[open.length-1]) + ')'}</div>
+          <div><b>Check-in offen</b> · ${open.length === 1 ? fmtDay(open[0]) : open.length + ' Tage (' + fmtDay(open[0]) + ' bis ' + fmtDay(open[open.length-1]) + ')'}</div>
           <button type="button" class="primary" id="nofapCheckinBtn">Check-in</button>
         </div>` : ''}
       <div class="nofap-main">
@@ -7652,7 +7655,7 @@
     const eb = body.querySelector('#nofapEditBtn');
     if(eb) eb.onclick = ()=>{
       const ex = body.querySelector('#nofapExtra');
-      ex.innerHTML = `<div class="hint" style="margin:10px 0 4px;">Nur heute änderbar – danach ist das Startdatum fest.</div><div class="aufg-field-row"><label class="aufg-label">Seit</label><input type="date" id="nofapEditInput" value="${run.start}" max="${todayStr()}"><button type="button" class="ghost" id="nofapEditSave" style="padding:10px 14px;">OK</button></div>`;
+      ex.innerHTML = `<div class="hint" style="margin:10px 0 4px;">Nur heute änderbar. Danach ist das Startdatum fest.</div><div class="aufg-field-row"><label class="aufg-label">Seit</label><input type="date" id="nofapEditInput" value="${run.start}" max="${todayStr()}"><button type="button" class="ghost" id="nofapEditSave" style="padding:10px 14px;">OK</button></div>`;
       const sb = ex.querySelector('#nofapEditSave');
       sb.onclick = async ()=>{
         const v = ex.querySelector('#nofapEditInput').value;
@@ -7691,11 +7694,11 @@
               const st = relapseDay && d === relapseDay ? 'relapse' : (relapseDay && d > relapseDay ? 'after' : 'clean');
               return `<button type="button" class="checkin-day ${st}" data-d="${d}">
                 <span>${fmtDay(d)}${d === todayStr() ? ' (heute)' : ''}</span>
-                <b>${st === 'relapse' ? '✗ Rückfall' : st === 'after' ? '– neuer Start' : '✓ Clean'}</b>
+                <b>${st === 'relapse' ? '✗ Rückfall' : st === 'after' ? 'Neuer Start' : '✓ Clean'}</b>
               </button>`;
             }).join('')}
           </div>
-          <label class="checkin-honest"><input type="checkbox" id="checkinHonest"> Ich bestätige das ehrlich – ich belüge nur mich selbst, wenn nicht.</label>
+          <label class="checkin-honest"><input type="checkbox" id="checkinHonest"> <span>Ich bestätige, dass meine Angaben ehrlich sind.</span></label>
           <div class="nav-row">
             <button type="button" class="ghost" id="checkinCancel">Abbrechen</button>
             <button type="button" class="primary" id="checkinSave" disabled>${relapseDay ? 'Weiter' : 'Bestätigen'}</button>
@@ -7731,7 +7734,7 @@
     const ov = document.getElementById('nofapOverlay');
     const el = document.getElementById('nofapOverlayBody');
     let remaining = 300, timer = null;
-    const alts = ['20 Liegestütze – jetzt sofort','Kalt duschen','Raus an die frische Luft, 10 Min gehen','Handy weg, Raum verlassen','Jemanden anrufen'];
+    const alts = ['Sofort 20 Liegestütze','Kalt duschen','Raus an die frische Luft, 10 Min gehen','Handy weg, Raum verlassen','Jemanden anrufen'];
     el.innerHTML = `<div class="card" style="text-align:center;">
         <div class="step-label">Drang-Modus</div>
         <div class="question" style="font-size:20px;">Der Drang ist eine Welle. Sie geht vorbei.</div>
