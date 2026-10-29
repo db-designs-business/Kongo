@@ -3014,7 +3014,7 @@
     if(btn && btn.disabled) return;
     if(btn) btn.disabled = true;
     const statusEl = document.getElementById('saveWorkStatus');
-    statusEl.innerHTML = 'Speichere in Airtable ...';
+    statusEl.innerHTML = 'Speichere ...';
     const entry = Object.assign({}, data, { date: new Date().toISOString() });
     const fields = {
       'Datum': entry.date,
@@ -3033,7 +3033,7 @@
     };
     try{
       await airtableCreate(TABLE_WORK, fields);
-      statusEl.textContent = 'In Airtable gespeichert.';
+      statusEl.textContent = 'Gespeichert.';
       loadWorkJournal();
     }catch(e){
       showSaveFailure(statusEl, saveWorkEntry, formatWorkEntryText(entry));
@@ -3340,7 +3340,7 @@
 
   async function saveWeeklyReflectionAndContinue(){
     const statusEl = document.getElementById('weeklyStepStatus');
-    statusEl.innerHTML = 'Speichere in Airtable ...';
+    statusEl.innerHTML = 'Speichere ...';
     const fields = { 'Datum': getReflectionDate().toISOString(), 'Zeitraum-Kennung': getPeriodKey('Woche', getReflectionDate()) };
     WEEKLY_TEXT_QUESTIONS.forEach(q=>{ fields[q.field] = weeklyData[q.key]; });
     WEEKLY_SCALES.forEach(s=>{
@@ -3527,7 +3527,7 @@
 
   async function saveEveningEntryAndContinue(){
     const statusEl = document.getElementById('eveningStepStatus');
-    statusEl.innerHTML = 'Speichere in Airtable ...';
+    statusEl.innerHTML = 'Speichere ...';
     const entry = Object.assign({}, eveningData, {
       erfolge: eveningData.erfolge.filter(x=>x.trim().length>0),
       dankbarkeit: eveningData.dankbarkeit.filter(x=>x.trim().length>0),
@@ -4790,7 +4790,7 @@
 
   async function saveWutjournalEntry(){
     const statusEl = document.getElementById('wutStepStatus');
-    statusEl.innerHTML = 'Speichere in Airtable ...';
+    statusEl.innerHTML = 'Speichere ...';
     const fields = { 'Datum': new Date().toISOString().slice(0,10) };
     WUT_STEPS.forEach(s=>{ fields[s.field] = wutData[s.key]; });
     try{
