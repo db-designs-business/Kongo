@@ -584,6 +584,7 @@
   @keyframes splashFade{ to{ opacity:1; } }
   @keyframes splashLoad{ 0%{ transform:translateX(-100%); } 100%{ transform:translateX(250%); } }
   @media (prefers-reduced-motion: reduce){ .splash *{ animation-duration:.01s !important; animation-delay:0s !important; } }
+  .push-box{ margin-top:18px; padding-top:16px; border-top:1px solid var(--line-soft); }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -1243,6 +1244,15 @@
     <input type="text" id="settingsTokenInput" placeholder="pat..." style="margin-bottom:16px;">
     <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching)</div>
     <input type="text" id="settingsAnthropicInput" placeholder="sk-ant-...">
+    <div class="push-box">
+      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔔 Erinnerungen</div>
+      <div class="hint" style="margin-bottom:10px;" id="pushInfo">Morgenreflexion um 5:30 · Tagesreflexion um 20:30</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="ghost" id="pushEnableBtn">Benachrichtigungen aktivieren</button>
+        <button type="button" class="ghost" id="pushTestBtn" style="display:none;">Test senden</button>
+      </div>
+      <div class="save-status" id="pushStatus"></div>
+    </div>
     <div class="nav-row" style="margin-top:16px;">
       <span></span>
       <button class="primary" id="settingsSaveBtn">Speichern</button>
@@ -6849,6 +6859,79 @@
       if((ready && el >= 2500) || el >= 4000) hide(); else setTimeout(check, 100);
     };
     check();
+  })();
+
+  /* ---------- Push-Benachrichtigungen (nur auf dem eigenen Server mit push/-Ordner) ---------- */
+  const pushInfo = document.getElementById('pushInfo');
+  const pushStatus = document.getElementById('pushStatus');
+  const pushEnableBtn = document.getElementById('pushEnableBtn');
+  const pushTestBtn = document.getElementById('pushTestBtn');
+  let swReg = null;
+  const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && location.protocol === 'https:';
+  function urlB64ToUint8(b64){ const pad = '='.repeat((4 - b64.length % 4) % 4); const raw = atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from([...raw].map(c=>c.charCodeAt(0))); }
+  async function pushRefreshUI(){
+    if(!pushSupported){ pushEnableBtn.disabled = true; pushStatus.textContent = 'Auf diesem Gerät/dieser Adresse nicht verfügbar.'; return; }
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if(/iPhone|iPad/.test(navigator.userAgent) && !isStandalone){ pushStatus.textContent = 'Auf dem iPhone erst „Zum Home-Bildschirm" hinzufügen und von dort öffnen.'; }
+    try{
+      swReg = swReg || await navigator.serviceWorker.ready;
+      const sub = await swReg.pushManager.getSubscription();
+      pushEnableBtn.textContent = sub ? 'Benachrichtigungen deaktivieren' : 'Benachrichtigungen aktivieren';
+      pushTestBtn.style.display = sub ? '' : 'none';
+      if(sub) pushInfo.textContent = '✓ Aktiv · Morgenreflexion 5:30 · Tagesreflexion 20:30';
+    }catch(e){}
+  }
+  if(pushSupported){
+    navigator.serviceWorker.register('sw.js').then(r=>{ swReg = r; pushRefreshUI(); }).catch(()=>{});
+  }
+  pushEnableBtn.onclick = async ()=>{
+    if(pushEnableBtn.disabled) return;
+    pushEnableBtn.disabled = true;
+    pushStatus.textContent = '';
+    try{
+      swReg = swReg || await navigator.serviceWorker.ready;
+      const existing = await swReg.pushManager.getSubscription();
+      if(existing){
+        await fetch('push/subscribe.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'unsubscribe', subscription: existing.toJSON() }) }).catch(()=>{});
+        await existing.unsubscribe();
+        pushInfo.textContent = 'Morgenreflexion um 5:30 · Tagesreflexion um 20:30';
+        pushStatus.textContent = 'Deaktiviert.';
+      } else {
+        const perm = await Notification.requestPermission();
+        if(perm !== 'granted') throw new Error('Benachrichtigungen wurden nicht erlaubt (iPhone: Einstellungen → Mitteilungen → Kongrow).');
+        const res = await fetch('push/vapid.php', { cache:'no-store' });
+        if(!res.ok) throw new Error('Push-Server nicht erreichbar.');
+        const { publicKey } = await res.json();
+        const sub = await swReg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8(publicKey) });
+        const r2 = await fetch('push/subscribe.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'subscribe', subscription: sub.toJSON() }) });
+        if(!r2.ok) throw new Error('Gerät konnte nicht registriert werden.');
+        pushStatus.textContent = 'Aktiviert ✓ – tipp auf „Test senden" zum Ausprobieren.';
+      }
+    }catch(e){ pushStatus.textContent = e.message || 'Fehler beim Aktivieren.'; }
+    pushEnableBtn.disabled = false;
+    pushRefreshUI();
+  };
+  pushTestBtn.onclick = async ()=>{
+    if(pushTestBtn.disabled) return;
+    pushTestBtn.disabled = true;
+    try{
+      const sub = await swReg.pushManager.getSubscription();
+      const r = await fetch('push/test.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ endpoint: sub.endpoint }) });
+      const j = await r.json();
+      pushStatus.textContent = j.ok ? 'Testnachricht gesendet – sollte gleich erscheinen.' : ('Fehler: ' + (j.error || j.status));
+    }catch(e){ pushStatus.textContent = 'Test fehlgeschlagen.'; }
+    pushTestBtn.disabled = false;
+  };
+
+  // Aus einer Benachrichtigung geöffnet: passende Reflexion starten
+  (function(){
+    const open = new URLSearchParams(location.search).get('open');
+    if(!open) return;
+    history.replaceState(null, '', location.pathname);
+    setTimeout(()=>{
+      if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
+      else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
+    }, 2800);
   })();
 
   // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)

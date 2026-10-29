@@ -1,0 +1,3 @@
+<FilesMatch "^(lib)\.php$">
+  Require all denied
+</FilesMatch>
