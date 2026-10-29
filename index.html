@@ -664,6 +664,27 @@
   .aufg-new-btn{ flex-shrink:0; white-space:nowrap; }
   #aufgNewOverlay .aufg-new input[type=text]{ width:100%; }
   #aufgNewOverlay .aufg-new-meta{ margin:12px 0 4px; }
+  .hz-cat{ padding:8px 0; border-bottom:1px solid var(--line-soft); }
+  .hz-cat:last-of-type{ border-bottom:none; }
+  .hz-cat-label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px; }
+  .hz-row{ display:flex; align-items:center; gap:12px; padding:6px 0; }
+  .hz-row .hz-text{ flex:1; min-width:0; overflow-wrap:break-word; }
+  .hz-row.main .hz-text{ font-weight:700; font-size:16px; }
+  .hz-row.side{ padding-left:6px; }
+  .hz-row.side .hz-text{ font-size:14px; color:var(--ink-soft); }
+  .hz-row.side .prio-check{ width:24px; height:24px; font-size:12px; }
+  .hz-row.done .hz-text{ text-decoration:line-through; opacity:.55; }
+  .hz-row.done .prio-check{ background:var(--forest); border-color:var(--forest); color:#04110F; box-shadow:0 0 12px var(--forest-glow); }
+  .hz-empty{ font-size:14px; color:var(--ink-soft); padding:4px 0; }
+  .hz-toggle{ margin-top:8px; }
+  .prio-go{ flex-shrink:0; padding:6px 11px; border-radius:999px; font-size:12.5px; font-weight:700; white-space:nowrap; cursor:pointer;
+    background:rgba(34,227,211,.08); border:1px solid rgba(34,227,211,.35); color:var(--forest); }
+  .prio-go:active{ transform:scale(.96); }
+  .prio-item.done .prio-go{ opacity:.45; }
+  .refl-quick{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .refl-quick-btn{ padding:9px 8px; border-radius:12px; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+    background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--ink); }
+  .refl-quick-btn:active{ border-color:var(--forest); color:var(--forest); }
 </style>
 </head>
 <body>
@@ -739,7 +760,19 @@
       <div class="prio-progress" id="prioProgress"></div>
       <div class="prio-quest" id="prioQuest"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
+      <div class="refl-quick">
+        <button type="button" class="refl-quick-btn" id="homeMorningBtn">🌅 Morgenreflexion</button>
+        <button type="button" class="refl-quick-btn" id="homeEveningBtn">🌙 Abendreflexion</button>
+      </div>
       <div id="prioStatus" class="save-status"></div>
+    </div>
+
+    <div class="card" id="homeZieleCard">
+      <div class="home-aufg-head">
+        <div class="step-label" style="margin:0;">Ziele · Diese Woche</div>
+        <button type="button" class="prio-edit-toggle" id="homeZieleAll">Alle →</button>
+      </div>
+      <div id="homeZieleList"><div class="loading">Lade ...</div></div>
     </div>
 
     <div class="card" id="homeAufgabenCard">
@@ -2222,9 +2255,11 @@
       const existing = zieleCache.filter(z=>z.zeitrahmen===tf && z.periodKey===periodKey && z.kategorie===c);
       const existingMain = existing.filter(z=>z.prioritaet==='Hauptziel' || !z.prioritaet).sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
       const existingSide = existing.filter(z=>z.prioritaet==='Nebenziel').sort((a,b)=> new Date(a.createdAt)-new Date(b.createdAt));
+      // 1 Hauptziel + 3 Nebenziele; ältere zusätzliche Hauptziele rutschen zu den Nebenzielen
+      const sidePool = existingMain.slice(1).concat(existingSide);
       goalDrafts[c] = {
-        main: [0,1,2].map(i=> ({ id: existingMain[i] ? existingMain[i].id : null, text: existingMain[i] ? existingMain[i].text : '' })),
-        side: [0,1,2].map(i=> ({ id: existingSide[i] ? existingSide[i].id : null, text: existingSide[i] ? existingSide[i].text : '' }))
+        main: [0].map(i=> ({ id: existingMain[i] ? existingMain[i].id : null, text: existingMain[i] ? existingMain[i].text : '' })),
+        side: [0,1,2].map(i=> ({ id: sidePool[i] ? sidePool[i].id : null, text: sidePool[i] ? sidePool[i].text : '' }))
       };
     });
 
@@ -2243,11 +2278,9 @@
           <div class="step-label">${reflLabel(tf)}ziele · ${catIndex+1} von ${GOAL_CATEGORIES.length} · ${escapeHtml(periodLabel(tf, periodKey))}</div>
           <div class="question" style="font-size:19px;">${escapeHtml(cat)}</div>
           ${parentHtml}
-          <div class="turn-title" style="margin-top:14px;">Hauptziele (Main Quests)</div>
-          <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional. Bereits gesetzte Ziele werden hier angezeigt und beim Speichern aktualisiert statt dupliziert.</div>
-          <input type="text" id="mainQuest0" class="main-quest-input" placeholder="Hauptziel 1" value="${escapeHtml(goalDrafts[cat].main[0].text)}" style="margin-bottom:8px;">
-          <input type="text" id="mainQuest1" class="main-quest-input" placeholder="Hauptziel 2" value="${escapeHtml(goalDrafts[cat].main[1].text)}" style="margin-bottom:8px;">
-          <input type="text" id="mainQuest2" class="main-quest-input" placeholder="Hauptziel 3" value="${escapeHtml(goalDrafts[cat].main[2].text)}">
+          <div class="turn-title" style="margin-top:14px;">Hauptziel (Main Quest)</div>
+          <div class="hint" style="margin-bottom:8px;">Das eine Ziel, das in diesem Zeitraum am meisten zählt. Bereits gesetzte Ziele werden angezeigt und beim Speichern aktualisiert.</div>
+          <input type="text" id="mainQuest0" class="main-quest-input" placeholder="Hauptziel" value="${escapeHtml(goalDrafts[cat].main[0].text)}">
           <div class="turn-title" style="margin-top:16px;">Nebenziele (Sidequests)</div>
           <div class="hint" style="margin-bottom:8px;">Bis zu 3, optional.</div>
           <input type="text" id="sideQuest0" class="side-quest-input" placeholder="Nebenziel 1" value="${escapeHtml(goalDrafts[cat].side[0].text)}" style="margin-bottom:8px;">
@@ -2260,8 +2293,8 @@
           <div id="goalCatStatus" class="save-status"></div>
         </div>`;
 
+      container.querySelector('#mainQuest0').addEventListener('input', e=>{ goalDrafts[cat].main[0].text = e.target.value; });
       [0,1,2].forEach(i=>{
-        container.querySelector('#mainQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].main[i].text = e.target.value; });
         container.querySelector('#sideQuest'+i).addEventListener('input', e=>{ goalDrafts[cat].side[i].text = e.target.value; });
       });
       container.querySelector('#goalCatBackBtn').onclick = ()=>{ catIndex--; renderCategoryStep(); };
@@ -2287,7 +2320,7 @@
             const text = slot.text.trim();
             if(!text) return;
             goalsToSave.push({ kategorie: cat, text, prioritaet });
-            if(slot.id){ updates.push({ id: slot.id, text }); }
+            if(slot.id){ updates.push({ id: slot.id, text, prioritaet }); }
             else { creates.push({ kategorie: cat, text, prioritaet }); }
           });
         });
@@ -2296,7 +2329,7 @@
         for(const u of updates){
           await airtableFetch(TABLE_ZIELE + '/' + u.id, {
             method: 'PATCH',
-            body: JSON.stringify({ fields: { 'Zieltext': u.text } })
+            body: JSON.stringify({ fields: { 'Zieltext': u.text, 'Priorität': u.prioritaet } })
           }, ZIELE_BASE_ID);
         }
         for(const g of creates){
@@ -3320,7 +3353,7 @@
           <div><span>🔥 ${st.cur}</span><small>Streak</small></div>
         </div>
         <div class="turn-title" style="margin-top:14px;">Dailys abhaken</div>
-        <div id="eveningDailys">${prioCache.map(p=>prioItemHtml(p, t)).join('') || '<div class="hint">Noch keine Dailys gewählt.</div>'}</div>
+        <div id="eveningDailys">${prioCache.map(p=>prioItemHtml(p, t, true)).join('') || '<div class="hint">Noch keine Dailys gewählt.</div>'}</div>
         ${run && nfOpen.length ? `<div class="nofap-checkin" style="margin-top:14px;"><div><b>NoFap-Check-in</b> · ${nfOpen.length === 1 ? fmtDay(nfOpen[0]) : nfOpen.length + ' Tage'} offen</div><button type="button" class="primary" id="eveningNofapBtn">Check-in</button></div>` : ''}
         <div class="hint" style="margin-top:14px;">Danach geht's weiter mit deinen Reflexionsfragen.</div>`;
     } else if(key === 'erfolge'){
@@ -3882,9 +3915,9 @@
   function detectStepLink(name){
     const n = (name || '').toLowerCase();
     const map = [
+      [/sprech|stimme/, 'sprechuebung', 'Sprechübung'],
       [/training|workout|gym|krafttraining/, 'koerper', 'Training'],
       [/lesen|buch/, 'lesen', 'Lesen'],
-      [/sprech|stimme/, 'sprechuebung', 'Sprechübung'],
       [/reflexion|rückblick|rueckblick/, 'reflexion', 'Reflexion'],
       [/affirmation/, 'affirmationen', 'Affirmationen'],
       [/wut/, 'wutjournal', 'Wut-Journal'],
@@ -4168,6 +4201,7 @@
       });
       renderZieleReminders();
       renderZieleListen();
+      renderHomeZiele();
     }catch(e){
       document.getElementById('zieleListen').innerHTML = '<div class="empty">Ziele konnten nicht geladen werden.</div>';
     }
@@ -4316,6 +4350,70 @@
       };
     });
   }
+
+
+  /* ---------- Startseite: Wochenziele ---------- */
+  let homeZieleSideOpen = false;
+  try{ homeZieleSideOpen = localStorage.getItem('kongrow_home_side') === '1'; }catch(e){}
+  function homeZielRow(z, main){
+    const done = z.status === 'Erreicht';
+    return `<div class="hz-row ${main ? 'main' : 'side'} ${done ? 'done' : ''}">
+      <button type="button" class="prio-check hz-check" data-id="${z.id}" aria-label="Erreicht">${done ? '✓' : ''}</button>
+      <div class="hz-text">${escapeHtml(z.text)}</div>
+    </div>`;
+  }
+  function renderHomeZiele(){
+    const el = document.getElementById('homeZieleList');
+    if(!el) return;
+    const key = getPeriodKey('Woche', new Date());
+    const week = zieleCache.filter(z=>z.zeitrahmen === 'Woche' && z.periodKey === key);
+    if(!week.length){
+      el.innerHTML = `<div class="hint" style="margin:8px 0 12px;">Für diese Woche sind noch keine Ziele gesetzt.</div>
+        <button type="button" class="primary" id="homeZieleSet">Wochenziele setzen</button>`;
+      document.getElementById('homeZieleSet').onclick = openWeekGoalSetting;
+      return;
+    }
+    const byDate = (a,b)=> new Date(a.createdAt) - new Date(b.createdAt);
+    let sideTotal = 0, sideDone = 0;
+    const html = GOAL_CATEGORIES.map(cat=>{
+      const goals = week.filter(z=>z.kategorie === cat);
+      if(!goals.length) return '';
+      const mains = goals.filter(z=>z.prioritaet === 'Hauptziel' || !z.prioritaet).sort(byDate);
+      const main = mains[0];
+      const sides = mains.slice(1).concat(goals.filter(z=>z.prioritaet === 'Nebenziel').sort(byDate));
+      sideTotal += sides.length; sideDone += sides.filter(z=>z.status === 'Erreicht').length;
+      return `<div class="hz-cat">
+        <div class="hz-cat-label">${escapeHtml(cat)}</div>
+        ${main ? homeZielRow(main, true) : '<div class="hz-empty">Kein Hauptziel</div>'}
+        ${sides.length ? `<div class="hz-sides" style="display:${homeZieleSideOpen ? 'block' : 'none'};">${sides.map(z=>homeZielRow(z, false)).join('')}</div>` : ''}
+      </div>`;
+    }).join('');
+    el.innerHTML = html + (sideTotal ? `<button type="button" class="aufg-link hz-toggle" id="homeZieleSideToggle">${homeZieleSideOpen ? 'Nebenziele ausblenden' : 'Nebenziele anzeigen (' + sideDone + '/' + sideTotal + ')'}</button>` : '');
+    const tgl = document.getElementById('homeZieleSideToggle');
+    if(tgl) tgl.onclick = ()=>{ homeZieleSideOpen = !homeZieleSideOpen; try{ localStorage.setItem('kongrow_home_side', homeZieleSideOpen ? '1' : '0'); }catch(e){} renderHomeZiele(); };
+    el.querySelectorAll('.hz-check').forEach(btn=>btn.onclick = async ()=>{
+      if(btn.disabled) return;
+      const z = zieleCache.find(x=>x.id === btn.dataset.id);
+      if(!z) return;
+      const prev = z.status;
+      z.status = prev === 'Erreicht' ? 'Offen' : 'Erreicht';
+      btn.disabled = true;
+      renderHomeZiele();
+      try{
+        await airtableFetch(TABLE_ZIELE + '/' + z.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Status': z.status } }) }, ZIELE_BASE_ID);
+        renderZieleListen();
+      }catch(e){ z.status = prev; renderHomeZiele(); }
+    });
+  }
+  function openWeekGoalSetting(){
+    switchTab('ziele');
+    const sel = document.getElementById('quickGoalZeitrahmen');
+    if(sel) sel.value = 'Woche';
+    document.getElementById('startQuickGoalsBtn').click();
+  }
+  document.getElementById('homeMorningBtn').onclick = ()=>{ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); };
+  document.getElementById('homeEveningBtn').onclick = ()=>{ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); };
+  document.getElementById('homeZieleAll').onclick = ()=>{ switchTab('ziele'); window.scrollTo(0,0); };
 
   const quickGoalsOverlay = document.getElementById('quickGoalsOverlay');
   const quickGoalsExecutionEl = document.getElementById('quickGoalsExecution');
@@ -5991,6 +6089,25 @@
   const prioListEl = document.getElementById('prioList');
   const prioStatusEl = document.getElementById('prioStatus');
 
+  // Direkt-Button bei einem Daily, wenn es dafür einen Bereich in der App gibt
+  function dailyLink(titel){
+    const n = (titel || '').toLowerCase();
+    const tab = (key, after)=>()=>{ switchTab(key); window.scrollTo(0,0); if(after) setTimeout(after, 80); };
+    const koerperView = v=>()=>{ const t = document.querySelector('.k-tab[data-v="' + v + '"]'); if(t) t.click(); };
+    if(/sprech|stimme/.test(n)) return { label:'Starten', go: tab('sprechuebung') };
+    if(/training|workout|gym/.test(n)) return { label:'Training', go: tab('koerper', koerperView('training')) };
+    if(/wasser|ernährung|ernaehrung|protein/.test(n)) return { label:'Eintragen', go: tab('koerper', koerperView('ernaehrung')) };
+    if(/gewicht|wiegen/.test(n)) return { label:'Eintragen', go: tab('koerper', koerperView('gewicht')) };
+    if(/lesen|buch/.test(n)) return { label:'Lesen', go: tab('lesen') };
+    if(/affirmation/.test(n)) return { label:'Starten', go: tab('affirmationen') };
+    if(/körpersprache|koerpersprache/.test(n)) return { label:'Checkliste', go: tab('worksheets') };
+    if(/journal|dankbarkeit|reflexion/.test(n)) return { label:'Öffnen', go: tab('reflexion') };
+    if(/nofap/.test(n)) return { label:'Check-in', go: ()=>{ try{ document.getElementById('chipNofap').click(); }catch(e){} } };
+    if(/akquise|aufgabe/.test(n)) return { label:'Aufgaben', go: tab('aufgaben') };
+    const l = detectStepLink(titel);
+    return l ? { label:'Öffnen', go: tab(l.key) } : null;
+  }
+
   function prioToday(){
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -6050,6 +6167,9 @@
     }
 
     prioListEl.querySelectorAll('.prio-check').forEach(btn=>{ btn.onclick = ()=>prioToggle(btn.dataset.id); });
+    prioListEl.querySelectorAll('.prio-go').forEach(btn=>{ btn.onclick = ()=>{
+      const p = prioCache.find(x=>x.id === btn.dataset.id); const l = p && dailyLink(p.titel); if(l) l.go();
+    }; });
   }
 
   const prioBusy = new Set();
@@ -6077,11 +6197,12 @@
     prioBusy.delete(id);
   }
 
-  function prioItemHtml(p, today){
+  function prioItemHtml(p, today, noLink){
     const isDone = p.erledigtAm === today;
     return `<div class="prio-item ${isDone ? 'done' : ''}" data-id="${p.id}">
       <button type="button" class="prio-check" data-id="${p.id}" aria-label="Erledigt">${isDone ? '✓' : ''}</button>
       <div class="prio-main"><div class="prio-title">${escapeHtml(p.titel)}</div></div>
+      ${!noLink && dailyLink(p.titel) ? `<button type="button" class="prio-go" data-id="${p.id}" aria-label="Öffnen">${escapeHtml(dailyLink(p.titel).label)} →</button>` : ''}
     </div>`;
   }
 
