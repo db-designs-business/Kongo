@@ -470,8 +470,12 @@
   }
   .picker-count{ font-size:14px; color:var(--ink-soft); }
   .picker-count b{ color:var(--forest); font-size:18px; }
-  .daily-streak{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ink-soft); margin:-2px 0 8px; }
-  .daily-streak b{ color:var(--ink); font-size:15px; }
+  .prio-head-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .daily-streak{ display:inline-flex; align-items:center; gap:3px; flex-shrink:0; }
+  .daily-streak:empty{ display:none; }
+  .daily-streak .streak-flame{ font-size:15px; filter:grayscale(1); opacity:.55; }
+  .daily-streak.on .streak-flame{ filter:none; opacity:1; }
+  .daily-streak b{ color:var(--ink); font-size:14px; font-weight:800; }
   .streak-flame{ filter:grayscale(1); opacity:.5; font-size:16px; }
   .streak-flame.on{ filter:none; opacity:1; }
   .streak-best{ margin-left:auto; font-size:12px; }
@@ -731,12 +735,11 @@
   <div id="panelHome">
     <div class="card prio-card" id="prioCard">
       <div class="prio-head">
-        <div class="step-label" style="margin:0;">Dailys · Jeden Tag</div>
+        <div class="prio-head-left"><div class="step-label" style="margin:0;">Dailys · Jeden Tag</div><span class="daily-streak" id="dailyStreak"></span></div>
         <button type="button" class="prio-edit-toggle" id="prioEditToggle">Auswählen</button>
       </div>
       <div class="prio-progress" id="prioProgress"></div>
       <div class="prio-quest" id="prioQuest"></div>
-      <div class="daily-streak" id="dailyStreak"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
       <div id="prioStatus" class="save-status"></div>
     </div>
@@ -6080,7 +6083,7 @@
     const isDone = p.erledigtAm === today;
     return `<div class="prio-item ${isDone ? 'done' : ''}" data-id="${p.id}">
       <button type="button" class="prio-check" data-id="${p.id}" aria-label="Erledigt">${isDone ? '✓' : ''}</button>
-      <div class="prio-main"><div class="prio-title">${escapeHtml(p.titel)}</div><div class="prio-kat">${katIcon(p.kategorie)} ${escapeHtml(p.kategorie)}</div></div>
+      <div class="prio-main"><div class="prio-title">${escapeHtml(p.titel)}</div></div>
     </div>`;
   }
 
@@ -6855,11 +6858,9 @@
     const el = document.getElementById('dailyStreak');
     if(!el || !xpLoaded) return;
     const s = dailyStreakInfo();
-    el.innerHTML = `<span class="streak-flame ${s.cur ? 'on' : ''}">🔥</span>
-      <span><b>${s.cur}</b> ${s.cur === 1 ? 'Tag' : 'Tage'} Streak</span>
-      <span class="streak-best">Rekord ${Math.max(s.best, s.cur)}</span>
-      ${!s.todayDone && s.cur ? '<span class="streak-warn">heute noch offen</span>' : ''}
-      <span class="streak-joker ${s.jokerUsed ? 'used' : ''}" title="1 Joker pro Woche rettet einen verpassten Tag">🃏 ${s.jokerUsed ? 'Joker diese Woche genutzt' : 'Joker bereit'}</span>`;
+    el.className = 'daily-streak' + (s.cur ? ' on' : '');
+    el.title = `${s.cur} ${s.cur === 1 ? 'Tag' : 'Tage'} Streak · Rekord ${Math.max(s.best, s.cur)} · ${s.jokerUsed ? 'Joker diese Woche genutzt' : 'Joker bereit'}`;
+    el.innerHTML = `<span class="streak-flame">🔥</span><b>${s.cur}</b>`;
   }
 
   /* =========================================================
