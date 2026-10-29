@@ -477,10 +477,6 @@
       <div id="homeAufgabenList"><div class="loading">Lade ...</div></div>
     </div>
 
-    <div class="card" id="quoteCard">
-      <div class="step-label">Impuls für heute</div>
-      <div class="question" id="quoteText" style="font-size:18px;"></div>
-    </div>
 
     <div class="home-links">
       <button type="button" class="home-link" id="homeToReflexion">
@@ -1317,8 +1313,6 @@
     const hour = now.getHours();
     const greeting = hour < 11 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend";
     document.getElementById('homeGreeting').textContent = greeting;
-    const idx = dayOfYear(now) % QUOTES.length;
-    document.getElementById('quoteText').textContent = '„' + QUOTES[idx] + '"';
   }
   renderHome();
 
