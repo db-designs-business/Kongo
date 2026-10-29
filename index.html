@@ -413,6 +413,35 @@
   .aufg-group-C{ color:var(--ink-soft) !important; }
   .aufg-heute-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .home-aufg-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+  /* ---------- XP / Level ---------- */
+  .xp-card{ position:relative; overflow:hidden; border-color:rgba(34,227,211,.3); background:radial-gradient(120% 120% at 100% 0%, rgba(34,227,211,.14) 0%, transparent 55%), linear-gradient(180deg,#0F1517,#090D0F); }
+  .xp-top{ display:flex; align-items:center; gap:14px; }
+  .xp-badge{
+    flex-shrink:0; width:58px; height:58px; border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(145deg,#4FEFE2,var(--forest) 55%,#0E8F85); color:#04110F; box-shadow:0 0 22px var(--forest-glow);
+  }
+  .xp-badge small{ font-size:9px; font-weight:800; letter-spacing:.14em; line-height:1; margin-top:2px; }
+  .xp-badge span{ font-size:24px; font-weight:800; line-height:1; letter-spacing:-.02em; }
+  .xp-head{ flex:1; min-width:0; }
+  .xp-name{ font-size:20px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--ink); line-height:1.1; }
+  .xp-total{ font-size:12px; color:var(--ink-soft); margin-top:3px; }
+  .xp-bar{ height:8px; background:rgba(255,255,255,.06); border-radius:999px; overflow:hidden; margin:14px 0 6px; }
+  .xp-bar > div{ height:100%; width:0; background:linear-gradient(90deg,#14A89D,var(--forest),#8DF2EA); box-shadow:0 0 12px var(--forest-glow); border-radius:999px; transition:width .5s ease; }
+  .xp-sub{ font-size:12.5px; color:var(--ink-soft); }
+  .xp-day{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line-soft); }
+  .xp-day-label{ font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--forest); margin-bottom:6px; }
+  .xp-day .xp-bar{ height:5px; margin:0; }
+  .xp-day .xp-bar > div{ background:var(--forest); }
+  .xp-card.driven .xp-day-label{ color:#04110F; background:var(--forest); display:inline-block; padding:2px 10px; border-radius:999px; box-shadow:0 0 14px var(--forest-glow); }
+  .xp-toast{
+    position:fixed; left:50%; bottom:calc(28px + env(safe-area-inset-bottom)); transform:translate(-50%, 20px); opacity:0; z-index:200;
+    background:var(--forest); color:#04110F; font-weight:800; font-size:15px; padding:10px 18px; border-radius:999px;
+    box-shadow:0 0 26px var(--forest-glow), 0 10px 30px rgba(0,0,0,.5); transition:all .3s ease; pointer-events:none; white-space:nowrap;
+  }
+  .xp-toast.show{ opacity:1; transform:translate(-50%, 0); }
+  .xp-toast.big{ font-size:17px; padding:14px 22px; letter-spacing:.02em; }
+  .prio-quest{ font-size:12px; color:var(--ink-soft); margin:-4px 0 10px; }
+  .prio-quest b{ color:var(--forest); }
   .back-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:rgba(255,255,255,.03); color:var(--ink-soft);
@@ -457,12 +486,29 @@
     <h1 id="homeGreeting">Willkommen zurück</h1>
     <div class="sub">Schön, dass du dir Zeit nimmst.</div>
 
+    <div class="card xp-card" id="xpCard">
+      <div class="xp-top">
+        <div class="xp-badge"><small>LVL</small><span id="xpLevelNum">–</span></div>
+        <div class="xp-head">
+          <div class="xp-name" id="xpLevelName">Lade ...</div>
+          <div class="xp-total" id="xpTotal"></div>
+        </div>
+      </div>
+      <div class="xp-bar"><div id="xpLevelBar"></div></div>
+      <div class="xp-sub" id="xpSub"></div>
+      <div class="xp-day">
+        <div class="xp-day-label" id="xpDayLabel">Heute</div>
+        <div class="xp-bar"><div id="xpDayBar"></div></div>
+      </div>
+    </div>
+
     <div class="card prio-card" id="prioCard">
       <div class="prio-head">
         <div class="step-label" style="margin:0;">Prioritäten · Jeden Tag zuerst</div>
         <button type="button" class="prio-edit-toggle" id="prioEditToggle">Bearbeiten</button>
       </div>
       <div class="prio-progress" id="prioProgress"></div>
+      <div class="prio-quest" id="prioQuest"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
       <div id="prioAddRow" class="prio-add" style="display:none;">
         <input type="text" id="prioInput" placeholder="Neue Priorität, z.B. Meditation">
@@ -1077,6 +1123,7 @@
     });
     const data = await res.json();
     if(!res.ok) throw new Error((data.error && data.error.message) || 'Airtable-Fehler (' + res.status + ')');
+    if(options.method === 'PATCH') xpOnPatch(path, options.body);
     return data;
   }
 
@@ -1104,6 +1151,7 @@
       method: 'POST',
       body: JSON.stringify({ fields: cleanFields, typecast: true })
     }, baseId);
+    xpOnCreate(tableId, cleanFields, data.id);
     return data.id;
   }
 
@@ -3774,6 +3822,7 @@
         document.getElementById('affNextBtn').onclick = ()=>{
           if(idx < list.length-1){ idx++; renderAffStep(); return; }
           affirmationenExecOverlay.style.display = 'none';
+          awardXP('aff:' + todayStr(), 'Affirmationen', 10);
         };
       }
       renderAffStep();
@@ -5267,6 +5316,8 @@
         erledigtAm: (r.fields||{})['Erledigt am'] || ''
       })).filter(p=>p.titel).sort((a,b)=> a.order - b.order);
       renderPrioritaeten();
+      prioLoaded = true;
+      xpSyncPrios();
     }catch(e){
       prioListEl.innerHTML = '<div class="empty">Prioritäten konnten nicht geladen werden.</div>';
     }
@@ -5278,6 +5329,14 @@
     const prog = document.getElementById('prioProgress');
     prog.innerHTML = prioCache.length ? `<div style="width:${Math.round(done/prioCache.length*100)}%"></div>` : '';
     document.getElementById('prioEditToggle').textContent = prioEditMode ? 'Fertig' : 'Bearbeiten';
+    const questEl = document.getElementById('prioQuest');
+    if(prioCache.length >= DAILY_QUEST_MIN){
+      questEl.innerHTML = done === prioCache.length
+        ? `<b>✓ Daily Quest geschafft</b> · +${DAILY_QUEST_XP} XP`
+        : `Daily Quest · ${done}/${prioCache.length} · <b>+${DAILY_QUEST_XP} XP</b> wenn alle erledigt · je ${PRIO_XP} XP`;
+    } else {
+      questEl.innerHTML = prioCache.length ? `Je ${PRIO_XP} XP · Daily Quest ab ${DAILY_QUEST_MIN} Prioritäten` : '';
+    }
     document.getElementById('prioAddRow').style.display = (prioEditMode || !prioCache.length) ? 'flex' : 'none';
     if(!prioCache.length){
       prioListEl.innerHTML = '<div class="empty">Noch keine Prioritäten. Füg unten die Dinge hinzu, die du jeden Tag zuerst machst.</div>';
@@ -5306,6 +5365,9 @@
         try{
           await airtableFetch(TABLE_PRIORITAETEN + '/' + p.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Erledigt am': newVal } }) }, ROUTINEN_BASE_ID);
           prioStatusEl.textContent = '';
+          if(newVal) awardXP('prio:' + p.id + ':' + today, 'Priorität: ' + p.titel, PRIO_XP);
+          else revokeXP('prio:' + p.id + ':' + today);
+          prioDailyQuestCheck();
         }catch(e){
           p.erledigtAm = prev; renderPrioritaeten();
           prioStatusEl.textContent = 'Konnte nicht gespeichert werden. Bitte erneut tippen.';
@@ -5319,7 +5381,9 @@
         try{
           await airtableDelete(TABLE_PRIORITAETEN, btn.dataset.id, ROUTINEN_BASE_ID);
           prioCache = prioCache.filter(x=>x.id !== btn.dataset.id);
+          revokeXP('prio:' + btn.dataset.id + ':' + prioToday());
           renderPrioritaeten();
+          prioDailyQuestCheck();
         }catch(e){ btn.disabled = false; prioStatusEl.textContent = 'Löschen fehlgeschlagen.'; }
       };
     });
@@ -5349,6 +5413,7 @@
     try{
       const id = await airtableCreate(TABLE_PRIORITAETEN, { 'Titel': titel, 'Reihenfolge': order }, ROUTINEN_BASE_ID);
       prioCache.push({ id, titel, order, erledigtAm:'' });
+      prioDailyQuestCheck();
       prioInput.value = '';
       prioStatusEl.textContent = '';
       renderPrioritaeten();
@@ -5483,7 +5548,11 @@
         t.erledigtAm = prev ? '' : todayStr();
         if(t.erledigtAm) vibrateDevice();
         renderAufgaben(); renderHomeAufgaben();
-        try{ await patchAufgabe(t, { 'Erledigt am': t.erledigtAm }); }
+        try{
+          await patchAufgabe(t, { 'Erledigt am': t.erledigtAm });
+          if(t.erledigtAm) awardXP('task:' + t.id, 'Aufgabe ' + t.prio + ': ' + t.titel, { A:15, B:10, C:5 }[t.prio] || 10);
+          else revokeXP('task:' + t.id);
+        }
         catch(e){ t.erledigtAm = prev; renderAufgaben(); renderHomeAufgaben(); aufgabenStatus('Konnte nicht gespeichert werden.'); }
       };
     });
@@ -5764,6 +5833,161 @@
 
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ renderAufgaben(); renderHomeAufgaben(); } });
   loadAufgaben();
+
+  /* =========================================================
+     XP & LEVEL
+     ========================================================= */
+  const TABLE_XP = 'tbl5cwi9htwni25l4';
+  const XP_TAGESZIEL = 200;
+  const PRIO_XP = 25, DAILY_QUEST_XP = 50, DAILY_QUEST_MIN = 3;
+  let xpEntries = [];
+  let xpLoaded = false;
+
+  function xpNeedForLevel(n){ return 200 + 100*(n-1); }       // XP von Level n auf n+1
+  function xpLevelInfo(total){
+    let level = 1, rest = total;
+    while(rest >= xpNeedForLevel(level)){ rest -= xpNeedForLevel(level); level++; }
+    return { level, into: rest, need: xpNeedForLevel(level) };
+  }
+  function xpLevelName(l){
+    return l >= 40 ? 'Legend' : l >= 30 ? 'Elite' : l >= 20 ? 'Driven' : l >= 15 ? 'Operator' : l >= 10 ? 'Grinder' : l >= 5 ? 'Builder' : 'Rookie';
+  }
+  function xpTotal(){ return xpEntries.reduce((s,e)=>s + (e.xp||0), 0); }
+  function xpToday(){ const t = todayStr(); return xpEntries.filter(e=>e.datum === t).reduce((s,e)=>s + (e.xp||0), 0); }
+  function xpHas(key){ return xpEntries.some(e=>e.key === key); }
+
+  async function loadXP(){
+    try{
+      const recs = await airtableList(TABLE_XP, ROUTINEN_BASE_ID);
+      xpEntries = recs.map(r=>({ id:r.id, key:(r.fields||{})['Schluessel'] || r.id, aktion:(r.fields||{})['Aktion'] || '', xp:(r.fields||{})['XP'] || 0, datum:(r.fields||{})['Datum'] || '' }));
+      xpLoaded = true;
+      renderXP();
+      xpSyncPrios();
+    }catch(e){
+      const el = document.getElementById('xpCard');
+      if(el) el.querySelector('#xpSub').textContent = 'XP konnten nicht geladen werden.';
+    }
+  }
+
+  function xpToast(text, big){
+    const t = document.createElement('div');
+    t.className = 'xp-toast' + (big ? ' big' : '');
+    t.textContent = text;
+    document.body.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(), 400); }, big ? 2600 : 1500);
+  }
+
+  async function awardXP(key, aktion, xp){
+    if(!xpLoaded || xpHas(key)) return;
+    const before = xpLevelInfo(xpTotal()).level;
+    const entry = { id:null, key, aktion, xp, datum: todayStr(), cancel:false };
+    xpEntries.push(entry);
+    renderXP();
+    const after = xpLevelInfo(xpTotal()).level;
+    if(after > before){ xpToast(`Level ${after} · ${xpLevelName(after)}`, true); vibrateDevice(); }
+    else xpToast(`+${xp} XP`);
+    try{
+      entry.id = await airtableCreate(TABLE_XP, { 'Aktion': aktion, 'XP': xp, 'Datum': entry.datum, 'Schluessel': key, 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID);
+      if(entry.cancel){ await airtableDelete(TABLE_XP, entry.id, ROUTINEN_BASE_ID).catch(()=>{}); }
+    }catch(e){
+      xpEntries = xpEntries.filter(x=>x !== entry);
+      renderXP();
+    }
+  }
+
+  async function revokeXP(key){
+    const entry = xpEntries.find(e=>e.key === key);
+    if(!entry) return;
+    xpEntries = xpEntries.filter(e=>e !== entry);
+    renderXP();
+    if(entry.id){ airtableDelete(TABLE_XP, entry.id, ROUTINEN_BASE_ID).catch(()=>{}); }
+    else entry.cancel = true;
+  }
+
+  function renderXP(){
+    const card = document.getElementById('xpCard');
+    if(!card || !xpLoaded) return;
+    const total = xpTotal();
+    const info = xpLevelInfo(total);
+    const today = xpToday();
+    const dayPct = Math.min(100, Math.round(today / XP_TAGESZIEL * 100));
+    card.querySelector('#xpLevelNum').textContent = info.level;
+    card.querySelector('#xpLevelName').textContent = xpLevelName(info.level);
+    card.querySelector('#xpLevelBar').style.width = Math.round(info.into / info.need * 100) + '%';
+    card.querySelector('#xpSub').textContent = `${info.into} / ${info.need} XP · noch ${info.need - info.into} bis Level ${info.level + 1}`;
+    card.querySelector('#xpDayBar').style.width = dayPct + '%';
+    const driven = today >= XP_TAGESZIEL;
+    card.querySelector('#xpDayLabel').textContent = driven ? `Driven Day ✓ · ${today} XP` : `Heute ${today} / ${XP_TAGESZIEL} XP`;
+    card.classList.toggle('driven', driven);
+    card.querySelector('#xpTotal').textContent = total + ' XP gesamt';
+  }
+
+  // Bereits heute abgehakte Prioritäten (z.B. vor dem Laden) nachträglich gutschreiben
+  let prioLoaded = false;
+  function xpSyncPrios(){
+    if(!xpLoaded || !prioLoaded) return;
+    const t = todayStr();
+    prioCache.filter(p=>p.erledigtAm === t && !xpHas('prio:' + p.id + ':' + t))
+      .forEach(p=>awardXP('prio:' + p.id + ':' + t, 'Priorität: ' + p.titel, PRIO_XP));
+    prioDailyQuestCheck();
+  }
+
+  function prioDailyQuestCheck(){
+    const t = todayStr();
+    const n = prioCache.length;
+    const done = prioCache.filter(p=>p.erledigtAm === t).length;
+    if(n >= DAILY_QUEST_MIN && done === n){
+      if(!xpHas('dq:' + t)){ awardXP('dq:' + t, 'Daily Quest: alle Prioritäten', DAILY_QUEST_XP); setTimeout(()=>xpToast('Daily Quest geschafft · +' + DAILY_QUEST_XP + ' XP', true), 1600); }
+    } else {
+      revokeXP('dq:' + t);
+    }
+  }
+
+  // Wird von airtableCreate nach jedem erfolgreichen Anlegen aufgerufen
+  function xpOnCreate(tableId, fields, id){
+    try{
+      const t = todayStr();
+      switch(tableId){
+        case TABLE_WORK: awardXP('work:' + id, 'The Work', 30); break;
+        case TABLE_EVENING: awardXP('evening:' + t, 'Tagesreflexion', 25); break;
+        case TABLE_MORGENREFLEXION: awardXP('morning:' + t, 'Morgenreflexion', 15); break;
+        case TABLE_WOCHENREFLEXION: awardXP('weekly:' + id, 'Wochenreflexion', 50); break;
+        case TABLE_ROUTINE_LOG: {
+          const komplett = !(fields['Offen'] || '').trim();
+          if((fields['Erledigt'] || '').trim()) awardXP('routine:' + id, 'Routine: ' + (fields['Routine'] || ''), komplett ? 20 : 10);
+          break;
+        }
+        case TABLE_SATZ_ANTWORTEN: awardXP('satz:' + t, 'Satzergänzung', 15); break;
+        case TABLE_SPRECH_SESSIONS: awardXP('sprech:' + t, 'Sprechübung', 20); break;
+        case TABLE_WUTJOURNAL: awardXP('wut:' + id, 'Wut-Journal', 15); break;
+        case TABLE_LESEN_EINTRAEGE: {
+          const typ = fields['Typ'];
+          if(typ === 'Notiz') awardXP('lesen:' + t, 'Lesesitzung', 15);
+          else if(typ === 'Abfrage') awardXP('lesenquiz:' + t, 'Lese-Abfrage', 10);
+          else if(typ === 'Zusammenfassung') awardXP('kapitel:' + id, 'Kapitel-Zusammenfassung', 20);
+          break;
+        }
+      }
+    }catch(e){ /* XP darf nie das Speichern stören */ }
+  }
+
+  // Wird von airtableFetch nach jedem erfolgreichen PATCH aufgerufen
+  function xpOnPatch(path, body){
+    try{
+      if(!path.startsWith(TABLE_ZIELE + '/')) return;
+      const fields = (JSON.parse(body || '{}').fields) || {};
+      if(!('Status' in fields)) return;
+      const id = path.split('/')[1];
+      const z = (typeof zieleCache !== 'undefined' ? zieleCache : []).find(x=>x.id === id) || {};
+      const neben = z.prioritaet === 'Nebenziel';
+      const xp = z.zeitrahmen === 'Tag' ? (neben ? 10 : 20) : (neben ? 50 : 100);
+      if(fields['Status'] === 'Erreicht') awardXP('ziel:' + id, (neben ? 'Sidequest' : 'Main Quest') + ' erreicht', xp);
+      else revokeXP('ziel:' + id);
+    }catch(e){}
+  }
+
+  loadXP();
 
   // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)
   (function(){
