@@ -2885,6 +2885,55 @@
     return { journalEntries, workEntries };
   }
 
+
+  // Daten aus allen Kongrow-Bereichen für das KI-Coaching (letzte N Tage)
+  function kongrowStatsText(nDays){
+    const L = []; const t = todayStr(); const from = shiftDay(t, -(nDays - 1));
+    const inR = d=>d && d >= from && d <= t;
+    const tryAdd = fn=>{ try{ fn(); }catch(e){} };
+    L.push(`## Daten aus der App (letzte ${nDays} Tage, ${from} bis ${t})`);
+    tryAdd(()=>{
+      const dq = xpEntries.filter(e=>e.key.startsWith('dq:') && inR(e.key.slice(3))).length;
+      const st = dailyStreakInfo();
+      const per = {}; prioCache.forEach(p=>{ per[p.titel] = xpEntries.filter(e=>e.key.startsWith('prio:' + p.id + ':') && inR(e.key.split(':').pop())).length; });
+      L.push(`- Dailys: an ${dq} von ${nDays} Tagen alle 4 erledigt (Daily Quest). Streak aktuell ${st.cur}, Rekord ${Math.max(st.best, st.cur)}.`);
+      if(prioCache.length) L.push('- Dailys einzeln (Tage erledigt): ' + Object.entries(per).map(([k,v])=>`${k} ${v}/${nDays}`).join(', '));
+    });
+    tryAdd(()=>{
+      const tr = trainingsCache.filter(x=>inR(x.datum));
+      L.push(`- Training: ${tr.length} Einheiten${tr.length ? ' (' + tr.map(x=>x.datum.slice(5) + ' ' + (x.plan || 'frei') + (x.dauer ? ' ' + x.dauer + ' Min' : '')).join('; ') + ')' : ''}. Fokus: ${profil.fokus || 'nicht gesetzt'}.`);
+    });
+    tryAdd(()=>{
+      const g = gewichtCache.filter(x=>inR(x.datum));
+      if(g.length) L.push(`- Gewicht: ${g.length} Messungen, von ${fmtNum(g[0].kg)} auf ${fmtNum(g[g.length-1].kg)} kg${g[g.length-1].fett ? ', Körperfett zuletzt ' + fmtNum(g[g.length-1].fett) + ' %' : ''}.`);
+      else L.push('- Gewicht: keine Messungen im Zeitraum.');
+    });
+    tryAdd(()=>{
+      const plan = activePlan();
+      const days = ernCache.filter(x=>inR(x.datum));
+      const ok = xpEntries.filter(e=>e.key.startsWith('food:') && inR(e.key.slice(5))).length;
+      const ab = days.reduce((s,x)=>s + Object.keys(x.abw || {}).length, 0);
+      const w = days.filter(x=>x.wasser).map(x=>x.wasser);
+      L.push(`- Ernährung${plan ? ' (Plan „' + plan.name + '“)' : ''}: an ${ok} von ${nDays} Tagen alle Mahlzeiten nach Plan, ${ab} notierte Abweichungen${w.length ? ', Wasser Ø ' + fmtNum(w.reduce((a,b)=>a+b,0) / w.length) + ' l' : ''}. Tagtypen: ${days.map(x=>x.tagtyp).filter(Boolean).join(', ') || 'keine Angaben'}.`);
+    });
+    tryAdd(()=>{
+      const cur = nofapCurrent(); const rel = nofapRuns.filter(r=>r.ende && inR(r.ende));
+      L.push(`- NoFap: aktuell ${cur ? nofapDays(cur) : 0} bestätigte Tage, ${rel.length} Rückfälle im Zeitraum${rel.length ? ' (Auslöser: ' + rel.map(r=>r.ausloeser).filter(Boolean).join(' / ') + ')' : ''}.`);
+    });
+    tryAdd(()=>{
+      const done = aufgabenCache.filter(x=>inR(x.erledigtAm));
+      const openA = aufgabenCache.filter(x=>!x.erledigtAm && x.prio === 'A');
+      L.push(`- Aufgaben: ${done.length} erledigt${done.length ? ' (' + done.slice(0, 12).map(x=>x.titel).join('; ') + ')' : ''}. Offen mit Prio A: ${openA.length}${openA.length ? ' (' + openA.slice(0, 8).map(x=>x.titel).join('; ') + ')' : ''}.`);
+    });
+    tryAdd(()=>{
+      const xp = xpEntries.filter(e=>inR(e.datum)).reduce((s,e)=>s + (e.xp || 0), 0);
+      L.push(`- XP im Zeitraum: ${xp}. Level ${xpLevelInfo(xpTotal()).level}.`);
+    });
+    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Ernährung, Dailys und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
+    return L.join('\n');
+  }
+
+  window.__kgStats = n=>kongrowStatsText(n);
   function buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context){
     const lines = [];
     lines.push(`Du bist ein einfühlsamer, aber ehrlicher persönlicher Coach. Die Person hat gerade ihre ${reflLabel(tf)}reflexion abgeschlossen. Schreib ihr einen ausführlichen Coaching-Bericht auf Deutsch mit konkreten Impulsfragen zum Weiterdenken. Sprich sie direkt an ("du").`);
@@ -2920,7 +2969,7 @@
     }
     if(tf === 'Woche'){
       lines.push('');
-      lines.push('## Wochenreflexion – Antworten');
+      lines.push('## Wochenreflexion: Antworten');
       WEEKLY_TEXT_QUESTIONS.forEach(q=>{
         if(weeklyData[q.key]) lines.push(`- ${q.label}: ${weeklyData[q.key]}`);
       });
@@ -2932,6 +2981,8 @@
         lines.push(`- ${s.label}: ${entry.wert}/10${(prevVal!==null&&prevVal!==undefined) ? ' (Vorwoche: '+prevVal+'/10)' : ''}${entry.begruendung ? ' – Begründung: '+entry.begruendung : ''}${entry.massnahme ? ' – Maßnahme: '+entry.massnahme : ''}`);
       });
     }
+    lines.push('');
+    lines.push(kongrowStatsText({ Tag:1, Woche:7, Monat:30, Quartal:91, Jahr:365, '5 Jahre':365 }[tf] || 7));
     lines.push('');
     lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Schließe deine Antwort danach mit genau diesen zwei Abschnitten ab, in dieser Reihenfolge, wortwörtlich mit diesen Überschriften, und nichts danach:');
     lines.push('');
