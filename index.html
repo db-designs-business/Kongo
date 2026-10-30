@@ -957,6 +957,16 @@
   .ern-type-row .ern-type{ margin:0; }
   .ern-type.refeed{ background:rgba(255,197,107,.12); border-color:rgba(255,197,107,.5); color:#FFC56B; }
   .ern-refeed-btn{ padding:8px 14px !important; font-size:13.5px !important; }
+  .badge-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-top:8px; }
+  .badge{ display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; padding:10px 6px; border-radius:14px; background:rgba(0,0,0,.3); border:1px solid var(--line-soft); min-width:0; }
+  .badge .badge-ico{ font-size:24px; filter:grayscale(1); opacity:.45; }
+  .badge.on{ border-color:rgba(34,227,211,.45); background:rgba(34,227,211,.07); }
+  .badge.on .badge-ico{ filter:none; opacity:1; }
+  .badge-name{ font-size:11.5px; font-weight:700; line-height:1.25; overflow-wrap:break-word; }
+  .badge:not(.on) .badge-name{ color:var(--ink-soft); }
+  .badge small{ font-size:10.5px; color:var(--ink-soft); }
+  .badge-prog{ width:80%; height:4px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
+  .badge-prog i{ display:block; height:100%; background:var(--forest); }
 </style>
 </head>
 <body>
@@ -1824,6 +1834,8 @@
       </div>
     </div>
 
+    <div class="step-label" style="margin-top:18px;">Abzeichen <span id="badgeCount" style="color:var(--ink-soft);"></span></div>
+    <div class="badge-grid" id="badgeGrid"></div>
     <div class="xp-history" id="xpHistory"></div>
   </div>
 </div>
@@ -7453,6 +7465,68 @@
     document.getElementById('chipLevelNum').textContent = info.level;
     document.getElementById('chipLevelRing').style.background = `conic-gradient(var(--forest) ${Math.round(info.into / info.need * 100)}%, rgba(255,255,255,.08) 0%)`;
     renderXPHistory();
+    scheduleBadgeCheck();
+  }
+
+
+  /* ---------- Abzeichen (werden über das XP-Log gespeichert, Schlüssel badge:<id>) ---------- */
+  const safeN = fn=>{ try{ const v = fn(); return isFinite(v) ? v : 0; }catch(e){ return 0; } };
+  const xpCountPrefix = pre=>xpEntries.filter(e=>e.key.startsWith(pre)).length;
+  const BADGE_GROUPS = [
+    { id:'streak', icon:'🔥', name:n=>n + ' Tage Streak', val:()=>safeN(()=>{ const s = dailyStreakInfo(); return Math.max(s.best, s.cur); }), steps:[3,7,14,30,60,100], xp:[20,40,60,100,150,250] },
+    { id:'dq', icon:'✅', name:n=>n === 1 ? 'Erste Daily Quest' : n + ' Daily Quests', val:()=>xpCountPrefix('dq:'), steps:[1,10,50,100,250], xp:[10,30,60,100,200] },
+    { id:'nofap', icon:'🛡️', name:n=>n + ' Tage NoFap', val:()=>safeN(()=>Math.max(0, ...nofapRuns.map(r=>nofapDays(r)))), steps:[7,14,30,60,90,180,365], xp:[30,50,100,150,250,400,750] },
+    { id:'training', icon:'🏋️', name:n=>n === 1 ? 'Erstes Training' : n + ' Trainings', val:()=>safeN(()=>trainingsCache.length), steps:[1,10,25,50,100,200], xp:[10,40,60,100,200,300] },
+    { id:'weight', icon:'⚖️', name:n=>n + '× gewogen', val:()=>safeN(()=>gewichtCache.length), steps:[7,30,100], xp:[20,40,80] },
+    { id:'food', icon:'🥗', name:n=>n + ' Tage Plan eingehalten', val:()=>xpCountPrefix('food:'), steps:[7,30,100], xp:[30,80,150] },
+    { id:'refeed', icon:'🍚', name:()=>'Erster Refeed', val:()=>safeN(()=>ernCache.some(x=>/^refeed/i.test(x.tagtyp || '')) || ernPlaene.some(p=>p.refeed) ? 1 : 0), steps:[1], xp:[20] },
+    { id:'tasks', icon:'📋', name:n=>n + ' Aufgaben erledigt', val:()=>xpCountPrefix('task:'), steps:[10,50,100,250], xp:[20,50,100,200] },
+    { id:'goals', icon:'🎯', name:n=>n === 1 ? 'Erstes Ziel erreicht' : n + ' Ziele erreicht', val:()=>xpCountPrefix('ziel:'), steps:[1,10,25,50], xp:[20,60,120,200] },
+    { id:'book', icon:'📚', name:n=>n === 1 ? 'Erstes Buch beendet' : n + ' Bücher beendet', val:()=>safeN(()=>lesenBooks.filter(b=>b.fertig).length), steps:[1,5,10], xp:[40,100,200] },
+    { id:'level', icon:'⭐', name:n=>'Level ' + n, val:()=>xpLevelInfo(xpTotal() - xpEntries.filter(e=>e.key.startsWith('badge:')).reduce((s,e)=>s + (e.xp || 0), 0)).level, steps:[5,10,20,30], xp:[0,0,0,0] }
+  ];
+  function allBadges(){
+    const out = [];
+    BADGE_GROUPS.forEach(g=>{
+      const v = g.val();
+      g.steps.forEach((n, i)=>out.push({ key:'badge:' + g.id + ':' + n, icon:g.icon, name:g.name(n), xp:g.xp[i] || 0, have:v, need:n, group:g.id, idx:i }));
+    });
+    return out;
+  }
+  let badgeTimer = null, badgeChecking = false;
+  function scheduleBadgeCheck(){ clearTimeout(badgeTimer); badgeTimer = setTimeout(checkBadges, 2500); }
+  async function checkBadges(){
+    if(!xpLoaded || badgeChecking) return;
+    badgeChecking = true;
+    try{
+      const fresh = allBadges().filter(b=>b.have >= b.need && !xpHas(b.key));
+      // Beim allerersten Durchlauf still nachtragen (keine Toast-Flut), danach feiern
+      let first = false; try{ first = !localStorage.getItem('kongrow_badges_init'); localStorage.setItem('kongrow_badges_init', '1'); }catch(e){}
+      for(const b of fresh){
+        await awardXP(b.key, 'Abzeichen: ' + b.name, b.xp);
+        if(!first && fresh.length <= 3) setTimeout(()=>xpToast(b.icon + ' Abzeichen: ' + b.name + (b.xp ? ' · +' + b.xp + ' XP' : ''), true), 300);
+      }
+    }catch(e){}
+    badgeChecking = false;
+    renderBadges();
+  }
+  function renderBadges(){
+    const el = document.getElementById('badgeGrid'); if(!el) return;
+    let list; try{ list = allBadges(); }catch(e){ return; }
+    // pro Gruppe: alle erreichten + das nächste Ziel
+    const shown = [];
+    BADGE_GROUPS.forEach(g=>{
+      const gs = list.filter(b=>b.group === g.id);
+      gs.forEach(b=>{ if(xpHas(b.key)) shown.push(Object.assign({ earned:true }, b)); });
+      const next = gs.find(b=>!xpHas(b.key));
+      if(next) shown.push(Object.assign({ earned:false }, next));
+    });
+    const earned = shown.filter(b=>b.earned).length;
+    document.getElementById('badgeCount').textContent = earned ? '· ' + earned + ' erreicht' : '';
+    el.innerHTML = shown.map(b=>`<div class="badge ${b.earned ? 'on' : ''}" title="${escapeHtml(b.name)}">
+      <span class="badge-ico">${b.icon}</span><span class="badge-name">${escapeHtml(b.name)}</span>
+      ${b.earned ? '' : `<span class="badge-prog"><i style="width:${Math.min(100, Math.round(b.have / b.need * 100))}%"></i></span><small>${Math.min(b.have, b.need)}/${b.need}</small>`}
+    </div>`).join('');
   }
 
   function renderXPHistory(){
