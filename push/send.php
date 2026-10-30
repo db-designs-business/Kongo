@@ -4,6 +4,9 @@
 //   php push/send.php evening    (20:30)
 //   php push/send.php test       (Testnachricht)
 require __DIR__ . '/lib.php';
+require_once __DIR__ . '/../api/lib.php';
+// Tägliche Datensicherung läuft mit dem Erinnerungs-Cronjob mit
+try { $bk = kg_backup(); if ($bk) echo 'Backup: ' . basename($bk) . "\n"; } catch (Throwable $e) { echo 'Backup-Fehler: ' . $e->getMessage() . "\n"; }
 $type = $argv[1] ?? ($_GET['type'] ?? '');
 if (PHP_SAPI !== 'cli') {               // Aufruf über den Browser nur mit Geheimwort (für Tests)
   kg_ensure_data_dir();

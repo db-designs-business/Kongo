@@ -74,6 +74,7 @@ function kg_current_user(): ?int {
 function kg_require_user(): int {
   $u = kg_current_user();
   if ($u === null) kg_json(['error' => ['type' => 'AUTH', 'message' => 'Nicht angemeldet']], 401);
+  kg_backup_lazy();
   return $u;
 }
 
@@ -99,11 +100,11 @@ function kg_secret_key(): string {
   if (!file_exists($f)) { file_put_contents($f, random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES)); @chmod($f, 0600); }
   return file_get_contents($f);
 }
-function kg_encrypt(string $plain): string {
+function kg_secret_encrypt(string $plain): string {
   $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
   return base64_encode($nonce . sodium_crypto_secretbox($plain, $nonce, kg_secret_key()));
 }
-function kg_decrypt(string $enc): ?string {
+function kg_secret_decrypt(string $enc): ?string {
   $raw = base64_decode($enc, true); if ($raw === false || strlen($raw) < SODIUM_CRYPTO_SECRETBOX_NONCEBYTES) return null;
   $out = sodium_crypto_secretbox_open(substr($raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES), substr($raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES), kg_secret_key());
   return $out === false ? null : $out;
@@ -113,14 +114,14 @@ function kg_get(int $uid, string $k, $default = null) {
   kg_settings_init();
   $st = kg_db()->prepare('SELECT v FROM settings WHERE user_id=? AND k=?'); $st->execute([$uid, $k]);
   $v = $st->fetchColumn(); if ($v === false) return $default;
-  $d = kg_decrypt($v); if ($d === null) return $default;
+  $d = kg_secret_decrypt($v); if ($d === null) return $default;
   $j = json_decode($d, true); return $j === null ? $default : $j;
 }
 function kg_set(int $uid, string $k, $value): void {
   kg_settings_init();
   if ($value === null) { kg_db()->prepare('DELETE FROM settings WHERE user_id=? AND k=?')->execute([$uid, $k]); return; }
   kg_db()->prepare('INSERT INTO settings(user_id,k,v) VALUES(?,?,?) ON CONFLICT(user_id,k) DO UPDATE SET v=excluded.v')
-    ->execute([$uid, $k, kg_encrypt(json_encode($value, JSON_UNESCAPED_UNICODE))]);
+    ->execute([$uid, $k, kg_secret_encrypt(json_encode($value, JSON_UNESCAPED_UNICODE))]);
 }
 
 /* ---------- HTTP ---------- */
@@ -162,4 +163,30 @@ function kg_back_to_app(string $query): void {
   $u = '/?' . $query;
   echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="background:#000;color:#fff;font-family:sans-serif;padding:40px;text-align:center">Einen Moment …<script>location.replace(' . json_encode($u) . ');</script>';
   exit;
+}
+
+/* ---------- Automatisches Backup (1x täglich, 30 Tage aufbewahren) ---------- */
+function kg_backup(bool $force = false): ?string {
+  $dir = kg_data_dir() . '/backups';
+  if (!is_dir($dir)) @mkdir($dir, 0700, true);
+  $file = $dir . '/kongrow-' . date('Y-m-d') . '.sqlite';
+  if (!$force && file_exists($file)) return null;
+  try {
+    @unlink($file);
+    kg_db()->exec('VACUUM INTO ' . kg_db()->quote($file));
+    @chmod($file, 0600);
+  } catch (Throwable $e) {
+    // Fallback: einfache Dateikopie
+    @copy(kg_data_dir() . '/kongrow.sqlite', $file);
+  }
+  $all = glob($dir . '/kongrow-*.sqlite') ?: [];
+  sort($all);
+  while (count($all) > 30) @unlink(array_shift($all));
+  return $file;
+}
+// Beim ersten angemeldeten Zugriff des Tages sichern (falls der Cronjob mal ausfällt)
+function kg_backup_lazy(): void {
+  static $done = false; if ($done) return; $done = true;
+  $marker = kg_data_dir() . '/backups/kongrow-' . date('Y-m-d') . '.sqlite';
+  if (!file_exists($marker)) { try { kg_backup(); } catch (Throwable $e) {} }
 }
