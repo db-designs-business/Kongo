@@ -975,6 +975,10 @@
   .fs-tile em{ display:block; font-style:normal; font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
   .fs-chart{ width:100%; height:130px; display:block; margin-top:6px; }
   #panelFortschritt .card{ margin-bottom:12px; }
+  .shop-list{ max-height:50vh; overflow-y:auto; }
+  .shop-item{ display:flex; gap:12px; align-items:center; padding:10px 2px; border-bottom:1px solid var(--line-soft); font-size:15px; cursor:pointer; }
+  .shop-item input{ width:20px; height:20px; accent-color:var(--forest); flex-shrink:0; }
+  .shop-item.done span{ text-decoration:line-through; opacity:.5; }
 </style>
 </head>
 <body>
@@ -9259,7 +9263,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     const wTarget = ernTargets().wasser;
     body.innerHTML = `
       <div class="card">
-        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Heute · ${escapeHtml(plan.name)}</div><button type="button" class="prio-edit-toggle" id="ernPlansBtn">Pläne</button></div>
+        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Heute · ${escapeHtml(plan.name)}</div><div style="display:flex;gap:14px;"><button type="button" class="prio-edit-toggle" id="ernShopBtn">🛒 Einkauf</button><button type="button" class="prio-edit-toggle" id="ernPlansBtn">Pläne</button></div></div>
         <div class="ern-type-row">
           <button type="button" class="ern-type ${tt && tt.refeed ? 'refeed' : ''}" id="ernTypeBtn">${escapeHtml(tt ? tt.name : 'Kein Tagtyp')} <span>${tt && tt.refeed ? 'Basis ' + escapeHtml(tt.baseName) : 'ändern ▾'}</span></button>
           ${tt && tt.refeed ? '<button type="button" class="ghost ern-refeed-btn" id="ernRefeedStop">Refeed beenden</button>' : '<button type="button" class="ghost ern-refeed-btn" id="ernRefeedBtn">🍚 Refeed starten</button>'}
@@ -9295,6 +9299,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       ${ernCache.length ? `<div class="card">${ernCache.slice(0,14).map(x=>{ const n = (x.erledigt || []).length; return `<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}${x.tagtyp ? ' · ' + escapeHtml(x.tagtyp) : ''}</span><span style="color:var(--ink-soft);">${n ? n + ' Mahlz.' : (x.kcal ? Math.round(x.kcal) + ' kcal' : '–')}${x.wasser ? ' · ' + fmtNum(x.wasser) + ' l' : ''}</span></div>`; }).join('')}</div>` : '<div class="card"><div class="empty">Noch keine Einträge.</div></div>'}`;
     const st = m=>{ const e = body.querySelector('#ernStatus'); if(e) e.textContent = m; };
     body.querySelector('#ernPlansBtn').onclick = openPlanManager2;
+    body.querySelector('#ernShopBtn').onclick = openShopList;
     body.querySelector('#ernTypeBtn').onclick = ()=>{ if(tt && tt.refeed) return; openTagtypPicker(plan, t); };
     const rfb = body.querySelector('#ernRefeedBtn'); if(rfb) rfb.onclick = ()=>openRefeedStart(plan, t);
     const rfs = body.querySelector('#ernRefeedStop'); if(rfs) rfs.onclick = ()=>stopRefeed(plan, t, rfs);
@@ -9521,6 +9526,73 @@ ${text.slice(0, 15000)}`;
           else { p.id = await airtableCreate(TABLE_ERN_PLAENE, fields, ROUTINEN_BASE_ID); ernPlaene.push(p); }
           closeErnSheet(); koerperView = 'ernaehrung'; renderKoerper();
         }catch(e){ btn.disabled = false; S.querySelector('#peSt').textContent = 'Speichern fehlgeschlagen.'; }
+      };
+    };
+    draw();
+  }
+
+  /* ----- Einkaufsliste aus Ernährungsplan + Rezepten ----- */
+  const SHOP_KEY = 'kongrow_shop';
+  function shopLoad(){ try{ return JSON.parse(localStorage.getItem(SHOP_KEY) || 'null'); }catch(e){ return null; } }
+  function shopSave(x){ try{ localStorage.setItem(SHOP_KEY, JSON.stringify(x)); }catch(e){} }
+  function parseIngredient(line){
+    const l = line.replace(/^[-•*·\s]+/, '').trim(); if(!l) return null;
+    const m = l.match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|gr|ml|l|el|tl|stk\.?|stück|scheiben?|dose[n]?|pck\.?|packung(?:en)?|x)?\.?\s+(.+)$/i);
+    if(!m) return { qty:null, unit:'', name:l };
+    let qty = num(m[1]); let unit = (m[2] || '').toLowerCase().replace(/\.$/, '');
+    if(unit === 'gr') unit = 'g'; if(unit === 'stück' || unit === 'x') unit = 'stk'; if(unit === 'kg'){ qty *= 1000; unit = 'g'; } if(unit === 'l'){ qty *= 1000; unit = 'ml'; }
+    return { qty, unit, name: m[3].replace(/\s*\(.*?\)\s*$/, '').trim() };
+  }
+  function buildShopList(nDays){
+    const plan = activePlan(); if(!plan) return [];
+    const agg = new Map();
+    for(let i = 0; i < nDays; i++){
+      const d = shiftDay(todayStr(), i); const tt = tagtypFor(plan, d); if(!tt) continue;
+      (tt.mahlzeiten || []).forEach(m=>{
+        const rz = m.rezeptId ? rezepteCache.find(r=>r.id === m.rezeptId) : null;
+        const src = rz && rz.zutaten ? rz.zutaten : (m.inhalt || '');
+        src.split(/\n|,(?![^(]*\))/).forEach(line=>{
+          const p = parseIngredient(line); if(!p) return;
+          const key = p.name.toLowerCase() + '|' + p.unit;
+          const cur = agg.get(key) || { name:p.name, unit:p.unit, qty:0, count:0 };
+          if(p.qty !== null) cur.qty += p.qty; else cur.count++;
+          agg.set(key, cur);
+        });
+      });
+    }
+    const fmt = x=>{
+      if(x.qty){ let q = x.qty, u = x.unit; if(u === 'g' && q >= 1000){ q = q / 1000; u = 'kg'; } if(u === 'ml' && q >= 1000){ q = q / 1000; u = 'l'; }
+        return fmtNum(q) + (u ? ' ' + (u === 'stk' ? 'Stk.' : u === 'el' ? 'EL' : u === 'tl' ? 'TL' : u) : '') + ' ' + x.name; }
+      return x.name + (x.count > 1 ? ' (' + x.count + '×)' : '');
+    };
+    return [...agg.values()].sort((a,b)=>a.name.localeCompare(b.name, 'de')).map(x=>({ text: fmt(x), done:false }));
+  }
+  function openShopList(){
+    const draw = ()=>{
+      const list = shopLoad();
+      if(!list){
+        openErnModal(`<div class="modal-title">🛒 Einkaufsliste</div><div class="modal-sub">Aus deinem aktiven Ernährungsplan und den zugeordneten Rezepten, passend zum Zyklus (inkl. Refeed).</div>
+          <div class="hint">Für wie viele Tage ab heute?</div>
+          <div class="ziel-why">${[2,3,5,7].map(n=>`<button type="button" data-n="${n}">${n} Tage</button>`).join('')}</div>`);
+        ernModalCard().querySelectorAll('[data-n]').forEach(b=>b.onclick = ()=>{ shopSave({ days:+b.dataset.n, from:todayStr(), items: buildShopList(+b.dataset.n) }); draw(); });
+        return;
+      }
+      const open = list.items.filter(x=>!x.done).length;
+      openErnModal(`<div class="modal-title">🛒 Einkaufsliste</div>
+        <div class="modal-sub">${list.days} Tage ab ${new Date(list.from + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})} · noch ${open} von ${list.items.length}</div>
+        <div class="shop-list">${list.items.length ? list.items.map((x,i)=>`<label class="shop-item ${x.done ? 'done' : ''}"><input type="checkbox" data-i="${i}" ${x.done ? 'checked' : ''}><span>${escapeHtml(x.text)}</span></label>`).join('') : '<div class="hint">Keine Zutaten gefunden. Trag im Plan bei den Mahlzeiten Zutaten mit Mengen ein oder ordne Rezepte zu.</div>'}</div>
+        <div class="rez-head" style="margin-top:10px;"><input type="text" id="shopAdd" placeholder="Etwas ergänzen ..."><button type="button" class="ghost" id="shopAddBtn">+</button></div>
+        <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="shopNew">Neu erstellen</button><button type="button" class="primary" id="shopShare">Teilen / Kopieren</button></div>
+        <div class="save-status" data-st></div>`);
+      const c = ernModalCard();
+      c.querySelectorAll('.shop-item input').forEach(i=>i.onchange = ()=>{ const l = shopLoad(); l.items[+i.dataset.i].done = i.checked; shopSave(l); i.closest('.shop-item').classList.toggle('done', i.checked); });
+      const add = ()=>{ const v = c.querySelector('#shopAdd').value.trim(); if(!v) return; const l = shopLoad(); l.items.push({ text:v, done:false }); shopSave(l); draw(); };
+      c.querySelector('#shopAddBtn').onclick = add; c.querySelector('#shopAdd').onkeydown = e=>{ if(e.key === 'Enter') add(); };
+      c.querySelector('#shopNew').onclick = ()=>{ try{ localStorage.removeItem(SHOP_KEY); }catch(e){} draw(); };
+      c.querySelector('#shopShare').onclick = async ()=>{
+        const text = 'Einkaufsliste\n' + shopLoad().items.filter(x=>!x.done).map(x=>'• ' + x.text).join('\n');
+        try{ if(navigator.share){ await navigator.share({ text }); return; } }catch(e){ return; }
+        try{ await navigator.clipboard.writeText(text); c.querySelector('[data-st]').textContent = 'Kopiert ✓'; }catch(e){ c.querySelector('[data-st]').textContent = 'Kopieren nicht möglich.'; }
       };
     };
     draw();
