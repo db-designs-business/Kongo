@@ -967,6 +967,14 @@
   .badge small{ font-size:10.5px; color:var(--ink-soft); }
   .badge-prog{ width:80%; height:4px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
   .badge-prog i{ display:block; height:100%; background:var(--forest); }
+  .fs-tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-bottom:14px; }
+  @media (min-width:700px){ .fs-tiles{ grid-template-columns:repeat(5, minmax(0,1fr)); } }
+  .fs-tile{ padding:12px 8px; border-radius:14px; background:rgba(0,0,0,.3); border:1px solid var(--line-soft); text-align:center; min-width:0; }
+  .fs-tile b{ display:block; font-size:19px; font-weight:800; color:var(--forest); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fs-tile small{ display:block; font-size:11px; color:var(--ink); margin-top:2px; }
+  .fs-tile em{ display:block; font-style:normal; font-size:10.5px; color:var(--ink-soft); margin-top:2px; }
+  .fs-chart{ width:100%; height:130px; display:block; margin-top:6px; }
+  #panelFortschritt .card{ margin-bottom:12px; }
 </style>
 </head>
 <body>
@@ -1033,6 +1041,7 @@
       <button type="button" class="nav-menu-item" data-tab="aufgaben">Aufgaben</button>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="koerper">Körper</button>
+      <button type="button" class="nav-menu-item" data-tab="fortschritt">Fortschritt</button>
       <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
       <button type="button" class="nav-menu-item" id="openConnMenuBtn">🔗 Verbindungen</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
@@ -1552,6 +1561,15 @@
     <div id="msgList"><div class="loading">Lade ...</div></div>
   </div>
 
+  <div id="panelFortschritt" style="display:none;">
+    <div class="aufg-head"><h1>Fortschritt</h1></div>
+    <div class="aufg-tabs" id="fsRange">
+      <button type="button" class="aufg-tab active" data-v="woche">7 Tage</button>
+      <button type="button" class="aufg-tab" data-v="monat">30 Tage</button>
+    </div>
+    <div id="fsBody"><div class="loading">Lade ...</div></div>
+  </div>
+
   <div id="panelLesen" style="display:none;">
     <div class="eyebrow">Lesen</div>
     <h1>Lesen</h1>
@@ -1620,6 +1638,10 @@
   <button type="button" class="bb-item bb-desk" data-tab="ziele">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>
     <span>Ziele</span>
+  </button>
+  <button type="button" class="bb-item bb-desk" data-tab="fortschritt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+    <span>Fortschritt</span>
   </button>
   <button type="button" class="bb-item bb-desk" data-tab="aktivitaeten">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
@@ -2361,7 +2383,7 @@
   const panelKoerper = document.getElementById('panelKoerper');
   const panelAktivitaeten = document.getElementById('panelAktivitaeten');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper, kalender: document.getElementById('panelKalender'), nachrichten: document.getElementById('panelNachrichten') };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper, kalender: document.getElementById('panelKalender'), fortschritt: document.getElementById('panelFortschritt'), nachrichten: document.getElementById('panelNachrichten') };
 
   const AKTIVITAETEN_TABS = ['sprechuebung','lesen','work','affirmationen','wutjournal','satzergaenzung','worksheets'];
   // Zurück-Buttons nur für Aktivitäten-Unterseiten (Start erreicht man über die Bottom-Bar)
@@ -8576,12 +8598,79 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(key === 'kalender') loadCalendar();
     if(key === 'nachrichten') loadMessages();
     if(key === 'home') renderHomeTermine();
+    if(key === 'fortschritt') renderFortschritt();
   };
   authReady.then(()=>{ setTimeout(()=>{ renderHomeTermine(true); loadMessages(); withingsSync(); }, 1500); });
   setInterval(()=>{ if(document.visibilityState === 'visible'){ msg.loadedAt = 0; loadMessages(); } }, 5 * 60 * 1000);
 
 
   document.getElementById('openConnMenuBtn').onclick = ()=>{ navMenu.style.display = 'none'; openConnections(); };
+
+  /* =========================================================
+     FORTSCHRITT: Woche / Monat auf einen Blick
+     ========================================================= */
+  let fsRange = 'woche';
+  try{ fsRange = localStorage.getItem('kongrow_fs_range') || 'woche'; }catch(e){}
+  function fsDays(){
+    const t = todayStr(); const n = fsRange === 'monat' ? 30 : 7;
+    const out = []; for(let i = n - 1; i >= 0; i--) out.push(shiftDay(t, -i)); return out;
+  }
+  function barChartSvg(vals, labels, max, color){
+    const W = 320, H = 110, P = 6, n = vals.length; const bw = (W - 2*P) / n;
+    max = max || Math.max(1, ...vals);
+    return `<svg viewBox="0 0 ${W} ${H + 14}" class="fs-chart" preserveAspectRatio="none">
+      ${vals.map((v,i)=>{ const h = v ? Math.max(3, (H - 2*P) * v / max) : 0; const x = P + i*bw + bw*0.15;
+        return `<rect x="${x.toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${(bw*0.7).toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${color || '#22E3D3'}" opacity="${v ? 1 : .15}"/>${!v ? `<rect x="${x.toFixed(1)}" y="${H-P-2}" width="${(bw*0.7).toFixed(1)}" height="2" rx="1" fill="#ffffff" opacity=".12"/>` : ''}`; }).join('')}
+      ${labels.map((l,i)=>l ? `<text x="${(P + i*bw + bw/2).toFixed(1)}" y="${H + 10}" text-anchor="middle" font-size="9" fill="#7C878A">${l}</text>` : '').join('')}
+    </svg>`;
+  }
+  function renderFortschritt(){
+    const el = document.getElementById('fsBody'); if(!el) return;
+    document.querySelectorAll('#fsRange .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === fsRange));
+    if(!xpLoaded){ el.innerHTML = '<div class="loading">Lade ...</div>'; return; }
+    const days = fsDays(); const set = new Set(days); const first = days[0];
+    const lbl = days.map((d,i)=>{ const dt = new Date(d + 'T12:00'); return fsRange === 'woche' ? ['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()] : (i % 5 === 4 || i === days.length - 1 ? dt.getDate() + '.' : ''); });
+    const inR = e=>set.has(e.datum);
+    const xpPerDay = days.map(d=>xpEntries.filter(e=>e.datum === d && !e.key.startsWith('badge:')).reduce((s,e)=>s + (e.xp || 0), 0));
+    const dailyPerDay = days.map(d=>xpEntries.filter(e=>e.key.startsWith('prio:') && e.key.endsWith(':' + d)).length);
+    const dqDays = days.filter(d=>xpHas('dq:' + d)).length;
+    let streak = { cur:0, best:0 }; try{ streak = dailyStreakInfo(); }catch(e){}
+    let tr = [], gw = [], ern = [], nof = 0;
+    try{ tr = trainingsCache.filter(t=>t.datum >= first); }catch(e){}
+    try{ gw = gewichtCache.filter(x=>x.datum >= first); }catch(e){}
+    try{ ern = ernCache.filter(x=>x.datum >= first); }catch(e){}
+    try{ const r = nofapCurrent(); nof = r ? nofapDays(r) : 0; }catch(e){}
+    const foodDays = days.filter(d=>xpHas('food:' + d)).length;
+    const tasks = xpEntries.filter(e=>e.key.startsWith('task:') && inR(e)).length;
+    const goals = xpEntries.filter(e=>e.key.startsWith('ziel:') && inR(e)).length;
+    const xpSum = xpPerDay.reduce((a,b)=>a+b, 0);
+    const wDiff = gw.length >= 2 ? gw[gw.length-1].kg - gw[0].kg : null;
+    const trainPerDay = days.map(d=>tr.filter(t=>t.datum === d).length);
+    // Wochenvergleich Trainings (8 Wochen)
+    const wk = []; const ws0 = (()=>{ const d = new Date(); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return dayStr(d); })();
+    for(let i = 7; i >= 0; i--){ const s = shiftDay(ws0, -7*i), e2 = shiftDay(s, 6); let c = 0; try{ c = trainingsCache.filter(t=>t.datum >= s && t.datum <= e2).length; }catch(_){} wk.push(c); }
+    const tile = (v, l, sub)=>`<div class="fs-tile"><b>${v}</b><small>${l}</small>${sub ? `<em>${sub}</em>` : ''}</div>`;
+    el.innerHTML = `
+      <div class="fs-tiles">
+        ${tile(dqDays + '/' + days.length, 'Daily-Quest-Tage', Math.round(dqDays / days.length * 100) + ' %')}
+        ${tile('🔥 ' + streak.cur, 'Streak', 'Rekord ' + Math.max(streak.best, streak.cur))}
+        ${tile(tr.length, 'Trainings', fsRange === 'woche' ? '' : 'Ø ' + fmtNum(tr.length / 30 * 7) + '/Woche')}
+        ${tile(nof, 'Tage NoFap', '')}
+        ${tile(foodDays + '/' + days.length, 'Ernährungsplan', 'eingehalten')}
+        ${tile(xpSum, 'XP', 'Ø ' + Math.round(xpSum / days.length) + '/Tag')}
+        ${tile(tasks, 'Aufgaben erledigt', '')}
+        ${tile(goals, 'Ziele erreicht', '')}
+        ${tile(wDiff !== null ? (wDiff > 0 ? '+' : '') + fmtNum(wDiff) + ' kg' : '–', 'Gewicht', gw.length ? 'aktuell ' + fmtNum(gw[gw.length-1].kg) + ' kg' : 'keine Werte')}
+      </div>
+      <div class="card"><div class="step-label">Dailys pro Tag</div>${barChartSvg(dailyPerDay, lbl, 4)}</div>
+      <div class="card"><div class="step-label">XP pro Tag</div>${barChartSvg(xpPerDay, lbl)}</div>
+      <div class="card"><div class="step-label">Gewicht</div>${gw.length >= 2 ? weightChartSvg(gw) : '<div class="hint" style="margin:0;">Noch zu wenige Messungen in diesem Zeitraum.</div>'}</div>
+      <div class="card"><div class="step-label">Trainings pro Woche · letzte 8 Wochen</div>${barChartSvg(wk, wk.map((_,i)=>i === 7 ? 'jetzt' : ''), Math.max(4, ...wk))}</div>
+      <div class="card"><div class="home-aufg-head"><div class="step-label" style="margin:0;">Abzeichen</div><button type="button" class="prio-edit-toggle" id="fsBadges">Alle →</button></div>
+        <div class="hint" style="margin:8px 0 0;">${(()=>{ const n = xpEntries.filter(e=>e.key.startsWith('badge:')).length; return n ? n + ' Abzeichen erreicht' : 'Noch keine Abzeichen'; })()}</div></div>`;
+    el.querySelector('#fsBadges').onclick = ()=>{ document.getElementById('levelOverlay').style.display = 'flex'; renderBadges(); };
+  }
+  document.querySelectorAll('#fsRange .aufg-tab').forEach(b=>b.onclick = ()=>{ fsRange = b.dataset.v; try{ localStorage.setItem('kongrow_fs_range', fsRange); }catch(e){} renderFortschritt(); });
 
   // Aus einer Benachrichtigung geöffnet: passende Reflexion starten
   (function(){
