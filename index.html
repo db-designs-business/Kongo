@@ -7219,7 +7219,7 @@
   function renderAufgaben(){
     const listEl = document.getElementById('aufgabenList');
     const today = todayStr();
-    document.querySelectorAll('.aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.view === aufgabenView));
+    document.querySelectorAll('#panelAufgaben .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.view === aufgabenView));
     document.querySelectorAll('.aufg-filter').forEach(b=>b.classList.toggle('active', b.dataset.f === aufgabenFilter));
     document.getElementById('aufgabenFilterRow').style.display = aufgabenView === 'alle' ? 'flex' : 'none';
 
@@ -7490,7 +7490,7 @@
     };
     addBtn.onclick = add;
     input.onkeydown = (ev)=>{ if(ev.key === 'Enter') add(); };
-    document.querySelectorAll('.aufg-tab').forEach(b=>b.onclick = ()=>{
+    document.querySelectorAll('#panelAufgaben .aufg-tab').forEach(b=>b.onclick = ()=>{
       aufgabenView = b.dataset.view; aufgabenEditId = null;
       renderAufgaben();
     });
