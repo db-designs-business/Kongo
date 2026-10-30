@@ -896,6 +896,63 @@
   #nofapOverlayBody > .card{ background:none; border:none; box-shadow:none; padding:0; margin:0; }
   .checkin-honest{ display:flex; align-items:flex-start; gap:10px; }
   .checkin-honest input{ flex-shrink:0; margin-top:2px; width:18px; height:18px; accent-color:var(--forest); }
+  /* ---------- Ernährungsplan & Rezepte ---------- */
+  .ern-type{ display:inline-flex; align-items:baseline; gap:8px; margin:10px 0 4px; padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:800; font-size:17px;
+    background:rgba(34,227,211,.1); border:1px solid rgba(34,227,211,.45); color:var(--forest); }
+  .ern-type span{ font-size:12px; font-weight:600; color:var(--ink-soft); }
+  .ern-macros{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:12px; }
+  .ern-macros > div{ padding:10px 8px; border-radius:12px; background:rgba(0,0,0,.3); border:1px solid var(--line-soft); min-width:0; }
+  .ern-macros b{ display:block; font-size:18px; font-weight:800; }
+  .ern-macros small{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .ern-cycle{ display:flex; gap:6px; margin-top:12px; overflow-x:auto; padding-bottom:2px; }
+  .ern-cyc{ flex-shrink:0; display:flex; flex-direction:column; align-items:center; padding:6px 10px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); font-size:12px; font-weight:600; }
+  .ern-cyc small{ font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.08em; }
+  .ern-meal{ display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-bottom:1px solid var(--line-soft); }
+  .ern-meal:last-child{ border-bottom:none; }
+  .ern-meal.done .prio-check{ background:var(--forest); border-color:var(--forest); color:#04110F; box-shadow:0 0 12px var(--forest-glow); }
+  .ern-meal.done .ern-meal-main{ opacity:.6; }
+  .ern-meal-main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; text-align:left; background:none; border:none; color:var(--ink); padding:0; cursor:pointer; }
+  .ern-meal-top{ display:flex; gap:8px; align-items:baseline; font-size:15px; }
+  .ern-meal-top em{ font-style:normal; font-size:12.5px; color:var(--forest); font-weight:700; font-variant-numeric:tabular-nums; }
+  .ern-meal-inhalt{ font-size:13px; color:var(--ink-soft); white-space:pre-line; overflow-wrap:break-word; }
+  .ern-meal-mac{ font-size:12px; color:#6E787B; }
+  .ern-meal-mac i{ color:#FFC56B; font-style:normal; }
+  .ern-water{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .ern-water b{ font-size:22px; font-weight:800; margin-right:auto; color:var(--forest); }
+  .ern-select{ font-family:var(--font); color:var(--ink); background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:10px 12px; font-size:16px; }
+  .ern-plan-row{ display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; }
+  .ern-plan-actions{ display:flex; gap:8px; }
+  .pe-tt{ margin-bottom:12px; }
+  .pe-mac-lbl{ margin-bottom:3px; }
+  .pe-mac-lbl span{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); padding-left:4px; }
+  .pe-tt-head{ display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+  .pe-tt-head input{ flex:1; font-weight:700; }
+  .pe-mac{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
+  .pe-mac input, .pe-mac select{ min-width:0; padding:9px 8px !important; font-size:14px !important; }
+  .pe-meal{ margin:10px 0; padding:10px; border-radius:12px; background:rgba(0,0,0,.25); border:1px solid var(--line-soft); }
+  .pe-meal-head{ display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  .pe-meal-head input{ flex:1; min-width:0; padding:9px 10px !important; font-size:14px !important; }
+  .pe-meal-head .pe-zeit{ flex:0 0 72px; }
+  .pe-meal textarea{ min-height:52px; margin-bottom:6px; font-size:14px; }
+  .pe-cyc{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+  .pe-cyc-chip{ padding:7px 11px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer; background:rgba(34,227,211,.1); border:1px solid rgba(34,227,211,.4); color:var(--forest); }
+  .pe-cyc-add{ display:flex; flex-wrap:wrap; gap:6px; }
+  .rez-head{ display:flex; gap:8px; }
+  .rez-head input{ flex:1; min-width:0; }
+  .rez-head .primary{ flex-shrink:0; white-space:nowrap; }
+  .rez-grid{ display:grid; grid-template-columns:1fr; gap:8px; }
+  @media (min-width:560px){ .rez-grid{ grid-template-columns:1fr 1fr; } }
+  .rez-card{ display:flex; flex-direction:column; gap:4px; text-align:left; padding:14px; border-radius:14px; cursor:pointer; background:linear-gradient(180deg,#10161A,#0A0E10); border:1px solid var(--line-soft); color:var(--ink); }
+  .rez-card:hover{ border-color:rgba(34,227,211,.4); }
+  .rez-card b{ font-size:15px; }
+  .rez-card span{ font-size:12.5px; color:var(--ink-soft); }
+  .rez-card small{ font-size:11.5px; color:#6E787B; }
+  .rez-text{ font-size:14px; white-space:pre-line; line-height:1.55; overflow-wrap:break-word; }
+  .rez-mac{ margin-top:10px; }
+  .rez-ai{ display:flex; gap:8px; margin:6px 0 8px; }
+  .rez-ai input{ flex:1; min-width:0; font-size:14px !important; }
+  .rez-ai button{ flex-shrink:0; white-space:nowrap; }
+  @media (max-width:420px){ .rez-ai{ flex-direction:column; } .ern-macros b{ font-size:16px; } }
 </style>
 </head>
 <body>
@@ -1233,10 +1290,11 @@
   <div id="panelKoerper" style="display:none;">
     <div class="eyebrow">Körper</div>
     <h1>Körper</h1>
-    <div class="sub">Training, Ernährung und Gewicht an einem Ort.</div>
+    <div class="sub">Training, Ernährung, Rezepte und Gewicht an einem Ort.</div>
     <div class="aufg-tabs">
       <button type="button" class="aufg-tab k-tab active" data-v="training">Training</button>
       <button type="button" class="aufg-tab k-tab" data-v="ernaehrung">Ernährung</button>
+      <button type="button" class="aufg-tab k-tab" data-v="rezepte">Rezepte</button>
       <button type="button" class="aufg-tab k-tab" data-v="gewicht">Gewicht</button>
     </div>
     <div id="koerperBody"><div class="loading">Lade ...</div></div>
@@ -1730,6 +1788,16 @@
     <div class="modal-title">Aufgabe</div>
     <div class="aufg-edit" id="aufgEdit" style="border:none;padding-top:10px;"></div>
   </div>
+</div>
+
+<div class="modal-overlay" id="ernSheet" style="display:none; align-items:stretch; z-index:60;">
+  <div class="msg-sheet">
+    <div class="msg-sheet-head"><button type="button" class="back-btn" id="ernSheetClose" style="margin:0;">← Zurück</button></div>
+    <div id="ernSheetBody"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="ernModal" style="display:none; z-index:85;">
+  <div class="modal-card" id="ernModalCard"></div>
 </div>
 
 <div class="modal-overlay" id="levelOverlay" style="display:none;">
@@ -8558,12 +8626,16 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
         airtableList(TABLE_TRAININGS, ROUTINEN_BASE_ID), airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID),
         airtableList(TABLE_ERNAEHRUNG, ROUTINEN_BASE_ID)
       ]);
+      const [ep, rz] = await Promise.all([ airtableList(TABLE_ERN_PLAENE, ROUTINEN_BASE_ID).catch(()=>[]), airtableList(TABLE_REZEPTE, ROUTINEN_BASE_ID).catch(()=>[]) ]);
+      ernPlaene = ep.map(mapPlan);
+      rezepteCache = rz.map(mapRezept).filter(x=>x.name).sort((a,b)=>a.name.localeCompare(b.name, 'de'));
       uebungenCustom = u.map(r=>({ id:r.id, name:(r.fields||{})['Name'] || '', gruppe:(r.fields||{})['Muskelgruppe'] || '' })).filter(x=>x.name);
       plaeneCache = p.map(r=>{ let list = []; try{ list = JSON.parse((r.fields||{})['Uebungen'] || '[]'); }catch(_){ list = ((r.fields||{})['Uebungen'] || '').split('\n').filter(Boolean); } return { id:r.id, name:(r.fields||{})['Name'] || '', uebungen:list }; }).filter(x=>x.name);
       trainingsCache = t.map(r=>{ const f = r.fields || {}; let s = []; try{ s = JSON.parse(f['Saetze'] || '[]'); }catch(_){} return { id:r.id, datum:f['Datum'] || '', plan:f['Plan'] || '', dauer:f['Dauer (Min)'] || 0, saetze:s, volumen:f['Volumen (kg)'] || 0, notiz:f['Notiz'] || '' }; })
         .sort((a,b)=> (b.datum || '').localeCompare(a.datum || ''));
       gewichtCache = mapGewicht(g);
-      ernCache = e.map(r=>{ const f = r.fields || {}; return { id:r.id, datum:f['Datum'] || '', kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, wasser:f['Wasser'] || 0, notiz:f['Notiz'] || '' }; }).filter(x=>x.datum).sort((a,b)=> b.datum.localeCompare(a.datum));
+      ernCache = e.map(r=>{ const f = r.fields || {}; let er = [], ab = {}; try{ er = JSON.parse(f['Erledigt'] || '[]'); }catch(_){} try{ ab = JSON.parse(f['Abweichungen'] || '{}'); }catch(_){}
+        return { id:r.id, datum:f['Datum'] || '', kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, wasser:f['Wasser'] || 0, notiz:f['Notiz'] || '', erledigt:er, abw:ab, tagtypId:f['TagtypId'] || '', tagtyp:f['Tagtyp'] || '' }; }).filter(x=>x.datum).sort((a,b)=> b.datum.localeCompare(a.datum));
       renderKoerper();
     }catch(e){
       document.getElementById('koerperBody').innerHTML = '<div class="card"><div class="empty">Daten konnten nicht geladen werden.</div></div>';
@@ -8574,6 +8646,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     document.querySelectorAll('.k-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === koerperView));
     if(koerperView === 'training') renderTrainingView();
     else if(koerperView === 'ernaehrung') renderErnaehrungView();
+    else if(koerperView === 'rezepte') renderRezepteView();
     else renderGewichtView();
   }
   document.querySelectorAll('.k-tab').forEach(b=>b.onclick = ()=>{ koerperView = b.dataset.v; renderKoerper(); if(koerperView === 'gewicht') withingsSync(); });
@@ -8918,47 +8991,381 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
 
   /* ----- Ernährung ----- */
   function ernTargets(){ try{ return Object.assign({ kcal:2740, protein:170, wasser:3.7 }, JSON.parse(localStorage.getItem(ERN_TARGETS_KEY) || '{}')); }catch(e){ return { kcal:2740, protein:170, wasser:3.7 }; } }
+  /* ----- Ernährung: Pläne mit Tagtypen & Zyklus ----- */
+  const TABLE_ERN_PLAENE = 'tblKgErnPlaene001';
+  const TABLE_REZEPTE = 'tblKgRezepte00001';
+  let ernPlaene = [];   // {id, name, aktiv, tagtypen:[{id,name,kcal,protein,kh,fett,mahlzeiten:[{name,zeit,inhalt,kcal,protein,kh,fett,rezeptId}]}], zyklus:[tagtypId], start}
+  let rezepteCache = []; // {id, name, kategorie, portionen, kcal, protein, kh, fett, dauer, zutaten, zubereitung}
+  const uidShort = ()=>Math.random().toString(36).slice(2, 9);
+  const num = v=>{ const n = Number(String(v).replace(',', '.')); return isFinite(n) ? n : 0; };
+  function mapPlan(r){
+    const f = r.fields || {}; let tt = [], zy = [];
+    try{ tt = JSON.parse(f['Tagtypen'] || '[]'); }catch(e){} try{ zy = JSON.parse(f['Zyklus'] || '[]'); }catch(e){}
+    return { id:r.id, name:f['Name'] || 'Plan', aktiv:f['Aktiv'] === 'ja', tagtypen:tt, zyklus:zy, start:f['Zyklus Start'] || todayStr() };
+  }
+  function mapRezept(r){ const f = r.fields || {}; return { id:r.id, name:f['Name'] || '', kategorie:f['Kategorie'] || 'Sonstiges', portionen:f['Portionen'] || 1, kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, kh:f['KH'] || 0, fett:f['Fett'] || 0, dauer:f['Dauer (Min)'] || 0, zutaten:f['Zutaten'] || '', zubereitung:f['Zubereitung'] || '' }; }
+  function activePlan(){ return ernPlaene.find(p=>p.aktiv) || ernPlaene[0] || null; }
+  function daysBetween(a, b){ return Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 86400000); }
+  function ernDay(date){ return ernCache.find(x=>x.datum === date) || null; }
+  function tagtypFor(plan, date){
+    if(!plan || !plan.tagtypen.length) return null;
+    const d = ernDay(date);
+    if(d && d.tagtypId){ const t = plan.tagtypen.find(x=>x.id === d.tagtypId); if(t) return t; }
+    const cyc = plan.zyklus.filter(id=>plan.tagtypen.some(t=>t.id === id));
+    if(!cyc.length) return plan.tagtypen[0];
+    const i = ((daysBetween(plan.start, date) % cyc.length) + cyc.length) % cyc.length;
+    return plan.tagtypen.find(t=>t.id === cyc[i]);
+  }
+  function mealsSum(meals, idxs){
+    return idxs.reduce((s,i)=>{ const m = meals[i]; if(!m) return s; s.kcal += num(m.kcal); s.protein += num(m.protein); s.kh += num(m.kh); s.fett += num(m.fett); return s; }, { kcal:0, protein:0, kh:0, fett:0 });
+  }
+  async function saveErnDay(date, patch){
+    let d = ernDay(date);
+    const plan = activePlan(); const tt = tagtypFor(plan, date);
+    const next = Object.assign({ erledigt:[], wasser:0, notiz:'', abw:{} }, d || {}, patch);
+    const sum = tt ? mealsSum(tt.mahlzeiten || [], next.erledigt) : { kcal:0, protein:0 };
+    const fields = { 'Datum': date, 'Tagtyp': tt ? tt.name : '', 'TagtypId': next.tagtypId || '', 'Erledigt': JSON.stringify(next.erledigt), 'Abweichungen': JSON.stringify(next.abw || {}),
+      'Kcal': Math.round(sum.kcal) || null, 'Protein': Math.round(sum.protein) || null, 'Wasser': next.wasser || null, 'Notiz': next.notiz || '' };
+    if(d){ await airtableFetch(TABLE_ERNAEHRUNG + '/' + d.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID); Object.assign(d, next, { kcal:sum.kcal, protein:sum.protein, tagtyp:fields['Tagtyp'] }); }
+    else { const id = await airtableCreate(TABLE_ERNAEHRUNG, fields, ROUTINEN_BASE_ID); d = Object.assign({ id, datum:date }, next, { kcal:sum.kcal, protein:sum.protein, tagtyp:fields['Tagtyp'] }); ernCache.unshift(d); }
+    // Alle Mahlzeiten erledigt -> XP + passendes Daily
+    if(tt && tt.mahlzeiten && tt.mahlzeiten.length && date === todayStr()){
+      const all = tt.mahlzeiten.every((m,i)=>next.erledigt.includes(i));
+      if(all){
+        if(!xpHas('food:' + date)) awardXP('food:' + date, 'Ernährungsplan eingehalten', FOOD_XP);
+        const daily = prioCache.find(p=>/ernährung|ernaehrung|ernährungsplan|diät|diaet|makros|essen/i.test(p.titel) && p.erledigtAm !== todayStr());
+        if(daily) prioToggle(daily.id);
+      } else if(xpHas('food:' + date)) revokeXP('food:' + date);
+    }
+    return d;
+  }
+  const ernModal = ()=>document.getElementById('ernModal');
+  const ernModalCard = ()=>document.getElementById('ernModalCard');
+  function openErnModal(html){ ernModalCard().innerHTML = '<button class="modal-close" data-x aria-label="Schließen">×</button>' + html; ernModalCard().querySelector('[data-x]').onclick = closeErnModal; ernModal().style.display = 'flex'; }
+  function closeErnModal(){ ernModal().style.display = 'none'; }
+  const macroLine = m=>[m.kcal ? Math.round(num(m.kcal)) + ' kcal' : '', m.protein ? Math.round(num(m.protein)) + ' P' : '', m.kh ? Math.round(num(m.kh)) + ' KH' : '', m.fett ? Math.round(num(m.fett)) + ' F' : ''].filter(Boolean).join(' · ');
+
   function renderErnaehrungView(){
     const body = document.getElementById('koerperBody');
     const t = todayStr();
-    const today = ernCache.find(x=>x.datum === t) || { kcal:'', protein:'', wasser:'', notiz:'' };
-    const tg = ernTargets();
-    const bar = (v, max)=>`<div class="prio-progress" style="margin:6px 0 0;"><div style="width:${Math.min(100, Math.round((Number(v)||0) / max * 100))}%"></div></div>`;
+    const plan = activePlan();
+    if(!plan){
+      body.innerHTML = `<div class="card"><div class="step-label">Ernährungsplan</div>
+        <div class="hint">Füge deinen fertigen Plan ein (z. B. aus Cronometer oder deinem Coach). Die KI macht daraus Tagtypen wie Low Carb, Medium Carb und Refeed mit Makros und Mahlzeiten.</div>
+        <button type="button" class="primary" id="ernPasteBtn" style="width:100%;">Plan einfügen</button>
+        <button type="button" class="aufg-link" id="ernBlankBtn" style="margin-top:10px;">Oder selbst anlegen</button></div>`;
+      body.querySelector('#ernPasteBtn').onclick = ()=>openPlanImport();
+      body.querySelector('#ernBlankBtn').onclick = ()=>openPlanEditor(null);
+      return;
+    }
+    const tt = tagtypFor(plan, t);
+    const day = ernDay(t) || { erledigt:[], wasser:0, notiz:'', abw:{} };
+    const meals = (tt && tt.mahlzeiten) || [];
+    const sum = mealsSum(meals, day.erledigt || []);
+    const tg = { kcal:num(tt && tt.kcal) || mealsSum(meals, meals.map((m,i)=>i)).kcal, protein:num(tt && tt.protein), kh:num(tt && tt.kh), fett:num(tt && tt.fett) };
+    const bar = (v, max)=>max ? `<div class="prio-progress" style="margin:6px 0 0;"><div style="width:${Math.min(100, Math.round(v / max * 100))}%"></div></div>` : '';
+    const preview = [1,2,3,4,5,6].map(i=>{ const d = shiftDay(t, i); const x = tagtypFor(plan, d); return `<span class="ern-cyc"><small>${new Date(d + 'T12:00').toLocaleDateString('de-DE',{weekday:'short'})}</small>${escapeHtml(x ? x.name : '–')}</span>`; }).join('');
+    const wTarget = ernTargets().wasser;
     body.innerHTML = `
       <div class="card">
-        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Heute</div><button type="button" class="prio-edit-toggle" id="ernTargetsBtn">Ziele</button></div>
-        <div id="ernTargetsForm"></div>
-        <div class="ern-grid">
-          <label>Kalorien<input type="number" inputmode="numeric" id="ernKcal" value="${today.kcal || ''}" placeholder="kcal"><small>Ziel ${tg.kcal}</small>${bar(today.kcal, tg.kcal)}</label>
-          <label>Protein<input type="number" inputmode="numeric" id="ernProtein" value="${today.protein || ''}" placeholder="g"><small>Ziel ${tg.protein} g</small>${bar(today.protein, tg.protein)}</label>
-          <label>Wasser<input type="number" inputmode="decimal" step="0.1" id="ernWasser" value="${today.wasser || ''}" placeholder="Liter"><small>Ziel ${fmtNum(tg.wasser)} l</small>${bar(today.wasser, tg.wasser)}</label>
+        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Heute · ${escapeHtml(plan.name)}</div><button type="button" class="prio-edit-toggle" id="ernPlansBtn">Pläne</button></div>
+        <button type="button" class="ern-type" id="ernTypeBtn">${escapeHtml(tt ? tt.name : 'Kein Tagtyp')} <span>ändern ▾</span></button>
+        <div class="ern-macros">
+          <div><b>${Math.round(sum.kcal)}</b><small>/ ${Math.round(tg.kcal) || '–'} kcal</small>${bar(sum.kcal, tg.kcal)}</div>
+          <div><b>${Math.round(sum.protein)}</b><small>/ ${Math.round(tg.protein) || '–'} g P</small>${bar(sum.protein, tg.protein)}</div>
+          <div><b>${Math.round(sum.kh)}</b><small>/ ${Math.round(tg.kh) || '–'} g KH</small>${bar(sum.kh, tg.kh)}</div>
+          <div><b>${Math.round(sum.fett)}</b><small>/ ${Math.round(tg.fett) || '–'} g F</small>${bar(sum.fett, tg.fett)}</div>
         </div>
-        <textarea id="ernNotiz" placeholder="Notiz (optional) – z. B. was gut lief, Heißhunger ..." style="min-height:56px;margin-top:10px;">${escapeHtml(today.notiz || '')}</textarea>
-        <button type="button" class="primary" id="ernSave" style="width:100%;margin-top:12px;">Speichern</button>
+        <div class="ern-cycle">${preview}</div>
+      </div>
+      <div class="step-label" style="margin-top:16px;">Mahlzeiten ${meals.length ? '· ' + (day.erledigt || []).length + '/' + meals.length : ''}</div>
+      <div class="card aufg-card">${meals.length ? meals.map((m,i)=>{
+          const done = (day.erledigt || []).includes(i); const ab = (day.abw || {})[i];
+          return `<div class="ern-meal ${done ? 'done' : ''}">
+            <button type="button" class="prio-check ern-check" data-i="${i}" aria-label="Erledigt">${done ? '✓' : ''}</button>
+            <button type="button" class="ern-meal-main" data-i="${i}">
+              <span class="ern-meal-top">${m.zeit ? `<em>${escapeHtml(m.zeit)}</em>` : ''}<b>${escapeHtml(m.name || 'Mahlzeit')}</b>${m.rezeptId ? ' <span class="aufg-has-note">📖</span>' : ''}</span>
+              ${m.inhalt ? `<span class="ern-meal-inhalt">${escapeHtml(m.inhalt)}</span>` : ''}
+              <span class="ern-meal-mac">${escapeHtml(macroLine(m))}${ab ? ' · <i>abweichend</i>' : ''}</span>
+            </button>
+          </div>`; }).join('') : '<div class="empty">Für diesen Tagtyp sind keine Mahlzeiten hinterlegt.</div>'}</div>
+      <div class="card" style="margin-top:14px;">
+        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Wasser</div><span class="hint" style="margin:0;">Ziel ${fmtNum(wTarget)} l</span></div>
+        <div class="ern-water"><b>${fmtNum(day.wasser || 0)} l</b>
+          <button type="button" class="cal-nav" data-w="-0.25">−</button><button type="button" class="cal-nav" data-w="0.25">+0,25</button><button type="button" class="cal-nav" data-w="0.5">+0,5</button></div>
+        ${bar(day.wasser || 0, wTarget)}
+        <textarea id="ernNotiz" placeholder="Notiz zum Tag (optional)" style="min-height:52px;margin-top:12px;">${escapeHtml(day.notiz || '')}</textarea>
         <div class="save-status" id="ernStatus"></div>
       </div>
       <div class="step-label" style="margin-top:18px;">Letzte Tage</div>
-      ${ernCache.length ? `<div class="card">${ernCache.slice(0,14).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}</span><span style="color:var(--ink-soft);">${x.kcal || '–'} kcal · ${x.protein || '–'} g · ${x.wasser ? fmtNum(x.wasser) + ' l' : '–'}</span></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch keine Einträge.</div></div>'}`;
-    body.querySelector('#ernTargetsBtn').onclick = ()=>{
-      const f = body.querySelector('#ernTargetsForm');
-      if(f.innerHTML){ f.innerHTML = ''; return; }
-      f.innerHTML = `<div class="ern-grid" style="margin-bottom:12px;"><label>Ziel kcal<input type="number" id="tgK" value="${tg.kcal}"></label><label>Ziel Protein<input type="number" id="tgP" value="${tg.protein}"></label><label>Ziel Wasser<input type="number" step="0.1" id="tgW" value="${tg.wasser}"></label></div><button type="button" class="ghost" id="tgSave" style="width:100%;margin-bottom:12px;">Ziele übernehmen</button>`;
-      f.querySelector('#tgSave').onclick = ()=>{ try{ localStorage.setItem(ERN_TARGETS_KEY, JSON.stringify({ kcal:+f.querySelector('#tgK').value || 2740, protein:+f.querySelector('#tgP').value || 170, wasser:+f.querySelector('#tgW').value || 3.7 })); }catch(e){} renderErnaehrungView(); };
-    };
-    const sb = body.querySelector('#ernSave');
-    sb.onclick = async ()=>{
-      if(sb.disabled) return;
-      const fields = { 'Datum': t, 'Kcal': Number(body.querySelector('#ernKcal').value) || null, 'Protein': Number(body.querySelector('#ernProtein').value) || null, 'Wasser': Number(body.querySelector('#ernWasser').value) || null, 'Notiz': body.querySelector('#ernNotiz').value.trim() };
-      if(!fields['Kcal'] && !fields['Protein'] && !fields['Wasser']){ body.querySelector('#ernStatus').textContent = 'Bitte mindestens einen Wert eintragen.'; return; }
-      sb.disabled = true;
+      ${ernCache.length ? `<div class="card">${ernCache.slice(0,14).map(x=>{ const n = (x.erledigt || []).length; return `<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}${x.tagtyp ? ' · ' + escapeHtml(x.tagtyp) : ''}</span><span style="color:var(--ink-soft);">${n ? n + ' Mahlz.' : (x.kcal ? Math.round(x.kcal) + ' kcal' : '–')}${x.wasser ? ' · ' + fmtNum(x.wasser) + ' l' : ''}</span></div>`; }).join('')}</div>` : '<div class="card"><div class="empty">Noch keine Einträge.</div></div>'}`;
+    const st = m=>{ const e = body.querySelector('#ernStatus'); if(e) e.textContent = m; };
+    body.querySelector('#ernPlansBtn').onclick = openPlanManager2;
+    body.querySelector('#ernTypeBtn').onclick = ()=>openTagtypPicker(plan, t);
+    body.querySelectorAll('.ern-check').forEach(b=>b.onclick = async ()=>{
+      if(b.disabled) return; b.disabled = true;
+      const i = +b.dataset.i; const cur = (ernDay(t) || { erledigt:[] }).erledigt || [];
+      const next = cur.includes(i) ? cur.filter(x=>x !== i) : cur.concat(i).sort((a,b)=>a-b);
+      if(!cur.includes(i)) vibrateDevice();
+      try{ await saveErnDay(t, { erledigt:next }); renderErnaehrungView(); }catch(e){ b.disabled = false; st('Speichern fehlgeschlagen.'); }
+    });
+    body.querySelectorAll('.ern-meal-main').forEach(b=>b.onclick = ()=>openMealDetail(plan, tt, +b.dataset.i, t));
+    body.querySelectorAll('[data-w]').forEach(b=>b.onclick = async ()=>{
+      const cur = num((ernDay(t) || {}).wasser); const v = Math.max(0, Math.round((cur + num(b.dataset.w)) * 100) / 100);
+      try{ await saveErnDay(t, { wasser:v }); renderErnaehrungView(); }catch(e){ st('Speichern fehlgeschlagen.'); }
+    });
+    const nz = body.querySelector('#ernNotiz');
+    nz.onchange = async ()=>{ try{ await saveErnDay(t, { notiz:nz.value.trim() }); st('Notiz gespeichert ✓'); }catch(e){ st('Speichern fehlgeschlagen.'); } };
+  }
+
+  function openTagtypPicker(plan, date){
+    openErnModal(`<div class="modal-title">Tagtyp für heute</div><div class="modal-sub">Zum Beispiel Refeed vorziehen. Der Zyklus läuft danach von hier aus weiter.</div>
+      ${plan.tagtypen.map(t=>`<button type="button" class="fokus-opt" data-id="${t.id}"><b>${escapeHtml(t.name)}</b><span>${escapeHtml(macroLine(t) || ((t.mahlzeiten || []).length + ' Mahlzeiten'))}</span></button>`).join('')}
+      <label class="aufg-cal-toggle" style="margin-top:14px;"><input type="checkbox" id="ttRealign" checked> Zyklus ab hier neu ausrichten</label>
+      <div class="save-status" data-st></div>`);
+    ernModalCard().querySelectorAll('.fokus-opt').forEach(b=>b.onclick = async ()=>{
+      const id = b.dataset.id;
       try{
-        const ex = ernCache.find(x=>x.datum === t);
-        if(ex){ await airtableFetch(TABLE_ERNAEHRUNG + '/' + ex.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID); Object.assign(ex, { kcal:fields['Kcal'] || 0, protein:fields['Protein'] || 0, wasser:fields['Wasser'] || 0, notiz:fields['Notiz'] }); }
-        else { const id = await airtableCreate(TABLE_ERNAEHRUNG, fields, ROUTINEN_BASE_ID); ernCache.unshift({ id, datum:t, kcal:fields['Kcal'] || 0, protein:fields['Protein'] || 0, wasser:fields['Wasser'] || 0, notiz:fields['Notiz'] }); }
-        awardXP('food:' + t, 'Ernährung geloggt', FOOD_XP);
-        renderErnaehrungView();
-        document.getElementById('ernStatus').textContent = 'Gespeichert ✓';
-      }catch(e){ sb.disabled = false; body.querySelector('#ernStatus').textContent = 'Speichern fehlgeschlagen.'; }
+        if(ernModalCard().querySelector('#ttRealign').checked){
+          const cyc = plan.zyklus.filter(x=>plan.tagtypen.some(t=>t.id === x));
+          const pos = cyc.indexOf(id);
+          if(pos >= 0){ plan.start = shiftDay(date, -pos); await airtableFetch(TABLE_ERN_PLAENE + '/' + plan.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Zyklus Start': plan.start } }) }, ROUTINEN_BASE_ID); await saveErnDay(date, { tagtypId:'' }); }
+          else await saveErnDay(date, { tagtypId:id });
+        } else await saveErnDay(date, { tagtypId:id });
+        closeErnModal(); renderErnaehrungView();
+      }catch(e){ ernModalCard().querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
+    });
+  }
+
+  function openMealDetail(plan, tt, i, date){
+    const m = tt.mahlzeiten[i]; const day = ernDay(date) || { abw:{} };
+    const rz = m.rezeptId ? rezepteCache.find(r=>r.id === m.rezeptId) : null;
+    openErnModal(`<div class="modal-title">${escapeHtml(m.name || 'Mahlzeit')}</div>
+      <div class="modal-sub">${escapeHtml([m.zeit, tt.name].filter(Boolean).join(' · '))}</div>
+      ${m.inhalt ? `<div class="cal-detail-desc" style="border:none;margin:0;padding:0;color:var(--ink);">${escapeHtml(m.inhalt)}</div>` : ''}
+      <div class="hint" style="margin:10px 0 0;">${escapeHtml(macroLine(m) || 'Keine Makros hinterlegt')}</div>
+      <div class="turn-title" style="margin-top:14px;">Rezept</div>
+      <select id="mRez" style="width:100%;" class="ern-select"><option value="">– kein Rezept –</option>${rezepteCache.map(r=>`<option value="${r.id}" ${r.id === m.rezeptId ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}</select>
+      ${rz ? `<button type="button" class="aufg-link" id="mRezOpen" style="margin-top:8px;">📖 Rezept öffnen</button>` : ''}
+      <div class="turn-title" style="margin-top:14px;">Abweichung heute</div>
+      <textarea id="mAbw" rows="2" placeholder="z. B. statt Reis Kartoffeln">${escapeHtml((day.abw || {})[i] || '')}</textarea>
+      <button type="button" class="primary" id="mSave" style="width:100%;margin-top:12px;">Speichern</button>
+      <div class="save-status" data-st></div>`);
+    const c = ernModalCard();
+    const ro = c.querySelector('#mRezOpen'); if(ro) ro.onclick = ()=>openRezeptDetail(rz);
+    c.querySelector('#mSave').onclick = async ()=>{
+      try{
+        const rid = c.querySelector('#mRez').value;
+        if(rid !== (m.rezeptId || '')){ m.rezeptId = rid; await airtableFetch(TABLE_ERN_PLAENE + '/' + plan.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Tagtypen': JSON.stringify(plan.tagtypen) } }) }, ROUTINEN_BASE_ID); }
+        const abw = Object.assign({}, day.abw || {}); const v = c.querySelector('#mAbw').value.trim(); if(v) abw[i] = v; else delete abw[i];
+        await saveErnDay(date, { abw });
+        closeErnModal(); renderErnaehrungView();
+      }catch(e){ c.querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
+    };
+  }
+
+  /* Plan-Verwaltung (Vollbild) */
+  const ernSheet = ()=>document.getElementById('ernSheetBody');
+  function openErnSheet(){ document.getElementById('ernSheet').style.display = 'flex'; }
+  function closeErnSheet(){ document.getElementById('ernSheet').style.display = 'none'; }
+  function openPlanManager2(){
+    openErnSheet();
+    ernSheet().innerHTML = `<h2 style="margin:0 0 6px;">Ernährungspläne</h2><div class="hint">Der aktive Plan bestimmt, was du im Ernährung-Tab siehst.</div>
+      ${ernPlaene.map(p=>`<div class="card ern-plan-row"><div><b>${escapeHtml(p.name)}</b>${p.aktiv ? ' <span class="aufg-chip heute">Aktiv</span>' : ''}<div class="hint" style="margin:4px 0 0;">${p.tagtypen.map(t=>escapeHtml(t.name)).join(' · ')}</div></div>
+        <div class="ern-plan-actions">${p.aktiv ? '' : `<button type="button" class="ghost" data-act="${p.id}">Aktivieren</button>`}<button type="button" class="ghost" data-edit="${p.id}">Bearbeiten</button></div></div>`).join('')}
+      <button type="button" class="primary" id="pmPaste" style="width:100%;margin-top:6px;">+ Plan einfügen (KI)</button>
+      <button type="button" class="ghost" id="pmBlank" style="width:100%;margin-top:8px;">+ Leeren Plan anlegen</button>`;
+    ernSheet().querySelectorAll('[data-act]').forEach(b=>b.onclick = async ()=>{
+      for(const p of ernPlaene){ const want = p.id === b.dataset.act; if(p.aktiv !== want){ p.aktiv = want; await airtableFetch(TABLE_ERN_PLAENE + '/' + p.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Aktiv': want ? 'ja' : '' } }) }, ROUTINEN_BASE_ID).catch(()=>{}); } }
+      openPlanManager2(); renderErnaehrungView();
+    });
+    ernSheet().querySelectorAll('[data-edit]').forEach(b=>b.onclick = ()=>openPlanEditor(ernPlaene.find(p=>p.id === b.dataset.edit)));
+    ernSheet().querySelector('#pmPaste').onclick = ()=>openPlanImport();
+    ernSheet().querySelector('#pmBlank').onclick = ()=>openPlanEditor(null);
+  }
+  function openPlanImport(){
+    openErnSheet();
+    ernSheet().innerHTML = `<h2 style="margin:0 0 6px;">Plan einfügen</h2>
+      <div class="hint">Kopiere deinen kompletten Plan hier hinein (Text aus Cronometer, PDF, Notizen …). Gerne mit mehreren Tagtypen und dem Rhythmus, z. B. „2 Tage Low Carb, 2 Tage Medium Carb, Refeed alle 9 Tage“.</div>
+      <input type="text" id="piName" placeholder="Name des Plans, z. B. Diät Herbst 2026" style="margin-bottom:10px;">
+      <textarea id="piText" rows="12" placeholder="Plan hier einfügen ..." style="min-height:260px;"></textarea>
+      <button type="button" class="primary" id="piGo" style="width:100%;margin-top:12px;">✨ Mit KI übernehmen</button>
+      <div class="save-status" id="piSt"></div>`;
+    ernSheet().querySelector('#piGo').onclick = async ()=>{
+      const btn = ernSheet().querySelector('#piGo'); const st = ernSheet().querySelector('#piSt');
+      const text = ernSheet().querySelector('#piText').value.trim();
+      if(!text){ st.textContent = 'Bitte zuerst den Plan einfügen.'; return; }
+      btn.disabled = true; btn.textContent = '✨ Lese Plan ...'; st.textContent = '';
+      const prompt = `Wandle diesen Ernährungsplan in JSON um. Antworte NUR mit JSON, ohne Erklärung, in genau dieser Form:
+{"name":"...","tagtypen":[{"name":"Low Carb","kcal":2200,"protein":200,"kh":100,"fett":90,"mahlzeiten":[{"name":"Frühstück","zeit":"07:00","inhalt":"Zutaten mit Mengen, eine pro Zeile","kcal":500,"protein":40,"kh":30,"fett":20}]}],"zyklus":["Low Carb","Low Carb","Medium Carb","Medium Carb"]}
+Regeln: Zahlen ohne Einheit. Unbekannte Werte weglassen (nicht erfinden). Wenn nur ein Tagtyp vorkommt, nenne ihn "Standard". "zyklus" ist die Reihenfolge der Tagtypen über die Tage, die sich wiederholt (z. B. für "2 Low, 2 Medium, Refeed alle 9 Tage": ["Low Carb","Low Carb","Medium Carb","Medium Carb","Low Carb","Low Carb","Medium Carb","Medium Carb","Refeed"]). Wenn kein Rhythmus angegeben ist: jeden Tagtyp einmal. Tagesmakros (kcal/protein/kh/fett des Tagtyps) aus dem Plan übernehmen oder aus den Mahlzeiten summieren.
+
+Plan:
+${text.slice(0, 15000)}`;
+      try{
+        const out = await callClaudeCoach(prompt);
+        const json = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1));
+        const tagtypen = (json.tagtypen || []).map(t=>({ id:uidShort(), name:t.name || 'Tagtyp', kcal:t.kcal || '', protein:t.protein || '', kh:t.kh || '', fett:t.fett || '',
+          mahlzeiten:(t.mahlzeiten || []).map(m=>({ name:m.name || '', zeit:m.zeit || '', inhalt:m.inhalt || '', kcal:m.kcal || '', protein:m.protein || '', kh:m.kh || '', fett:m.fett || '' })) }));
+        if(!tagtypen.length) throw new Error('Kein Tagtyp erkannt');
+        const zyklus = (json.zyklus || []).map(n=>(tagtypen.find(t=>t.name.toLowerCase() === String(n).toLowerCase()) || {}).id).filter(Boolean);
+        openPlanEditor({ id:null, name: ernSheet().querySelector('#piName') ? (ernSheet().querySelector('#piName').value.trim() || json.name || 'Mein Plan') : (json.name || 'Mein Plan'), aktiv:true, tagtypen, zyklus: zyklus.length ? zyklus : tagtypen.map(t=>t.id), start: todayStr() }, true);
+      }catch(e){ btn.disabled = false; btn.textContent = '✨ Mit KI übernehmen'; st.textContent = 'Das hat nicht geklappt: ' + e.message + '. Prüfe den Anthropic-Key in den Einstellungen oder versuch es nochmal.'; }
+    };
+  }
+  function openPlanEditor(plan, isDraft){
+    openErnSheet();
+    const p = plan ? JSON.parse(JSON.stringify(plan)) : { id:null, name:'', aktiv:!ernPlaene.length, tagtypen:[{ id:uidShort(), name:'Standard', kcal:'', protein:'', kh:'', fett:'', mahlzeiten:[] }], zyklus:[], start:todayStr() };
+    if(!p.zyklus.length) p.zyklus = p.tagtypen.map(t=>t.id);
+    const mi = (v, k, ph)=>`<input type="text" inputmode="decimal" data-k="${k}" value="${escapeHtml(String(v || ''))}" placeholder="${ph}">`;
+    const draw = ()=>{
+      ernSheet().innerHTML = `<h2 style="margin:0 0 6px;">${isDraft ? 'Plan prüfen' : plan ? 'Plan bearbeiten' : 'Neuer Plan'}</h2>
+        ${isDraft ? '<div class="hint">Die KI hat deinen Plan übernommen. Prüf die Werte kurz und speichere.</div>' : ''}
+        <input type="text" id="peName" value="${escapeHtml(p.name)}" placeholder="Name des Plans" style="margin-bottom:14px;">
+        ${p.tagtypen.map((t, ti)=>`<div class="card pe-tt" data-ti="${ti}">
+          <div class="pe-tt-head"><input type="text" data-k="name" value="${escapeHtml(t.name)}" placeholder="Tagtyp, z. B. Low Carb"><button type="button" class="aufg-link" data-del-tt="${ti}">Entfernen</button></div>
+          <div class="pe-mac pe-mac-lbl"><span>kcal</span><span>Protein</span><span>KH</span><span>Fett</span></div><div class="pe-mac">${mi(t.kcal,'kcal','kcal')}${mi(t.protein,'protein','Protein g')}${mi(t.kh,'kh','KH g')}${mi(t.fett,'fett','Fett g')}</div>
+          ${(t.mahlzeiten || []).map((m, mi2)=>`<div class="pe-meal" data-mi="${mi2}">
+            <div class="pe-meal-head"><input type="text" data-m="zeit" value="${escapeHtml(m.zeit || '')}" placeholder="Zeit" class="pe-zeit"><input type="text" data-m="name" value="${escapeHtml(m.name || '')}" placeholder="Mahlzeit"><button type="button" class="aufg-link" data-del-m="${mi2}">×</button></div>
+            <textarea data-m="inhalt" rows="2" placeholder="Inhalt / Zutaten">${escapeHtml(m.inhalt || '')}</textarea>
+            <div class="pe-mac pe-mac-lbl"><span>kcal</span><span>Protein</span><span>KH</span><span>Fett</span></div><div class="pe-mac">${['kcal','protein','kh','fett'].map(k=>`<input type="text" inputmode="decimal" data-m="${k}" value="${escapeHtml(String(m[k] || ''))}" placeholder="${{kcal:'kcal',protein:'P',kh:'KH',fett:'F'}[k]}">`).join('')}</div>
+          </div>`).join('')}
+          <button type="button" class="aufg-link" data-add-m="${ti}">+ Mahlzeit</button>
+        </div>`).join('')}
+        <button type="button" class="ghost" id="peAddTT" style="width:100%;">+ Tagtyp</button>
+        <div class="step-label" style="margin-top:20px;">Zyklus · Reihenfolge der Tage</div>
+        <div class="hint">Wiederholt sich automatisch. Beispiel: Low, Low, Medium, Medium … Refeed.</div>
+        <div class="pe-cyc">${p.zyklus.map((id, ci)=>{ const t = p.tagtypen.find(x=>x.id === id); return t ? `<button type="button" class="pe-cyc-chip" data-ci="${ci}">${ci+1}. ${escapeHtml(t.name)} ×</button>` : ''; }).join('')}</div>
+        <div class="pe-cyc-add">${p.tagtypen.map(t=>`<button type="button" class="aufg-filter" data-add-c="${t.id}">+ ${escapeHtml(t.name || 'Tagtyp')}</button>`).join('')}</div>
+        <div class="aufg-field-row" style="margin-top:12px;"><label class="aufg-label">Start</label><input type="date" id="peStart" value="${p.start}"></div>
+        <div class="nav-row" style="margin-top:18px;">
+          ${p.id ? '<button type="button" class="ghost" id="peDel">Löschen</button>' : '<button type="button" class="ghost" id="peCancel">Abbrechen</button>'}
+          <button type="button" class="primary" id="peSave">Speichern</button>
+        </div>
+        <div class="save-status" id="peSt"></div>`;
+      const S = ernSheet();
+      const sync = ()=>{
+        p.name = S.querySelector('#peName').value.trim(); p.start = S.querySelector('#peStart').value || todayStr();
+        S.querySelectorAll('.pe-tt').forEach(el=>{
+          const t = p.tagtypen[+el.dataset.ti];
+          el.querySelectorAll(':scope > .pe-tt-head [data-k], :scope > .pe-mac [data-k]').forEach(i=>{ t[i.dataset.k] = i.value.trim(); });
+          el.querySelectorAll('.pe-meal').forEach(me=>{ const m = t.mahlzeiten[+me.dataset.mi]; me.querySelectorAll('[data-m]').forEach(i=>{ m[i.dataset.m] = i.value.trim(); }); });
+        });
+      };
+      S.querySelectorAll('[data-add-m]').forEach(b=>b.onclick = ()=>{ sync(); p.tagtypen[+b.dataset.addM].mahlzeiten.push({ name:'', zeit:'', inhalt:'' }); draw(); });
+      S.querySelectorAll('[data-del-m]').forEach(b=>b.onclick = ()=>{ sync(); const ti = +b.closest('.pe-tt').dataset.ti; p.tagtypen[ti].mahlzeiten.splice(+b.dataset.delM, 1); draw(); });
+      S.querySelectorAll('[data-del-tt]').forEach(b=>b.onclick = ()=>{ sync(); if(p.tagtypen.length < 2) return; const t = p.tagtypen.splice(+b.dataset.delTt, 1)[0]; p.zyklus = p.zyklus.filter(id=>id !== t.id); draw(); });
+      S.querySelector('#peAddTT').onclick = ()=>{ sync(); const t = { id:uidShort(), name:'', kcal:'', protein:'', kh:'', fett:'', mahlzeiten:[] }; p.tagtypen.push(t); draw(); };
+      S.querySelectorAll('[data-ci]').forEach(b=>b.onclick = ()=>{ sync(); p.zyklus.splice(+b.dataset.ci, 1); draw(); });
+      S.querySelectorAll('[data-add-c]').forEach(b=>b.onclick = ()=>{ sync(); p.zyklus.push(b.dataset.addC); draw(); });
+      const cancel = S.querySelector('#peCancel'); if(cancel) cancel.onclick = ()=>{ ernPlaene.length ? openPlanManager2() : closeErnSheet(); };
+      const del = S.querySelector('#peDel');
+      if(del) del.onclick = async ()=>{
+        if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
+        try{ await airtableDelete(TABLE_ERN_PLAENE, p.id, ROUTINEN_BASE_ID); ernPlaene = ernPlaene.filter(x=>x.id !== p.id); openPlanManager2(); renderErnaehrungView(); }catch(e){ S.querySelector('#peSt').textContent = 'Löschen fehlgeschlagen.'; }
+      };
+      S.querySelector('#peSave').onclick = async ()=>{
+        sync();
+        const btn = S.querySelector('#peSave'); if(btn.disabled) return;
+        if(!p.name){ S.querySelector('#peSt').textContent = 'Bitte einen Namen für den Plan eingeben.'; return; }
+        p.tagtypen.forEach((t,i)=>{ if(!t.name) t.name = 'Tagtyp ' + (i+1); t.mahlzeiten = t.mahlzeiten.filter(m=>m.name || m.inhalt); });
+        if(!p.zyklus.length) p.zyklus = p.tagtypen.map(t=>t.id);
+        const fields = { 'Name': p.name, 'Aktiv': p.aktiv ? 'ja' : '', 'Tagtypen': JSON.stringify(p.tagtypen), 'Zyklus': JSON.stringify(p.zyklus), 'Zyklus Start': p.start };
+        btn.disabled = true;
+        try{
+          if(p.aktiv){ for(const o of ernPlaene){ if(o.id !== p.id && o.aktiv){ o.aktiv = false; await airtableFetch(TABLE_ERN_PLAENE + '/' + o.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Aktiv':'' } }) }, ROUTINEN_BASE_ID).catch(()=>{}); } } }
+          if(p.id){ await airtableFetch(TABLE_ERN_PLAENE + '/' + p.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID); ernPlaene = ernPlaene.map(x=>x.id === p.id ? p : x); }
+          else { p.id = await airtableCreate(TABLE_ERN_PLAENE, fields, ROUTINEN_BASE_ID); ernPlaene.push(p); }
+          closeErnSheet(); koerperView = 'ernaehrung'; renderKoerper();
+        }catch(e){ btn.disabled = false; S.querySelector('#peSt').textContent = 'Speichern fehlgeschlagen.'; }
+      };
+    };
+    draw();
+  }
+
+  /* ----- Rezepte ----- */
+  let rezeptSuche = '';
+  const REZ_KAT = ['Frühstück','Mittagessen','Abendessen','Snack','Shake','Sonstiges'];
+  function renderRezepteView(){
+    const body = document.getElementById('koerperBody');
+    const q = rezeptSuche.toLowerCase();
+    const list = rezepteCache.filter(r=>!q || r.name.toLowerCase().includes(q) || r.zutaten.toLowerCase().includes(q));
+    body.innerHTML = `
+      <div class="rez-head"><input type="text" id="rezSearch" placeholder="Rezepte durchsuchen ..." value="${escapeHtml(rezeptSuche)}"><button type="button" class="primary" id="rezNew">+ Rezept</button></div>
+      ${list.length ? REZ_KAT.map(k=>{ const g = list.filter(r=>(REZ_KAT.includes(r.kategorie) ? r.kategorie : 'Sonstiges') === k); if(!g.length) return '';
+        return `<div class="step-label" style="margin-top:16px;">${k}</div><div class="rez-grid">${g.map(r=>`<button type="button" class="rez-card" data-id="${r.id}"><b>${escapeHtml(r.name)}</b><span>${escapeHtml(macroLine(r) || 'Keine Makros')}${r.portionen > 1 ? ' · pro Portion' : ''}</span>${r.dauer ? `<small>⏱ ${r.dauer} Min</small>` : ''}</button>`).join('')}</div>`; }).join('')
+        : `<div class="card"><div class="empty">${rezepteCache.length ? 'Kein Rezept gefunden.' : 'Noch keine Rezepte. Leg dein erstes an, füge eins ein oder lass dir von der KI eins vorschlagen.'}</div></div>`}`;
+    const s = body.querySelector('#rezSearch');
+    s.oninput = ()=>{ rezeptSuche = s.value; const pos = s.selectionStart; renderRezepteView(); const n = document.getElementById('rezSearch'); n.focus(); try{ n.setSelectionRange(pos, pos); }catch(e){} };
+    body.querySelector('#rezNew').onclick = ()=>openRezeptEditor(null);
+    body.querySelectorAll('.rez-card').forEach(b=>b.onclick = ()=>openRezeptDetail(rezepteCache.find(r=>r.id === b.dataset.id)));
+  }
+  function openRezeptDetail(r){
+    if(!r) return;
+    openErnModal(`<div class="modal-title">${escapeHtml(r.name)}</div>
+      <div class="modal-sub">${escapeHtml([r.kategorie, r.portionen > 1 ? r.portionen + ' Portionen' : '1 Portion', r.dauer ? r.dauer + ' Min' : ''].filter(Boolean).join(' · '))}</div>
+      ${macroLine(r) ? `<div class="ern-macros rez-mac">${[['kcal','kcal'],['protein','g P'],['kh','g KH'],['fett','g F']].map(([k,l])=>`<div><b>${Math.round(num(r[k])) || '–'}</b><small>${l}</small></div>`).join('')}</div><div class="hint" style="margin:4px 0 0;">pro Portion</div>` : ''}
+      ${r.zutaten ? `<div class="turn-title" style="margin-top:14px;">Zutaten</div><div class="rez-text">${escapeHtml(r.zutaten)}</div>` : ''}
+      ${r.zubereitung ? `<div class="turn-title" style="margin-top:14px;">Zubereitung</div><div class="rez-text">${escapeHtml(r.zubereitung)}</div>` : ''}
+      <div class="nav-row" style="margin-top:16px;"><button type="button" class="ghost" id="rdDel">Löschen</button><button type="button" class="primary" id="rdEdit">Bearbeiten</button></div>
+      <div class="save-status" data-st></div>`);
+    const c = ernModalCard();
+    c.querySelector('#rdEdit').onclick = ()=>openRezeptEditor(r);
+    const del = c.querySelector('#rdDel');
+    del.onclick = async ()=>{
+      if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
+      try{ await airtableDelete(TABLE_REZEPTE, r.id, ROUTINEN_BASE_ID); rezepteCache = rezepteCache.filter(x=>x.id !== r.id); closeErnModal(); renderKoerper(); }catch(e){ c.querySelector('[data-st]').textContent = 'Löschen fehlgeschlagen.'; }
+    };
+  }
+  function openRezeptEditor(r){
+    const x = r || { name:'', kategorie:'Mittagessen', portionen:1, kcal:'', protein:'', kh:'', fett:'', dauer:'', zutaten:'', zubereitung:'' };
+    openErnModal(`<div class="modal-title">${r ? 'Rezept bearbeiten' : 'Neues Rezept'}</div>
+      ${r ? '' : `<div class="rez-ai"><input type="text" id="reAiIn" placeholder="✨ KI: Rezept einfügen oder Wunsch, z. B. High-Protein-Frühstück 600 kcal"><button type="button" class="ghost" id="reAi">✨ Ausfüllen</button></div>
+        <textarea id="reAiText" rows="3" placeholder="Oder ein komplettes Rezept hier einfügen …" style="min-height:70px;margin-bottom:10px;"></textarea>`}
+      <input type="text" id="reName" placeholder="Name" value="${escapeHtml(x.name)}" style="margin-bottom:8px;">
+      <div class="pe-mac" style="grid-template-columns:1.4fr 1fr 1fr;"><select id="reKat" class="ern-select">${REZ_KAT.map(k=>`<option ${k === x.kategorie ? 'selected' : ''}>${k}</option>`).join('')}</select>
+        <input type="text" inputmode="numeric" id="rePort" placeholder="Portionen" value="${escapeHtml(String(x.portionen || ''))}"><input type="text" inputmode="numeric" id="reDauer" placeholder="Min" value="${escapeHtml(String(x.dauer || ''))}"></div>
+      <div class="hint" style="margin:8px 0 4px;">Makros pro Portion</div>
+      <div class="pe-mac pe-mac-lbl"><span>kcal</span><span>Protein</span><span>KH</span><span>Fett</span></div><div class="pe-mac">${[['kcal','kcal'],['protein','Protein'],['kh','KH'],['fett','Fett']].map(([k,l])=>`<input type="text" inputmode="decimal" id="re_${k}" placeholder="${l}" value="${escapeHtml(String(x[k] || ''))}">`).join('')}</div>
+      <textarea id="reZut" rows="5" placeholder="Zutaten, eine pro Zeile" style="margin-top:10px;">${escapeHtml(x.zutaten)}</textarea>
+      <textarea id="reZub" rows="5" placeholder="Zubereitung" style="margin-top:10px;">${escapeHtml(x.zubereitung)}</textarea>
+      <button type="button" class="primary" id="reSave" style="width:100%;margin-top:12px;">Speichern</button>
+      <div class="save-status" id="reSt"></div>`);
+    const c = ernModalCard();
+    const ai = c.querySelector('#reAi');
+    if(ai) ai.onclick = async ()=>{
+      const wish = c.querySelector('#reAiIn').value.trim(), pasted = c.querySelector('#reAiText').value.trim();
+      if(!wish && !pasted){ c.querySelector('#reSt').textContent = 'Gib einen Wunsch ein oder füge ein Rezept ein.'; return; }
+      ai.disabled = true; ai.textContent = '✨ ...';
+      const fokus = profil.fokus ? ' Aktueller Fokus: ' + profil.fokus + '.' : '';
+      const prompt = `${pasted ? 'Übernimm dieses Rezept' : 'Erstelle ein alltagstaugliches, leckeres Rezept (Fitness-Ernährung, deutsche Supermarkt-Zutaten).' + fokus + ' Wunsch: ' + wish}
+Antworte NUR mit JSON: {"name":"...","kategorie":"Frühstück|Mittagessen|Abendessen|Snack|Shake|Sonstiges","portionen":1,"dauer":15,"kcal":0,"protein":0,"kh":0,"fett":0,"zutaten":"Menge Zutat\\nMenge Zutat","zubereitung":"1. ...\\n2. ..."}
+Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.slice(0, 8000) : ''}`;
+      try{
+        const out = await callClaudeCoach(prompt);
+        const j = JSON.parse(out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1));
+        c.querySelector('#reName').value = j.name || ''; if(REZ_KAT.includes(j.kategorie)) c.querySelector('#reKat').value = j.kategorie;
+        c.querySelector('#rePort').value = j.portionen || 1; c.querySelector('#reDauer').value = j.dauer || '';
+        ['kcal','protein','kh','fett'].forEach(k=>{ c.querySelector('#re_' + k).value = j[k] != null ? Math.round(num(j[k])) : ''; });
+        c.querySelector('#reZut').value = j.zutaten || ''; c.querySelector('#reZub').value = j.zubereitung || '';
+        c.querySelector('#reSt').textContent = 'Ausgefüllt – kurz prüfen und speichern.';
+      }catch(e){ c.querySelector('#reSt').textContent = 'KI fehlgeschlagen: ' + e.message; }
+      ai.disabled = false; ai.textContent = '✨ Ausfüllen';
+    };
+    c.querySelector('#reSave').onclick = async ()=>{
+      const btn = c.querySelector('#reSave'); if(btn.disabled) return;
+      const name = c.querySelector('#reName').value.trim();
+      if(!name){ c.querySelector('#reSt').textContent = 'Bitte einen Namen eingeben.'; return; }
+      const fields = { 'Name': name, 'Kategorie': c.querySelector('#reKat').value, 'Portionen': num(c.querySelector('#rePort').value) || 1, 'Dauer (Min)': num(c.querySelector('#reDauer').value) || null,
+        'Kcal': num(c.querySelector('#re_kcal').value) || null, 'Protein': num(c.querySelector('#re_protein').value) || null, 'KH': num(c.querySelector('#re_kh').value) || null, 'Fett': num(c.querySelector('#re_fett').value) || null,
+        'Zutaten': c.querySelector('#reZut').value.trim(), 'Zubereitung': c.querySelector('#reZub').value.trim() };
+      btn.disabled = true;
+      try{
+        if(r){ await airtableFetch(TABLE_REZEPTE + '/' + r.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID); Object.assign(r, mapRezept({ id:r.id, fields })); }
+        else { const id = await airtableCreate(TABLE_REZEPTE, fields, ROUTINEN_BASE_ID); rezepteCache.push(mapRezept({ id, fields })); }
+        rezepteCache.sort((a,b)=>a.name.localeCompare(b.name, 'de'));
+        closeErnModal(); renderKoerper();
+      }catch(e){ btn.disabled = false; c.querySelector('#reSt').textContent = 'Speichern fehlgeschlagen.'; }
     };
   }
 
@@ -9024,6 +9431,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     };
   }
 
+  document.getElementById('ernSheetClose').onclick = ()=>{ document.getElementById('ernSheet').style.display = 'none'; };
   loadKoerper();
 
   // Hintergrund sperren, solange ein Pop-up/Overlay offen ist (iOS scrollt sonst die Seite statt des Pop-ups)
