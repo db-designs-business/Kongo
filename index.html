@@ -953,6 +953,10 @@
   .rez-ai input{ flex:1; min-width:0; font-size:14px !important; }
   .rez-ai button{ flex-shrink:0; white-space:nowrap; }
   @media (max-width:420px){ .rez-ai{ flex-direction:column; } .ern-macros b{ font-size:16px; } }
+  .ern-type-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0 4px; }
+  .ern-type-row .ern-type{ margin:0; }
+  .ern-type.refeed{ background:rgba(255,197,107,.12); border-color:rgba(255,197,107,.5); color:#FFC56B; }
+  .ern-refeed-btn{ padding:8px 14px !important; font-size:13.5px !important; }
 </style>
 </head>
 <body>
@@ -9001,7 +9005,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   function mapPlan(r){
     const f = r.fields || {}; let tt = [], zy = [];
     try{ tt = JSON.parse(f['Tagtypen'] || '[]'); }catch(e){} try{ zy = JSON.parse(f['Zyklus'] || '[]'); }catch(e){}
-    return { id:r.id, name:f['Name'] || 'Plan', aktiv:f['Aktiv'] === 'ja', tagtypen:tt, zyklus:zy, start:f['Zyklus Start'] || todayStr() };
+    let rr = {}, ra = null; try{ rr = JSON.parse(f['Refeed Regel'] || '{}'); }catch(e){} try{ ra = JSON.parse(f['Refeed'] || 'null'); }catch(e){}
+    return { id:r.id, name:f['Name'] || 'Plan', aktiv:f['Aktiv'] === 'ja', tagtypen:tt, zyklus:zy, start:f['Zyklus Start'] || todayStr(),
+      refeedRegel: Object.assign({ tage:2, khFaktor:2, plusFett:50, plusProtein:50 }, rr), refeed: ra };
   }
   function mapRezept(r){ const f = r.fields || {}; return { id:r.id, name:f['Name'] || '', kategorie:f['Kategorie'] || 'Sonstiges', portionen:f['Portionen'] || 1, kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, kh:f['KH'] || 0, fett:f['Fett'] || 0, dauer:f['Dauer (Min)'] || 0, zutaten:f['Zutaten'] || '', zubereitung:f['Zubereitung'] || '' }; }
   function activePlan(){ return ernPlaene.find(p=>p.aktiv) || ernPlaene[0] || null; }
@@ -9011,6 +9017,28 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(!plan || !plan.tagtypen.length) return null;
     const d = ernDay(date);
     if(d && d.tagtypId){ const t = plan.tagtypen.find(x=>x.id === d.tagtypId); if(t) return t; }
+    const rf = plan.refeed;
+    if(rf && date >= rf.start && date <= rf.ende){
+      const base = plan.tagtypen.find(t=>t.id === rf.baseId) || plan.tagtypen[0];
+      return refeedTagtyp(plan, base, daysBetween(rf.start, date) + 1, daysBetween(rf.start, rf.ende) + 1);
+    }
+    return baseTagtypFor(plan, date);
+  }
+  // Refeed-Tag aus einem Basis-Tagtyp ableiten (Regel aus dem Plan)
+  function refeedTagtyp(plan, base, nr, total){
+    const r = plan.refeedRegel || {}; const f = num(r.khFaktor) || 1, pf = num(r.plusFett), pp = num(r.plusProtein);
+    const meals = (base.mahlzeiten || []); const n = meals.length || 1;
+    const kh = num(base.kh) * f, fett = num(base.fett) + pf, protein = num(base.protein) + pp;
+    const dk = (kh - num(base.kh)) * 4 + pf * 9 + pp * 4;
+    return { id:'__refeed', refeed:true, name:'Refeed · Tag ' + nr + '/' + total, kcal: num(base.kcal) ? Math.round(num(base.kcal) + dk) : '', protein: protein || '', kh: kh || '', fett: fett || '',
+      baseName: base.name,
+      mahlzeiten: meals.map(m=>Object.assign({}, m, {
+        kh: m.kh !== '' && m.kh != null ? Math.round(num(m.kh) * f) : m.kh,
+        fett: m.fett !== '' && m.fett != null ? Math.round(num(m.fett) + pf / n) : m.fett,
+        protein: m.protein !== '' && m.protein != null ? Math.round(num(m.protein) + pp / n) : m.protein,
+        kcal: m.kcal !== '' && m.kcal != null ? Math.round(num(m.kcal) + (num(m.kh) * (f - 1)) * 4 + (pf / n) * 9 + (pp / n) * 4) : m.kcal })) };
+  }
+  function baseTagtypFor(plan, date){
     const cyc = plan.zyklus.filter(id=>plan.tagtypen.some(t=>t.id === id));
     if(!cyc.length) return plan.tagtypen[0];
     const i = ((daysBetween(plan.start, date) % cyc.length) + cyc.length) % cyc.length;
@@ -9069,7 +9097,10 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     body.innerHTML = `
       <div class="card">
         <div class="home-aufg-head"><div class="step-label" style="margin:0;">Heute · ${escapeHtml(plan.name)}</div><button type="button" class="prio-edit-toggle" id="ernPlansBtn">Pläne</button></div>
-        <button type="button" class="ern-type" id="ernTypeBtn">${escapeHtml(tt ? tt.name : 'Kein Tagtyp')} <span>ändern ▾</span></button>
+        <div class="ern-type-row">
+          <button type="button" class="ern-type ${tt && tt.refeed ? 'refeed' : ''}" id="ernTypeBtn">${escapeHtml(tt ? tt.name : 'Kein Tagtyp')} <span>${tt && tt.refeed ? 'Basis ' + escapeHtml(tt.baseName) : 'ändern ▾'}</span></button>
+          ${tt && tt.refeed ? '<button type="button" class="ghost ern-refeed-btn" id="ernRefeedStop">Refeed beenden</button>' : '<button type="button" class="ghost ern-refeed-btn" id="ernRefeedBtn">🍚 Refeed starten</button>'}
+        </div>
         <div class="ern-macros">
           <div><b>${Math.round(sum.kcal)}</b><small>/ ${Math.round(tg.kcal) || '–'} kcal</small>${bar(sum.kcal, tg.kcal)}</div>
           <div><b>${Math.round(sum.protein)}</b><small>/ ${Math.round(tg.protein) || '–'} g P</small>${bar(sum.protein, tg.protein)}</div>
@@ -9101,7 +9132,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       ${ernCache.length ? `<div class="card">${ernCache.slice(0,14).map(x=>{ const n = (x.erledigt || []).length; return `<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})}${x.tagtyp ? ' · ' + escapeHtml(x.tagtyp) : ''}</span><span style="color:var(--ink-soft);">${n ? n + ' Mahlz.' : (x.kcal ? Math.round(x.kcal) + ' kcal' : '–')}${x.wasser ? ' · ' + fmtNum(x.wasser) + ' l' : ''}</span></div>`; }).join('')}</div>` : '<div class="card"><div class="empty">Noch keine Einträge.</div></div>'}`;
     const st = m=>{ const e = body.querySelector('#ernStatus'); if(e) e.textContent = m; };
     body.querySelector('#ernPlansBtn').onclick = openPlanManager2;
-    body.querySelector('#ernTypeBtn').onclick = ()=>openTagtypPicker(plan, t);
+    body.querySelector('#ernTypeBtn').onclick = ()=>{ if(tt && tt.refeed) return; openTagtypPicker(plan, t); };
+    const rfb = body.querySelector('#ernRefeedBtn'); if(rfb) rfb.onclick = ()=>openRefeedStart(plan, t);
+    const rfs = body.querySelector('#ernRefeedStop'); if(rfs) rfs.onclick = ()=>stopRefeed(plan, t, rfs);
     body.querySelectorAll('.ern-check').forEach(b=>b.onclick = async ()=>{
       if(b.disabled) return; b.disabled = true;
       const i = +b.dataset.i; const cur = (ernDay(t) || { erledigt:[] }).erledigt || [];
@@ -9116,6 +9149,41 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     });
     const nz = body.querySelector('#ernNotiz');
     nz.onchange = async ()=>{ try{ await saveErnDay(t, { notiz:nz.value.trim() }); st('Notiz gespeichert ✓'); }catch(e){ st('Speichern fehlgeschlagen.'); } };
+  }
+
+  function openRefeedStart(plan, date){
+    const r = plan.refeedRegel;
+    const isRf = t=>!t || t.refeed || /refeed/i.test(t.name || '');
+    let base = tagtypFor(plan, date);
+    if(isRf(base)) base = plan.zyklus.map(id=>plan.tagtypen.find(t=>t.id === id)).find(t=>!isRf(t)) || plan.tagtypen.find(t=>!isRf(t)) || plan.tagtypen[0];
+    const prev = refeedTagtyp(plan, base, 1, r.tage);
+    openErnModal(`<div class="modal-title">Refeed starten</div>
+      <div class="modal-sub">${r.tage} ${r.tage == 1 ? 'Tag' : 'Tage'} ab heute auf Basis von <b>${escapeHtml(base.name)}</b>. Danach startet der Zyklus wieder von vorne mit <b>${escapeHtml((plan.tagtypen.find(t=>t.id === plan.zyklus[0]) || plan.tagtypen[0]).name)}</b>.</div>
+      <div class="ern-macros rez-mac">${[['kcal','kcal'],['protein','g P'],['kh','g KH'],['fett','g F']].map(([k,l])=>`<div><b>${Math.round(num(prev[k])) || '–'}</b><small>${l}</small></div>`).join('')}</div>
+      <div class="hint" style="margin:8px 0 0;">Regel: Carbs ×${fmtNum(num(r.khFaktor))}, +${num(r.plusFett)} g Fett, +${num(r.plusProtein)} g Protein · ändern unter Pläne → Bearbeiten</div>
+      <button type="button" class="primary" id="rfGo" style="width:100%;margin-top:14px;">Refeed starten</button>
+      <div class="save-status" data-st></div>`);
+    ernModalCard().querySelector('#rfGo').onclick = async ()=>{
+      const tage = Math.max(1, Math.round(num(r.tage)) || 2);
+      const rf = { start:date, ende:shiftDay(date, tage - 1), baseId:base.id };
+      const start = shiftDay(date, tage);   // Zyklus beginnt danach wieder bei Position 1
+      try{
+        await airtableFetch(TABLE_ERN_PLAENE + '/' + plan.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Refeed': JSON.stringify(rf), 'Zyklus Start': start } }) }, ROUTINEN_BASE_ID);
+        plan.refeed = rf; plan.start = start;
+        const d = ernDay(date); if(d && d.tagtypId) await saveErnDay(date, { tagtypId:'' });
+        else if(d) await saveErnDay(date, {});
+        closeErnModal(); renderErnaehrungView();
+      }catch(e){ ernModalCard().querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
+    };
+  }
+  async function stopRefeed(plan, date, btn){
+    if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich beenden?'; return; }
+    try{
+      await airtableFetch(TABLE_ERN_PLAENE + '/' + plan.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Refeed': '', 'Zyklus Start': date } }) }, ROUTINEN_BASE_ID);
+      plan.refeed = null; plan.start = date;
+      if(ernDay(date)) await saveErnDay(date, {});
+      renderErnaehrungView();
+    }catch(e){ btn.textContent = 'Fehler'; }
   }
 
   function openTagtypPicker(plan, date){
@@ -9138,7 +9206,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   }
 
   function openMealDetail(plan, tt, i, date){
-    const m = tt.mahlzeiten[i]; const day = ernDay(date) || { abw:{} };
+    const baseTT = tt.refeed ? (plan.tagtypen.find(t=>t.id === (plan.refeed || {}).baseId) || tt) : tt;
+    const m = tt.mahlzeiten[i]; const mBase = baseTT.mahlzeiten[i] || m; const day = ernDay(date) || { abw:{} };
     const rz = m.rezeptId ? rezepteCache.find(r=>r.id === m.rezeptId) : null;
     openErnModal(`<div class="modal-title">${escapeHtml(m.name || 'Mahlzeit')}</div>
       <div class="modal-sub">${escapeHtml([m.zeit, tt.name].filter(Boolean).join(' · '))}</div>
@@ -9156,7 +9225,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     c.querySelector('#mSave').onclick = async ()=>{
       try{
         const rid = c.querySelector('#mRez').value;
-        if(rid !== (m.rezeptId || '')){ m.rezeptId = rid; await airtableFetch(TABLE_ERN_PLAENE + '/' + plan.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Tagtypen': JSON.stringify(plan.tagtypen) } }) }, ROUTINEN_BASE_ID); }
+        if(rid !== (m.rezeptId || '')){ m.rezeptId = rid; mBase.rezeptId = rid; await airtableFetch(TABLE_ERN_PLAENE + '/' + plan.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Tagtypen': JSON.stringify(plan.tagtypen) } }) }, ROUTINEN_BASE_ID); }
         const abw = Object.assign({}, day.abw || {}); const v = c.querySelector('#mAbw').value.trim(); if(v) abw[i] = v; else delete abw[i];
         await saveErnDay(date, { abw });
         closeErnModal(); renderErnaehrungView();
@@ -9216,6 +9285,7 @@ ${text.slice(0, 15000)}`;
   function openPlanEditor(plan, isDraft){
     openErnSheet();
     const p = plan ? JSON.parse(JSON.stringify(plan)) : { id:null, name:'', aktiv:!ernPlaene.length, tagtypen:[{ id:uidShort(), name:'Standard', kcal:'', protein:'', kh:'', fett:'', mahlzeiten:[] }], zyklus:[], start:todayStr() };
+    p.refeedRegel = Object.assign({ tage:2, khFaktor:2, plusFett:50, plusProtein:50 }, p.refeedRegel || {});
     if(!p.zyklus.length) p.zyklus = p.tagtypen.map(t=>t.id);
     const mi = (v, k, ph)=>`<input type="text" inputmode="decimal" data-k="${k}" value="${escapeHtml(String(v || ''))}" placeholder="${ph}">`;
     const draw = ()=>{
@@ -9238,6 +9308,15 @@ ${text.slice(0, 15000)}`;
         <div class="pe-cyc">${p.zyklus.map((id, ci)=>{ const t = p.tagtypen.find(x=>x.id === id); return t ? `<button type="button" class="pe-cyc-chip" data-ci="${ci}">${ci+1}. ${escapeHtml(t.name)} ×</button>` : ''; }).join('')}</div>
         <div class="pe-cyc-add">${p.tagtypen.map(t=>`<button type="button" class="aufg-filter" data-add-c="${t.id}">+ ${escapeHtml(t.name || 'Tagtyp')}</button>`).join('')}</div>
         <div class="aufg-field-row" style="margin-top:12px;"><label class="aufg-label">Start</label><input type="date" id="peStart" value="${p.start}"></div>
+        <div class="step-label" style="margin-top:20px;">Refeed-Regel</div>
+        <div class="hint">Gilt, wenn du im Ernährungsplan auf „Refeed starten“ tippst. Ausgangspunkt ist der Tagtyp, der an dem Tag dran wäre.</div>
+        <div class="pe-mac pe-mac-lbl"><span>Tage</span><span>Carbs ×</span><span>+ Fett g</span><span>+ Protein g</span></div>
+        <div class="pe-mac">
+          <input type="text" inputmode="numeric" id="rrTage" value="${escapeHtml(String(p.refeedRegel.tage))}">
+          <input type="text" inputmode="decimal" id="rrKh" value="${escapeHtml(String(p.refeedRegel.khFaktor))}">
+          <input type="text" inputmode="numeric" id="rrFett" value="${escapeHtml(String(p.refeedRegel.plusFett))}">
+          <input type="text" inputmode="numeric" id="rrProt" value="${escapeHtml(String(p.refeedRegel.plusProtein))}">
+        </div>
         <div class="nav-row" style="margin-top:18px;">
           ${p.id ? '<button type="button" class="ghost" id="peDel">Löschen</button>' : '<button type="button" class="ghost" id="peCancel">Abbrechen</button>'}
           <button type="button" class="primary" id="peSave">Speichern</button>
@@ -9246,6 +9325,7 @@ ${text.slice(0, 15000)}`;
       const S = ernSheet();
       const sync = ()=>{
         p.name = S.querySelector('#peName').value.trim(); p.start = S.querySelector('#peStart').value || todayStr();
+        p.refeedRegel = { tage: Math.max(1, Math.round(num(S.querySelector('#rrTage').value)) || 2), khFaktor: num(S.querySelector('#rrKh').value) || 1, plusFett: num(S.querySelector('#rrFett').value), plusProtein: num(S.querySelector('#rrProt').value) };
         S.querySelectorAll('.pe-tt').forEach(el=>{
           const t = p.tagtypen[+el.dataset.ti];
           el.querySelectorAll(':scope > .pe-tt-head [data-k], :scope > .pe-mac [data-k]').forEach(i=>{ t[i.dataset.k] = i.value.trim(); });
@@ -9270,7 +9350,7 @@ ${text.slice(0, 15000)}`;
         if(!p.name){ S.querySelector('#peSt').textContent = 'Bitte einen Namen für den Plan eingeben.'; return; }
         p.tagtypen.forEach((t,i)=>{ if(!t.name) t.name = 'Tagtyp ' + (i+1); t.mahlzeiten = t.mahlzeiten.filter(m=>m.name || m.inhalt); });
         if(!p.zyklus.length) p.zyklus = p.tagtypen.map(t=>t.id);
-        const fields = { 'Name': p.name, 'Aktiv': p.aktiv ? 'ja' : '', 'Tagtypen': JSON.stringify(p.tagtypen), 'Zyklus': JSON.stringify(p.zyklus), 'Zyklus Start': p.start };
+        const fields = { 'Name': p.name, 'Aktiv': p.aktiv ? 'ja' : '', 'Tagtypen': JSON.stringify(p.tagtypen), 'Zyklus': JSON.stringify(p.zyklus), 'Zyklus Start': p.start, 'Refeed Regel': JSON.stringify(p.refeedRegel) };
         btn.disabled = true;
         try{
           if(p.aktiv){ for(const o of ernPlaene){ if(o.id !== p.id && o.aktiv){ o.aktiv = false; await airtableFetch(TABLE_ERN_PLAENE + '/' + o.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Aktiv':'' } }) }, ROUTINEN_BASE_ID).catch(()=>{}); } } }
