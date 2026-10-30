@@ -1081,7 +1081,7 @@
       </button>
       <button type="button" class="home-link" id="homeToAufgaben">
         <span class="home-link-title">Aufgaben</span>
-        <span class="home-link-sub">Heute · Als Nächstes · Alle – nach Priorität</span>
+        <span class="home-link-sub">Heute · Als Nächstes · Alle, nach Priorität</span>
       </button>
       <button type="button" class="home-link" id="homeToKoerper">
         <span class="home-link-title">Körper</span>
@@ -1191,7 +1191,7 @@
       <div id="habitsList"></div>
       <div class="turn-title" style="margin-top:16px;">Neue Gewohnheit</div>
       <input type="text" id="newHabitInput" placeholder="Name, z.B. Meditieren" style="margin-bottom:10px;">
-      <textarea id="newHabitDescInput" placeholder="Beschreibung (optional) – was genau machst du dabei?" style="margin-bottom:10px;min-height:52px;"></textarea>
+      <textarea id="newHabitDescInput" placeholder="Beschreibung (optional): Was genau machst du dabei?" style="margin-bottom:10px;min-height:52px;"></textarea>
       <input type="number" id="newHabitDurationInput" placeholder="Dauer in Minuten (optional)" min="0" step="0.5" style="margin-bottom:10px;">
       <button class="primary" id="addHabitBtn">Hinzufügen</button>
     </div>
@@ -1405,11 +1405,11 @@
   <div id="panelSatzergaenzung" style="display:none;">
     <div class="eyebrow">Satzergänzung</div>
     <h1>Satzergänzungsübung</h1>
-    <div class="sub">Nach Nathaniel Branden – Mo bis Fr üben, am Wochenende zurückblicken.</div>
+    <div class="sub">Nach Nathaniel Branden. Mo bis Fr üben, am Wochenende zurückblicken.</div>
 
     <div class="card">
       <div class="step-label">Satzanfänge dieser Woche</div>
-      <div class="hint" style="margin-bottom:0;">Ändern sich wöchentlich – hier verwalten.</div>
+      <div class="hint" style="margin-bottom:0;">Ändern sich wöchentlich. Hier verwalten.</div>
       <button type="button" class="lib-link" id="openSatzanfaengeBtn">📖 Meine Satzanfänge verwalten</button>
     </div>
 
@@ -1545,7 +1545,7 @@
   <div id="panelLesen" style="display:none;">
     <div class="eyebrow">Lesen</div>
     <h1>Lesen</h1>
-    <div class="sub">Erst kurz abrufen, was hängengeblieben ist – dann lesen, notieren, zusammenfassen.</div>
+    <div class="sub">Erst kurz abrufen, was hängengeblieben ist. Dann lesen, notieren, zusammenfassen.</div>
 
     <div class="card">
       <div class="turn-title">Meine Bibliothek</div>
@@ -1781,7 +1781,7 @@
   <div class="modal-card" style="max-width:560px;">
     <button class="modal-close" id="connClose" aria-label="Schließen">×</button>
     <div class="modal-title">Verbindungen</div>
-    <div class="modal-sub">Zugangsdaten liegen verschlüsselt auf deinem Server – nur du kommst mit deinem Login daran.</div>
+    <div class="modal-sub">Zugangsdaten liegen verschlüsselt auf deinem Server. Nur du kommst mit deinem Login daran.</div>
     <div id="connBody"><div class="loading">Lade ...</div></div>
   </div>
 </div>
@@ -1852,7 +1852,7 @@
   <div class="modal-card picker-card">
     <button class="modal-close" id="dailyPickerClose" aria-label="Schließen">×</button>
     <div class="modal-title">Deine 4 Dailys</div>
-    <div class="modal-sub">Wähle genau 4 Dinge, die du jeden Tag machst. Je 25 XP – alle 4 geschafft = Daily Quest +50 XP.</div>
+    <div class="modal-sub">Wähle genau 4 Dinge, die du jeden Tag machst. Je 25 XP. Alle 4 geschafft = Daily Quest +50 XP.</div>
     <div id="dailyPickerBody"></div>
     <div class="picker-foot">
       <div class="picker-count" id="dailyPickerCount"></div>
@@ -1934,7 +1934,7 @@
     const setup = mode === 'setup';
     document.getElementById('authSetupFields').style.display = setup ? 'block' : 'none';
     document.getElementById('authPass2Wrap').style.display = setup ? 'block' : 'none';
-    document.getElementById('authSub').textContent = setup ? 'Konto einrichten – nur einmalig möglich' : 'Anmelden';
+    document.getElementById('authSub').textContent = setup ? 'Konto einrichten (nur einmalig möglich)' : 'Anmelden';
     document.getElementById('authSubmit').textContent = setup ? 'Konto anlegen' : 'Anmelden';
     document.getElementById('authPass').setAttribute('autocomplete', setup ? 'new-password' : 'current-password');
     authErr.textContent = '';
@@ -2054,7 +2054,7 @@
           }
           total += recs.length;
           log(tbl + ': ' + recs.length + ' Einträge ✓');
-        }catch(e){ failed.push(tbl); log(tbl + ': Fehler – ' + e.message); }
+        }catch(e){ failed.push(tbl); log(tbl + ': Fehler: ' + e.message); }
       }
     }
     return { total, failed };
@@ -2066,7 +2066,7 @@
     if(!token){ logEl.textContent = 'Bitte Airtable-Token eintragen.'; return; }
     btn.disabled = true; logEl.textContent = 'Übernahme läuft …\n';
     const res = await importFromAirtable(token, line=>{ logEl.textContent += line + '\n'; logEl.scrollTop = logEl.scrollHeight; });
-    logEl.textContent += '\nFertig: ' + res.total + ' Einträge übernommen' + (res.failed.length ? (', ' + res.failed.length + ' Tabelle(n) mit Fehler – einfach nochmal starten.') : '. App wird neu geladen …');
+    logEl.textContent += '\nFertig: ' + res.total + ' Einträge übernommen' + (res.failed.length ? (', ' + res.failed.length + ' Tabelle(n) mit Fehler. Einfach nochmal starten.') : '. App wird neu geladen …');
     btn.disabled = false;
     if(!res.failed.length){ clearDataCache(); setTimeout(()=>location.reload(), 1800); }
   };
@@ -2135,7 +2135,7 @@
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 3000,
-        messages: [{ role: 'user', content: prompt }]
+        messages: [{ role: 'user', content: prompt + '\n\nWichtig: Verwende in deinem Text keine Gedankenstriche (– oder —). Nutze stattdessen Punkt, Komma oder Doppelpunkt.' }]
       })
     });
     const data = await res.json();
@@ -2303,7 +2303,7 @@
 
   function formatWorkEntryText(entry){
     return [
-      'The Work – ' + new Date(entry.date).toLocaleString('de-DE'),
+      'The Work · ' + new Date(entry.date).toLocaleString('de-DE'),
       'Glaubenssatz: ' + entry.belief,
       'Ist das wahr? ' + (entry.q1_answer || '-'),
       'Absolut sicher? ' + entry.q2,
@@ -2318,7 +2318,7 @@
 
   function formatEveningEntryText(entry){
     return [
-      'Abend-Journal – ' + new Date(entry.date).toLocaleString('de-DE'),
+      'Abend-Journal · ' + new Date(entry.date).toLocaleString('de-DE'),
       'Erfolge: ' + (entry.erfolge || []).join('; '),
       'Schwierig: ' + entry.schwierig,
       'Dankbarkeit: ' + (entry.dankbarkeit || []).join('; '),
@@ -2444,14 +2444,14 @@
   const QUOTES = [
     "Der Gedanke, den du gerade glaubst, ist nicht dasselbe wie die Wirklichkeit.",
     "Jeder kleine Schritt heute zählt, auch wenn er sich klein anfühlt.",
-    "Du musst nicht alles auf einmal lösen – nur den nächsten Schritt.",
+    "Du musst nicht alles auf einmal lösen, nur den nächsten Schritt.",
     "Klarheit entsteht oft erst, wenn du aufhörst, gegen die Realität anzukämpfen.",
     "Was du heute übersiehst, darfst du morgen wieder anschauen.",
-    "Fortschritt zeigt sich selten laut – meistens in kleinen, stillen Momenten.",
+    "Fortschritt zeigt sich selten laut, meistens in kleinen, stillen Momenten.",
     "Ein ehrlicher Blick auf dich selbst ist mutiger als jede Ausrede.",
     "Du darfst Dinge langsam angehen und trotzdem vorankommen.",
     "Nicht jeder Gedanke, der dir durch den Kopf geht, verdient dein Vertrauen.",
-    "Wachstum fühlt sich selten bequem an – das ist kein Zeichen, dass etwas falsch läuft.",
+    "Wachstum fühlt sich selten bequem an. Das ist kein Zeichen, dass etwas falsch läuft.",
     "Frag dich heute einmal: ist das wirklich wahr, oder nur ein Gefühl?",
     "Der Vergleich mit anderen sagt selten etwas über deinen eigenen Weg aus.",
     "Du bist nicht deine schlechteste Selbsteinschätzung.",
@@ -2952,7 +2952,7 @@
           'Bericht': reportText
         }, COACHING_BASE_ID);
       }catch(e){
-        saveNote = '<div class="hint" style="color:var(--danger);margin-top:10px;">Konnte nicht gespeichert werden – lies ihn am besten jetzt fertig, bevor du schließt.</div>';
+        saveNote = '<div class="hint" style="color:var(--danger);margin-top:10px;">Konnte nicht gespeichert werden. Lies ihn am besten jetzt fertig, bevor du schließt.</div>';
       }
 
       const beliefsHtml = candidateBeliefs.length > 0 ? `
@@ -3005,7 +3005,7 @@
             await airtableCreate(TABLE_LIBRARY, { 'Glaubenssatz': b, 'Hinzugefügt am': new Date().toISOString() });
             btn.textContent = 'Hinzugefügt ✓';
           }catch(e){
-            btn.textContent = 'Fehler – erneut versuchen';
+            btn.textContent = 'Fehler, erneut versuchen';
             btn.disabled = false;
           }
         };
@@ -3236,7 +3236,7 @@
             <div class="example-text">Suche nach Beispielen, die das unterstützen:</div>
             <div class="example-sub">„Ich habe mich bemüht, mein Bestes zu geben.“ · „Es gab auch schon Momente, in denen ich stolz auf mich war.“</div>
             <div class="example-extra">
-              <div class="example-text">Zusatz bei Wörtern wie „immer“/„nie“: „Ich mache nie alles falsch.“ – suche Beweise dafür:</div>
+              <div class="example-text">Zusatz bei Wörtern wie „immer“/„nie“: „Ich mache nie alles falsch.“ Suche Beweise dafür:</div>
               <div class="example-sub">„Das Gericht ist vielleicht nicht perfekt, aber ich habe es immerhin zubereitet.“ · „Fehler gehören zum Lernen, also ist das kein ‚falsch machen‘.“</div>
             </div>
           </div>
@@ -3261,7 +3261,7 @@
           <textarea id="turnEx" placeholder="Deine Beispiele ...">${escapeHtml(data.turn2_examples)}</textarea>
           <div class="example-box">
             <div class="example-title">Beispiel: „Ich mache immer alles falsch.“ → „Ich denke, ich mache alles falsch.“</div>
-            <div class="example-text">Frage dich: „Ist das wirklich wahr?“ – oft erkennst du, dass dieser Gedanke nur aus einem Moment der Selbstkritik entstanden ist und nicht objektiv ist.</div>
+            <div class="example-text">Frage dich: „Ist das wirklich wahr?“ Oft erkennst du, dass dieser Gedanke nur aus einem Moment der Selbstkritik entstanden ist und nicht objektiv ist.</div>
             <div class="example-sub">„Vielleicht bin ich einfach zu streng mit mir selbst.“</div>
           </div>
           ${navRow(true)}
@@ -3286,7 +3286,7 @@
           <div class="example-box">
             <div class="example-title">Beispiel: „Ich mache immer alles falsch.“ → „Andere machen alles falsch.“</div>
             <div class="example-text">Überlege, ob du diesen Gedanken auf andere projizierst:</div>
-            <div class="example-sub">„Vielleicht denke ich, andere machen es besser als ich, und vergleiche mich zu viel.“ · „Es ist aber nicht wahr, dass andere perfekt sind – jeder macht Fehler.“</div>
+            <div class="example-sub">„Vielleicht denke ich, andere machen es besser als ich, und vergleiche mich zu viel.“ · „Es ist aber nicht wahr, dass andere perfekt sind. Jeder macht Fehler.“</div>
           </div>
           ${navRow(true)}
         </div>`;
@@ -3587,7 +3587,7 @@
     { key:'hilfe', label:'Gibt es etwas, wobei Hilfe gebraucht wird oder was schwerfällt?', field:'Hilfe' },
     { key:'verbesserung', label:'Was möchtest du in den nächsten 7 Tagen verbessern oder bewusst anders machen?', field:'Verbesserung' },
     { key:'zwischenmenschlich', label:'Gab es diese Woche eine wichtige zwischenmenschliche Situation, die du festhalten willst?', field:'Zwischenmenschlich' },
-    { key:'fehler', label:'Hast du diese Woche Fehler gemacht – strategisch, in einer Entscheidung, oder im Umgang mit jemandem? Wenn ja, welche?', field:'Fehler' }
+    { key:'fehler', label:'Hast du diese Woche Fehler gemacht? Strategisch, in einer Entscheidung oder im Umgang mit jemandem? Wenn ja, welche?', field:'Fehler' }
   ];
   const WEEKLY_SCALES = [
     { key:'wohlbefinden', label:'Persönliches Wohlbefinden', field:'Wohlbefinden' },
@@ -3806,7 +3806,7 @@
         ${run && nfOpen.length ? `<div class="nofap-checkin" style="margin-top:14px;"><div><b>NoFap-Check-in</b> · ${nfOpen.length === 1 ? fmtDay(nfOpen[0]) : nfOpen.length + ' Tage'} offen</div><button type="button" class="primary" id="eveningNofapBtn">Check-in</button></div>` : ''}
         <div class="hint" style="margin-top:14px;">Danach geht's weiter mit deinen Reflexionsfragen.</div>`;
     } else if(key === 'erfolge'){
-      bodyHtml = `<div class="question">Erfolge von heute</div><div class="hint">Mindestens 3 – auch Kleinigkeiten zählen.</div><div id="erfolgeList"></div>`;
+      bodyHtml = `<div class="question">Erfolge von heute</div><div class="hint">Mindestens 3. Auch Kleinigkeiten zählen.</div><div id="erfolgeList"></div>`;
     } else if(key === 'schwierig'){
       bodyHtml = `<div class="question">Was war heute schwierig?</div><textarea id="schwierigInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.schwierig)}</textarea>`;
     } else if(key === 'dankbarkeit'){
@@ -4055,7 +4055,7 @@
       closeRoutineExec();
       return;
     }
-    const label = (questionEl ? questionEl.textContent + ' – ' : '') + stepLabelEl.textContent;
+    const label = (questionEl ? questionEl.textContent + ': ' : '') + stepLabelEl.textContent;
     routineExecOverlay.style.display = 'none';
     document.getElementById('routinePausedLabel').textContent = label;
     document.getElementById('routinePausedBanner').style.display = 'block';
@@ -4905,8 +4905,8 @@
     const status = zp.why === 'Geändert' ? 'Offen' : zp.why;
     const d = new Date(); const dStr = String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.';
     let note = '';
-    if(zp.why === 'Geändert') note = dStr + ' Geändert (vorher: „' + zp.origText + '“)' + (reason ? ' – ' + reason : '');
-    else if(['Teilweise','Nicht erreicht','Verworfen'].includes(zp.why) && (reason || zp.why !== z.status)) note = dStr + ' ' + zp.why + (reason ? ' – ' + reason : '');
+    if(zp.why === 'Geändert') note = dStr + ' Geändert (vorher: „' + zp.origText + '“)' + (reason ? ': ' + reason : '');
+    else if(['Teilweise','Nicht erreicht','Verworfen'].includes(zp.why) && (reason || zp.why !== z.status)) note = dStr + ' ' + zp.why + (reason ? ': ' + reason : '');
     const begruendung = note ? (z.begruendung ? z.begruendung + '\n' + note : note) : z.begruendung;
     const fields = { 'Zieltext': text, 'Kategorie': zp.kat, 'Priorität': zp.art };
     if(status !== z.status) fields['Status'] = status;
@@ -5334,7 +5334,7 @@
         <div class="card">
           <div class="step-label">Satzergänzung · ${idx+1} von ${total}</div>
           <div class="question" style="font-size:19px;">${escapeHtml(stem.text)}</div>
-          <div class="hint">Ergänze schnell, ohne nachzudenken. Mindestens 6, bis zu 10 Ergänzungen – eine pro Zeile.</div>
+          <div class="hint">Ergänze schnell, ohne nachzudenken. Mindestens 6, bis zu 10 Ergänzungen, eine pro Zeile.</div>
           <div style="text-align:center;margin:16px 0;">
             <div id="satzTimerDisplay" style="font-family:var(--font);letter-spacing:-.03em;font-size:38px;font-weight:700;color:var(--forest-deep);">${formatTime(remaining)}</div>
             <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
@@ -5534,7 +5534,7 @@
         <div class="morning-dailys">${prioCache.length ? prioCache.map(p=>`<span class="aufg-chip">${katIcon(p.kategorie)} ${escapeHtml(p.titel)}</span>`).join('') : '<span class="hint">Noch keine Dailys gewählt.</span>'}</div>
 
         <div class="turn-title" style="margin-top:18px;">Deine Top 3 Aufgaben für heute</div>
-        <div class="hint" style="margin-bottom:8px;">Wähle max. 3 – die kommen in deine Heute-Liste.</div>
+        <div class="hint" style="margin-bottom:8px;">Wähle max. 3. Die kommen in deine Heute-Liste.</div>
         <div class="morning-tasks">${openTasks.length ? openTasks.slice(0,12).map(t=>`<button type="button" class="morning-task ${picked.includes(t.id)?'on':''}" data-id="${t.id}"><span class="aufg-chip prio-${t.prio}">${t.prio}</span><span class="mt-title">${escapeHtml(t.titel)}</span><b>${picked.includes(t.id)?'✓':''}</b></button>`).join('') : '<span class="hint">Keine offenen Aufgaben.</span>'}</div>
 
         <div class="nav-row">
@@ -5553,7 +5553,7 @@
         const id = b.dataset.id;
         if(picked.includes(id)) picked = picked.filter(x=>x !== id);
         else if(picked.length < 3) picked.push(id);
-        else { container.querySelector('#morgenreflexionStatus').textContent = 'Maximal 3 – Fokus schlägt Menge.'; return; }
+        else { container.querySelector('#morgenreflexionStatus').textContent = 'Maximal 3. Fokus schlägt Menge.'; return; }
         draw();
       });
       container.querySelector('#morgenCancelBtn').onclick = closeReflexionOverlay;
@@ -6102,7 +6102,7 @@
           ${b.autor ? `<div class="hint" style="margin:0;">${escapeHtml(b.autor)}</div>` : ''}
           ${b.seiten ? `
             <div style="height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--forest);"></div></div>
-            <div class="hint" style="margin:4px 0 0;">Seite ${b.aktuelleSeite || 0} von ${b.seiten} (${pct}%)</div>` : `<div class="hint" style="margin:4px 0 0;">Seitenzahl fehlt – über „Bearbeiten" eintragen</div>`}
+            <div class="hint" style="margin:4px 0 0;">Seite ${b.aktuelleSeite || 0} von ${b.seiten} (${pct}%)</div>` : `<div class="hint" style="margin:4px 0 0;">Seitenzahl fehlt. Über „Bearbeiten" eintragen</div>`}
         </div>
         <button type="button" class="ghost" id="lesenEditBookBtn" style="flex-shrink:0;padding:8px 12px;">Bearbeiten</button>
       </div>`;
@@ -6213,7 +6213,7 @@
         formEl.innerHTML = '';
         selectLesenBook(next ? next.id : '');
       }catch(e){
-        delBtn.textContent = 'Fehler – erneut versuchen'; delBtn.disabled = false; armed = false;
+        delBtn.textContent = 'Fehler, erneut versuchen'; delBtn.disabled = false; armed = false;
       }
     };
   }
@@ -6447,7 +6447,7 @@
       <div class="card">
         <div class="step-label">2 · Beim Lesen</div>
         <div class="turn-title">Kapitel</div>
-        <input type="text" id="lesenChapterInput" placeholder="z.B. Kapitel 3 – Gewohnheiten" value="${escapeHtml(lesenChapter)}" style="margin-bottom:12px;">
+        <input type="text" id="lesenChapterInput" placeholder="z.B. Kapitel 3: Gewohnheiten" value="${escapeHtml(lesenChapter)}" style="margin-bottom:12px;">
         <div class="turn-title">Notiz</div>
         <textarea id="lesenNoteInput" placeholder="Was willst du dir merken? In eigenen Worten ..." style="min-height:110px;"></textarea>
         <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
@@ -6572,7 +6572,7 @@
           </div>
         </div>
         <div class="entry-body" id="lbody-${cssSafe(e.id)}">
-          <div style="white-space:pre-wrap;">${e.seite ? 'S. ' + escapeHtml(e.seite) + ' – ' : ''}${escapeHtml(e.text)}</div>
+          <div style="white-space:pre-wrap;">${e.seite ? 'S. ' + escapeHtml(e.seite) + ': ' : ''}${escapeHtml(e.text)}</div>
           <button class="entry-delete" data-key="${e.id}" style="margin-top:12px;">Löschen</button>
         </div>
       </div>`).join('');
@@ -6605,7 +6605,7 @@
   const DAILY_KATALOG = [
     { kat:'Körper & Sport', icon:'💪', items:['Training','10.000 Schritte','Mobility / Dehnen','Kalt duschen','3 l Wasser'] },
     { kat:'Mental & Fokus', icon:'🧠', items:['Meditation','Lesen (20 Min)','Deep Work (90 Min)','Kein Handy in der 1. Stunde','Journaling'] },
-    { kat:'Resilienz & Disziplin', icon:'🛡️', items:['Komfortzone verlassen','Unangenehmste Aufgabe zuerst','Wort halten – keine Ausreden','NoFap-Tag'] },
+    { kat:'Resilienz & Disziplin', icon:'🛡️', items:['Komfortzone verlassen','Unangenehmste Aufgabe zuerst','Wort halten, keine Ausreden','NoFap-Tag'] },
     { kat:'Business & Wachstum', icon:'💼', items:['Kundenakquise','Content erstellen','Weiterbildung (30 Min)','1 neuer Kontakt / Netzwerken'] },
     { kat:'Skills & Ausstrahlung', icon:'🗣️', items:['Sprechtraining','Körpersprache üben','Affirmationen'] },
     { kat:'Erholung & Beziehungen', icon:'🌿', items:['7+ Std. Schlaf','Zeit mit Familie / Freunden','Digital Detox am Abend','Dankbarkeit'] }
@@ -6684,7 +6684,7 @@
     if(prioCache.length !== DAILY_COUNT){
       prioListEl.innerHTML = `${prioCache.length ? prioCache.map(p=>prioItemHtml(p, today)).join('') : ''}
         <div class="prio-pick-hint">
-          <div>${prioCache.length ? `Du hast ${prioCache.length} statt ${DAILY_COUNT} Dailys. Die Daily Quest zählt erst mit genau ${DAILY_COUNT}.` : `Wähle deine ${DAILY_COUNT} Dailys – die Dinge, die du jeden Tag erledigst.`}</div>
+          <div>${prioCache.length ? `Du hast ${prioCache.length} statt ${DAILY_COUNT} Dailys. Die Daily Quest zählt erst mit genau ${DAILY_COUNT}.` : `Wähle deine ${DAILY_COUNT} Dailys: die Dinge, die du jeden Tag erledigst.`}</div>
           <button type="button" class="primary" id="prioPickOpen2">Dailys auswählen</button>
         </div>`;
       document.getElementById('prioPickOpen2').onclick = openDailyPicker;
@@ -6778,7 +6778,7 @@
         const t = b.dataset.t, k = b.dataset.k;
         if(isSel(t)) pickSel = pickSel.filter(s=>s.titel.toLowerCase() !== t.toLowerCase());
         else {
-          if(pickSel.length >= DAILY_COUNT){ document.getElementById('dailyPickerStatus').textContent = `Maximal ${DAILY_COUNT} – entferne erst eins.`; return; }
+          if(pickSel.length >= DAILY_COUNT){ document.getElementById('dailyPickerStatus').textContent = `Maximal ${DAILY_COUNT}. Entferne erst eins.`; return; }
           pickSel.push({ titel:t, kat:k });
         }
         document.getElementById('dailyPickerStatus').textContent = '';
@@ -7038,7 +7038,7 @@
         const turningOn = t.heute !== today;
         if(turningOn){
           const count = aufgabenCache.filter(x=>aufgabeIsHeute(x) && !x.erledigtAm).length;
-          if(count >= HEUTE_LIMIT){ aufgabenStatus(`Heute hast du schon ${count} Aufgaben. Erledige oder verschiebe erst eine – Fokus schlägt Menge.`); return; }
+          if(count >= HEUTE_LIMIT){ aufgabenStatus(`Heute hast du schon ${count} Aufgaben. Erledige oder verschiebe erst eine. Fokus schlägt Menge.`); return; }
         }
         const prev = t.heute;
         t.heute = turningOn ? today : '';
@@ -7079,7 +7079,7 @@
         </div>
         ${total ? `<div class="prio-progress"><div style="width:${Math.round(heuteDone.length/total*100)}%"></div></div>` : ''}`;
       if(!total){
-        html += `<div class="card"><div class="empty">Tippe bei einer Aufgabe auf ★, um sie für heute auszuwählen – oder leg oben eine neue an und markiere „Heute".</div></div>`;
+        html += `<div class="card"><div class="empty">Tippe bei einer Aufgabe auf ★, um sie für heute auszuwählen, oder leg oben eine neue an und markiere „Heute".</div></div>`;
       } else {
         html += `<div class="card aufg-card">${heuteOpen.sort(aufgabenSort).map(t=>aufgabeRowHtml(t)).join('')}${heuteDone.map(t=>aufgabeRowHtml(t)).join('')}</div>`;
         if(heuteOpen.length){
@@ -7283,7 +7283,7 @@
       const heute = document.getElementById('aufgNewHeute').checked && !calFuture ? todayStr() : '';
       if(heute){
         const count = aufgabenCache.filter(x=>aufgabeIsHeute(x) && !x.erledigtAm).length;
-        if(count >= HEUTE_LIMIT){ aufgabenStatus(`Heute sind schon ${count} Aufgaben geplant – ich lege sie ohne „Heute" an.`); }
+        if(count >= HEUTE_LIMIT){ aufgabenStatus(`Heute sind schon ${count} Aufgaben geplant. Ich lege sie ohne „Heute" an.`); }
       }
       const count = aufgabenCache.filter(x=>aufgabeIsHeute(x) && !x.erledigtAm).length;
       const fields = {
@@ -7985,7 +7985,7 @@
         const sub = await swReg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8(publicKey) });
         const r2 = await fetch('push/subscribe.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'subscribe', subscription: sub.toJSON() }) });
         if(!r2.ok) throw new Error('Gerät konnte nicht registriert werden.');
-        pushStatus.textContent = 'Aktiviert ✓ – tipp auf „Test senden" zum Ausprobieren.';
+        pushStatus.textContent = 'Aktiviert ✓ Tipp auf „Test senden" zum Ausprobieren.';
       }
     }catch(e){ pushStatus.textContent = e.message || 'Fehler beim Aktivieren.'; }
     pushEnableBtn.disabled = false;
@@ -7998,7 +7998,7 @@
       const sub = await swReg.pushManager.getSubscription();
       const r = await fetch('push/test.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ endpoint: sub.endpoint }) });
       const j = await r.json();
-      pushStatus.textContent = j.ok ? 'Testnachricht gesendet – sollte gleich erscheinen.' : ('Fehler: ' + (j.error || j.status));
+      pushStatus.textContent = j.ok ? 'Testnachricht gesendet. Sollte gleich erscheinen.' : ('Fehler: ' + (j.error || j.status));
     }catch(e){ pushStatus.textContent = 'Test fehlgeschlagen.'; }
     pushTestBtn.disabled = false;
   };
@@ -8069,7 +8069,7 @@
   function renderCalHead(){
     const t = document.getElementById('calTitle');
     if(cal.view === 'monat') t.textContent = MONTHS[cal.cursor.getMonth()] + ' ' + cal.cursor.getFullYear();
-    else if(cal.view === 'woche'){ const s = startOfWeek(cal.cursor), e = addDays(s, 6); t.textContent = s.getDate() + '.' + (s.getMonth()+1) + '. – ' + e.getDate() + '.' + (e.getMonth()+1) + '.'; }
+    else if(cal.view === 'woche'){ const s = startOfWeek(cal.cursor), e = addDays(s, 6); t.textContent = s.getDate() + '.' + (s.getMonth()+1) + '. bis ' + e.getDate() + '.' + (e.getMonth()+1) + '.'; }
     else t.textContent = 'Nächste Termine';
     document.querySelectorAll('#calViews .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === cal.view));
     document.getElementById('calPrev').style.visibility = cal.view === 'liste' ? 'hidden' : '';
@@ -8145,7 +8145,7 @@
   function linkify(t){ return escapeHtml(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>'); }
   function openEventDetail(e){
     const s = evStart(e), en = evEnd(e);
-    const when = e.allDay ? (fmtDayLong(s) + (dKey(addDays(en,-1)) !== dKey(s) ? ' – ' + fmtDayLong(addDays(en,-1)) : '') + ' · Ganztägig')
+    const when = e.allDay ? (fmtDayLong(s) + (dKey(addDays(en,-1)) !== dKey(s) ? ' bis ' + fmtDayLong(addDays(en,-1)) : '') + ' · Ganztägig')
       : (fmtDayLong(s) + ' · ' + fmtTime(s) + '–' + fmtTime(en));
     calEventCard.innerHTML = `<button class="modal-close" data-x aria-label="Schließen">×</button>
       <div class="modal-title">${escapeHtml(e.title)}</div>
@@ -8377,7 +8377,7 @@ ${context}
 
 Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     btn.disabled = true; const old = btn.textContent; btn.textContent = '✨ Schreibe ...'; st.textContent = '';
-    try{ const text = await callClaudeCoach(prompt); document.getElementById('msgReply').value = text.trim(); st.textContent = 'Entwurf eingefügt – bitte prüfen und anpassen.'; }
+    try{ const text = await callClaudeCoach(prompt); document.getElementById('msgReply').value = text.trim(); st.textContent = 'Entwurf eingefügt. Bitte prüfen und anpassen.'; }
     catch(e){ st.textContent = e.message; }
     btn.disabled = false; btn.textContent = old;
   };
@@ -8517,8 +8517,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     history.replaceState(null, '', location.pathname);
     if(open === 'settings'){
       const g = params.get('google'), sl = params.get('slack'), wi = params.get('withings');
-      const note = g === 'ok' ? 'Google verbunden ✓' : g === 'error' ? 'Google-Verbindung fehlgeschlagen – bitte erneut versuchen.' : sl === 'ok' ? 'Slack-Workspace verbunden ✓' : sl === 'error' ? 'Slack-Verbindung fehlgeschlagen.'
-        : wi === 'ok' ? 'Withings verbunden ✓ – tippe auf „Jetzt abgleichen“, um deine Messungen zu übernehmen.' : wi === 'error' ? 'Withings-Verbindung fehlgeschlagen.' : '';
+      const note = g === 'ok' ? 'Google verbunden ✓' : g === 'error' ? 'Google-Verbindung fehlgeschlagen. Bitte erneut versuchen.' : sl === 'ok' ? 'Slack-Workspace verbunden ✓' : sl === 'error' ? 'Slack-Verbindung fehlgeschlagen.'
+        : wi === 'ok' ? 'Withings verbunden ✓ Tippe auf „Jetzt abgleichen“, um deine Messungen zu übernehmen.' : wi === 'error' ? 'Withings-Verbindung fehlgeschlagen.' : '';
       authReady.then(()=>setTimeout(()=>openConnections(note), 400));
       return;
     }
@@ -8531,9 +8531,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
 
   /* ---------- Körper: aktueller Fokus (Bulk / Cut / Cruise) ---------- */
   const FOKUS_INFO = {
-    Bulk: 'Aufbauphase – leichter Kalorienüberschuss, Kraft & Muskeln aufbauen.',
-    Cut: 'Diätphase – Kaloriendefizit, Fett verlieren, Kraft halten.',
-    Cruise: 'Erhaltungsphase – Gewicht halten, Form stabilisieren.'
+    Bulk: 'Aufbauphase: leichter Kalorienüberschuss, Kraft & Muskeln aufbauen.',
+    Cut: 'Diätphase: Kaloriendefizit, Fett verlieren, Kraft halten.',
+    Cruise: 'Erhaltungsphase: Gewicht halten, Form stabilisieren.'
   };
   function openFokusPicker(){
     const card = document.getElementById('calEventCard');
@@ -8719,7 +8719,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
           if(!armed){ armed = true; btn.textContent = 'Wirklich löschen?'; return; }
           btn.disabled = true;
           try{ await airtableDelete(TABLE_TRAININGS, btn.dataset.key, ROUTINEN_BASE_ID); trainingsCache = trainingsCache.filter(x=>x.id !== btn.dataset.key); revokeXP('training:' + btn.dataset.key); renderTrainingView(); }
-          catch(e){ btn.disabled = false; btn.textContent = 'Fehler – erneut'; armed = false; }
+          catch(e){ btn.disabled = false; btn.textContent = 'Fehler, erneut'; armed = false; }
         };
       });
     }
@@ -8964,7 +8964,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     // Abgehakte Sätze zählen; wurde gar nichts abgehakt, zählen alle ausgefüllten Sätze
     const anyDone = w.uebungen.some(u=>u.sets.some(x=>x.done));
     const saetze = w.uebungen.map(u=>({ u:u.name, sets: u.sets.filter(s=>(anyDone ? s.done : (s.kg !== '' && s.wdh !== '')) && Number(s.wdh) > 0).map(s=>({ kg:Number(s.kg) || 0, wdh:Number(s.wdh) || 0 })) })).filter(x=>x.sets.length);
-    if(!saetze.length){ status.textContent = 'Noch keine Sätze eingetragen – hak mindestens einen Satz ab oder trag kg/Wdh ein.'; return; }
+    if(!saetze.length){ status.textContent = 'Noch keine Sätze eingetragen. Hak mindestens einen Satz ab oder trag kg/Wdh ein.'; return; }
     const volumen = saetze.reduce((s,x)=>s + x.sets.reduce((a,b)=>a + b.kg * b.wdh, 0), 0);
     const dauer = Math.max(1, Math.round((Date.now() - w.start) / 60000));
     const prs = saetze.filter(x=>{ const prev = bestFor(x.u); const now = Math.max(...x.sets.map(s=>s.kg)); return prev > 0 && now > prev; }).map(x=>x.u);
@@ -8990,7 +8990,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
           <button type="button" class="primary" id="woDone" style="width:100%;margin-top:10px;">Fertig</button>
         </div>`;
       document.getElementById('woDone').onclick = closeWorkoutOverlay;
-    }catch(e){ btn.disabled = false; status.textContent = 'Speichern fehlgeschlagen. Dein Training bleibt erhalten – bitte erneut versuchen.'; }
+    }catch(e){ btn.disabled = false; status.textContent = 'Speichern fehlgeschlagen. Dein Training bleibt erhalten. Bitte erneut versuchen.'; }
   }
 
   /* ----- Ernährung ----- */
@@ -9428,7 +9428,7 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
         c.querySelector('#rePort').value = j.portionen || 1; c.querySelector('#reDauer').value = j.dauer || '';
         ['kcal','protein','kh','fett'].forEach(k=>{ c.querySelector('#re_' + k).value = j[k] != null ? Math.round(num(j[k])) : ''; });
         c.querySelector('#reZut').value = j.zutaten || ''; c.querySelector('#reZub').value = j.zubereitung || '';
-        c.querySelector('#reSt').textContent = 'Ausgefüllt – kurz prüfen und speichern.';
+        c.querySelector('#reSt').textContent = 'Ausgefüllt. Kurz prüfen und speichern.';
       }catch(e){ c.querySelector('#reSt').textContent = 'KI fehlgeschlagen: ' + e.message; }
       ai.disabled = false; ai.textContent = '✨ Ausfüllen';
     };

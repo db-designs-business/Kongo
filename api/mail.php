@@ -79,7 +79,7 @@ switch ($action) {
     $a += ['id' => 'm' . bin2hex(random_bytes(5)), 'email' => $email, 'user' => trim((string)($in['user'] ?? '')) ?: $email, 'pass' => $pass,
       'label' => trim((string)($in['label'] ?? '')) ?: $email, 'preset' => $preset ?: 'custom', 'name' => trim((string)($in['name'] ?? ''))];
     [$mb, $err] = m_open($a, 'INBOX', OP_HALFOPEN);
-    if (!$mb) kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen: ' . $err . ($preset === 'gmx' ? ' – Ist in den GMX-Einstellungen „POP3/IMAP Abruf“ aktiviert?' : '')]], 400);
+    if (!$mb) kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen: ' . $err . ($preset === 'gmx' ? '. Ist in den GMX-Einstellungen „POP3/IMAP Abruf“ aktiviert?' : '')]], 400);
     imap_close($mb);
     $all = m_accounts($uid); $all[] = $a; kg_set($uid, 'mail_accounts', $all);
     kg_json(['ok' => true, 'account' => m_public($a)]);

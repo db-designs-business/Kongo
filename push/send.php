@@ -16,7 +16,7 @@ if (PHP_SAPI !== 'cli') {               // Aufruf über den Browser nur mit Gehe
   header('Content-Type: text/plain; charset=utf-8');
 }
 $messages = [
-  'morning' => ['title' => 'Guten Morgen 🌅', 'body' => 'Zeit für deine Morgenreflexion – starte bewusst in den Tag.', 'url' => './?open=morning'],
+  'morning' => ['title' => 'Guten Morgen 🌅', 'body' => 'Zeit für deine Morgenreflexion. Starte bewusst in den Tag.', 'url' => './?open=morning'],
   'evening' => ['title' => 'Tagesabschluss 🌙', 'body' => 'Hak deine Dailys ab und mach deine Tagesreflexion.', 'url' => './?open=evening'],
   'test'    => ['title' => 'Kongrow', 'body' => 'Push funktioniert ✓', 'url' => './'],
 ];
