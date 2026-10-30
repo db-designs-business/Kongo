@@ -979,6 +979,77 @@
   .shop-item{ display:flex; gap:12px; align-items:center; padding:10px 2px; border-bottom:1px solid var(--line-soft); font-size:15px; cursor:pointer; }
   .shop-item input{ width:20px; height:20px; accent-color:var(--forest); flex-shrink:0; }
   .shop-item.done span{ text-decoration:line-through; opacity:.5; }
+  /* =========================================================
+     APPLE-PRINZIPIEN · Branding bleibt (Schwarz + Cyan, Inter, Glow)
+     ========================================================= */
+  html{ touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+  /* 1. Reaktion beim Antippen, sofort */
+  button, .msg-item, .rez-card, .cal-cell, .cal-ev, .home-ev, .k-plan, .fokus-opt, .badge, .ern-meal-main, .ziel-row{ transition:transform 100ms ease-out, background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 200ms ease; }
+  button:active, .msg-item:active, .rez-card:active, .cal-cell:active, .cal-ev:active, .home-ev:active, .k-plan:active, .fokus-opt:active, .ern-meal-main:active, .ziel-row:active{ transform:scale(.97); }
+  button.primary:active{ transform:scale(.97); box-shadow:0 0 18px rgba(34,227,211,.35); }
+  .bb-item:active{ transform:scale(.92); }
+  .bb-center:active{ transform:scale(.92) !important; }
+  /* 4. Glas-Kopfzeile, Inhalt scrollt darunter */
+  .wrap{ --wpad:16px; }
+  @media (min-width:480px){ .wrap{ --wpad:20px; } }
+  @media (min-width:1024px){ .wrap{ --wpad:40px; } }
+  .wrap.wrap{ padding-top:0 !important; }
+  .topbar .nav-menu{ top:calc(100% + 2px) !important; right:var(--wpad) !important; }
+  .topbar{ position:sticky; top:0; z-index:42; margin:0 calc(-1 * var(--wpad)) 18px; padding:calc(env(safe-area-inset-top) + 12px) var(--wpad) 10px;
+    background:transparent; transition:background-color 220ms ease, backdrop-filter 220ms ease; }
+  .topbar::after{ content:''; position:absolute; left:0; right:0; top:100%; height:18px; pointer-events:none; opacity:0; transition:opacity 220ms ease;
+    background:linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,0)); }
+  body.kg-scrolled .topbar{ background:rgba(4,7,8,.62); -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%); }
+  body.kg-scrolled .topbar::after{ opacity:1; }
+  .bottom-bar{ background:rgba(6,9,11,.62) !important; -webkit-backdrop-filter:blur(24px) saturate(170%) !important; backdrop-filter:blur(24px) saturate(170%) !important;
+    border-top:1px solid rgba(255,255,255,.07) !important; box-shadow:0 -1px 0 rgba(0,0,0,.4); }
+  @media (min-width:1024px){ .bottom-bar{ background:rgba(6,9,11,.72) !important; border-top:none !important; border-right:1px solid rgba(255,255,255,.06) !important; } }
+  /* Popups als Material: größer = dicker */
+  .modal-overlay{ background:rgba(3,5,6, calc(.78 * var(--scrim, 1))) !important; }
+  .modal-overlay:not([style*="align-items:stretch"]) > .modal-card{
+    background:linear-gradient(180deg, rgba(20,27,31,.9), rgba(10,14,16,.94)); -webkit-backdrop-filter:blur(28px) saturate(160%); backdrop-filter:blur(28px) saturate(160%);
+    border:1px solid rgba(255,255,255,.08); box-shadow:0 -12px 60px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.06); will-change:transform; }
+  @media (max-width:479px){
+    .modal-overlay:not([style*="align-items:stretch"]) > .modal-card{ padding-top:26px; }
+    .modal-overlay:not([style*="align-items:stretch"]) > .modal-card::before{ content:''; position:absolute; top:8px; left:50%; width:38px; height:5px; margin-left:-19px; border-radius:99px; background:rgba(255,255,255,.22); }
+  }
+  /* 6. Umschalter mit gleitender Markierung */
+  .kg-seg{ position:relative; }
+  .kg-seg > .aufg-tab{ position:relative; z-index:1; background:none !important; box-shadow:none !important; transition:color 200ms ease, transform 100ms ease-out; }
+  .kg-seg > .aufg-tab.active{ color:#04110F; }
+  .kg-seg-ind{ position:absolute; top:4px; bottom:4px; left:0; width:0; border-radius:999px; background:var(--forest); box-shadow:0 0 14px var(--forest-glow); z-index:0; pointer-events:none; will-change:transform,width; }
+  /* 5. Wischen bei Aufgaben */
+  .aufg-card, #homeAufgabenCard{ overflow:hidden; }
+  .aufg-item{ position:relative; will-change:transform; }
+  .aufg-item.kg-swiping{ z-index:2; }
+  .aufg-item.kg-swiping::before, .aufg-item.kg-swiping::after{ position:absolute; top:0; bottom:0; width:100vw; display:flex; align-items:center; font-weight:800; font-size:14px; opacity:var(--sw, 0); }
+  .aufg-item.kg-swiping[data-swipe="done"]::before{ content:'✓ Erledigt'; right:100%; justify-content:flex-end; padding-right:18px; color:#04110F; background:var(--forest); border-radius:12px 0 0 12px; }
+  .aufg-item.kg-swiping[data-swipe="today"]::after{ content:'★ Heute'; left:100%; justify-content:flex-start; padding-left:18px; color:#1A1203; background:#FFC56B; border-radius:0 12px 12px 0; }
+  #calBody, #koerperBody{ will-change:transform; touch-action:pan-y; }
+  /* 7. Typografie: Laufweite und Zeilenabstand je nach Größe */
+  body{ line-height:1.5; font-feature-settings:"cv11", "ss01"; }
+  h1{ letter-spacing:-.032em !important; line-height:1.06 !important; }
+  h2{ letter-spacing:-.022em; line-height:1.15; }
+  .question, .modal-title, .msg-subject, .cel-title{ letter-spacing:-.018em; line-height:1.2; }
+  .hint, .sub, .modal-sub{ line-height:1.5; letter-spacing:0; }
+  .step-label, .hz-cat-label, .msg-acc, .chip-label{ letter-spacing:.14em; }
+  small, .badge-name, .fs-tile small{ letter-spacing:.01em; }
+  .w-now, .ern-macros b, .fs-tile b, .urge-timer, .cal-ev-time, .home-ev-time, .msg-time{ font-variant-numeric:tabular-nums; }
+  /* 8. Barrierefreiheit */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; }
+    button:active, .msg-item:active, .rez-card:active{ transform:none !important; }
+  }
+  @media (prefers-reduced-transparency: reduce){
+    .topbar, body.kg-scrolled .topbar, .bottom-bar, .modal-overlay > .modal-card{ -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+    body.kg-scrolled .topbar{ background:#050809 !important; }
+    .bottom-bar{ background:#06090B !important; }
+    .modal-overlay:not([style*="align-items:stretch"]) > .modal-card{ background:#0E1417 !important; }
+  }
+  @media (prefers-contrast: more){
+    .card, .modal-card, .aufg-tabs, .fs-tile, .badge{ border-color:rgba(255,255,255,.35) !important; }
+    .hint, .sub, .modal-sub, .msg-snip{ color:#C9D1D3 !important; }
+  }
 </style>
 </head>
 <body>
@@ -9816,5 +9887,270 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
   render();
 })();
 </script>
+<script>
+/* =========================================================
+   KONGROW MOTION · Apple-Prinzipien (Federn, Gesten, Material)
+   ========================================================= */
+(function(){
+  const reduceMotion = ()=>window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isSheetLayout = ()=>window.innerWidth < 480;
+
+  // ---- Feder: Dämpfung + Response (wie Apple), unterbrechbar, übernimmt Geschwindigkeit
+  function spring(opts){
+    const { from, to, velocity = 0, damping = 1, response = 0.35, onUpdate, onDone } = opts;
+    if(reduceMotion()){ onUpdate && onUpdate(to); onDone && onDone(); return { stop(){}, get value(){ return to; } }; }
+    const k = Math.pow(2 * Math.PI / response, 2), c = 4 * Math.PI * damping / response;
+    let x = from, v = velocity, last = performance.now(), raf = 0, stopped = false;
+    const step = now=>{
+      if(stopped) return;
+      let dt = Math.min(0.064, (now - last) / 1000); last = now;
+      const n = Math.ceil(dt / 0.004); const h = dt / n;
+      for(let i = 0; i < n; i++){ const a = -k * (x - to) - c * v; v += a * h; x += v * h; }
+      onUpdate && onUpdate(x);
+      if(Math.abs(x - to) < 0.4 && Math.abs(v) < 4){ onUpdate && onUpdate(to); onDone && onDone(); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return { stop(){ stopped = true; cancelAnimationFrame(raf); }, get value(){ return x; }, get velocity(){ return v; } };
+  }
+  window.kgSpring = spring;
+  const project = (v, d = 0.998)=>(v / 1000) * d / (1 - d);
+  const rubberband = (over, dim, c = 0.55)=>(over * dim * c) / (dim + c * Math.abs(over));
+  // Geschwindigkeit aus den letzten Bewegungen (px/s)
+  function tracker(){
+    const h = [];
+    return { add(p){ const t = performance.now(); h.push({ p, t }); while(h.length > 1 && t - h[0].t > 100) h.shift(); },
+      v(){ if(h.length < 2) return 0; const a = h[0], b = h[h.length-1]; const dt = (b.t - a.t) / 1000; return dt > 0 ? (b.p - a.p) / dt : 0; } };
+  }
+
+  // ---- 1. Sofortiges Feedback: iOS zeigt :active nur mit Touch-Listener
+  document.addEventListener('touchstart', ()=>{}, { passive:true });
+
+  // ---- 2. Popups: einfahren/ausfahren mit Feder, nach unten ziehen zum Schließen
+  const sheets = new Map(); // overlay -> state
+  function cardOf(ov){ return ov.querySelector(':scope > .modal-card'); }
+  function isFullscreen(ov){ return /align-items:\s*stretch/.test(ov.getAttribute('style') || ''); }
+  function stateOf(ov){ let s = sheets.get(ov); if(!s){ s = { anim:null, y:0, open:false, closing:false }; sheets.set(ov, s); } return s; }
+  function applyCard(ov, card, y, h){
+    if(isSheetLayout()){ card.style.transform = `translate3d(0,${y}px,0)`; ov.style.setProperty('--scrim', String(Math.max(0, Math.min(1, 1 - y / Math.max(1, h))))); }
+    else { const p = Math.max(0, Math.min(1, 1 - y / 40)); card.style.transform = `translate3d(0,${y * 0.5}px,0) scale(${0.96 + 0.04 * p})`; card.style.opacity = String(p); ov.style.setProperty('--scrim', String(p)); }
+  }
+  function animateIn(ov){
+    const card = cardOf(ov); if(!card) return;
+    const s = stateOf(ov); if(s.anim) s.anim.stop();
+    const h = card.offsetHeight || 400;
+    const from = s.closing ? s.y : (isSheetLayout() ? h : 40);
+    s.closing = false; s.open = true; ov.classList.remove('kg-closing');
+    s.anim = spring({ from, to:0, velocity: s.vel || 0, damping:1, response:0.38, onUpdate:y=>{ s.y = y; applyCard(ov, card, y, h); }, onDone:()=>{ card.style.transform = ''; card.style.opacity = ''; ov.style.removeProperty('--scrim'); } });
+    s.vel = 0;
+  }
+  function selfSet(ov, val){ stateOf(ov).self = val; ov.style.display = val; }
+  function animateOut(ov){
+    const card = cardOf(ov); const s = stateOf(ov);
+    if(!card || reduceMotion()){ s.open = false; return; }
+    if(s.anim) s.anim.stop();
+    s.closing = true; ov.classList.add('kg-closing');
+    const h = card.offsetHeight || 400;
+    selfSet(ov, 'inline-flex');   // bleibt sichtbar, bis die Feder unten ist (inline-flex = flex bei fixed)
+    s.anim = spring({ from: s.y, to: isSheetLayout() ? h + 30 : 40, velocity: s.vel || 0, damping:1, response:0.32,
+      onUpdate:y=>{ s.y = y; applyCard(ov, card, y, h); if(isSheetLayout() ? y >= h : y >= 38) finish(); },
+      onDone:()=>finish() });
+    function finish(){ if(!s.closing) return; if(s.anim) s.anim.stop(); s.closing = false; s.open = false; ov.classList.remove('kg-closing'); selfSet(ov, 'none'); card.style.transform = ''; card.style.opacity = ''; ov.style.removeProperty('--scrim'); s.y = 0; }
+    s.vel = 0;
+  }
+  function watchOverlay(ov){
+    if(ov.id === 'authScreen' || isFullscreen(ov) || !cardOf(ov)) return;
+    const s = stateOf(ov);
+    s.open = !!ov.style.display && ov.style.display !== 'none';
+    s.last = ov.style.display;
+    new MutationObserver(()=>{
+      const now = ov.style.display;
+      if(now === s.last) return;            // nur echte Sichtbarkeits-Änderungen (nicht Transform/Scrim)
+      s.last = now;
+      if(s.self !== undefined && now === s.self){ s.self = undefined; return; }
+      s.self = undefined;
+      if(now === 'none'){ if(s.open && !s.closing) animateOut(ov); else if(!s.closing) s.open = false; }
+      else if(now){ if(!s.open || s.closing) animateIn(ov); }
+    }).observe(ov, { attributes:true, attributeFilter:['style'] });
+    attachDrag(ov);
+  }
+  function closeOverlay(ov){
+    const card = cardOf(ov);
+    const btn = card && (card.querySelector('.modal-close, [data-x]') );
+    if(btn) btn.click(); else ov.style.display = 'none';
+    if(ov.style.display !== 'none' && !stateOf(ov).closing) ov.style.display = 'none';
+  }
+  function attachDrag(ov){
+    const card = cardOf(ov);
+    let st = null;
+    card.addEventListener('touchstart', e=>{
+      if(!isSheetLayout() || e.touches.length !== 1) return;
+      const t = e.target;
+      if(t.closest('input, textarea, select, .shop-list, .ern-cycle, [contenteditable]')) return;
+      st = { x0:e.touches[0].clientX, y0:e.touches[0].clientY, drag:false, tr:tracker(), h:card.offsetHeight, scrollTop:card.scrollTop };
+      st.tr.add(0);
+    }, { passive:true });
+    card.addEventListener('touchmove', e=>{
+      if(!st) return;
+      const dx = e.touches[0].clientX - st.x0, dy = e.touches[0].clientY - st.y0;
+      if(!st.drag){
+        if(Math.abs(dy) < 10 && Math.abs(dx) < 10) return;
+        if(dy > 0 && Math.abs(dy) > Math.abs(dx) && card.scrollTop <= 0 && st.scrollTop <= 0){ st.drag = true; st.base = dy; const s = stateOf(ov); if(s.anim) s.anim.stop(); }
+        else { st = null; return; }
+      }
+      e.preventDefault();
+      let y = dy - st.base; if(y < 0) y = rubberband(y, st.h);
+      st.tr.add(y); const s = stateOf(ov); s.y = y; applyCard(ov, card, y, st.h);
+    }, { passive:false });
+    const end = ()=>{
+      if(!st) return;
+      if(!st.drag){ st = null; return; }
+      const s = stateOf(ov); const v = st.tr.v(); const h = st.h;
+      const projected = s.y + project(v);
+      if(projected > h * 0.4 || v > 900){ s.vel = v; closeOverlay(ov); }
+      else { if(s.anim) s.anim.stop(); s.anim = spring({ from:s.y, to:0, velocity:v, damping:0.85, response:0.3, onUpdate:y=>{ s.y = y; applyCard(ov, card, y, h); }, onDone:()=>{ card.style.transform = ''; ov.style.removeProperty('--scrim'); } }); }
+      st = null;
+    };
+    card.addEventListener('touchend', end); card.addEventListener('touchcancel', end);
+  }
+
+  // ---- 3. Abhaken: kurzer Feder-Pop (nur bei Erfolgs-Momenten)
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('.prio-check, .ern-check, .aufg-check, .hz-check, .checkin-day, .fokus-opt');
+    if(!b || reduceMotion()) return;
+    spring({ from:0.82, to:1, velocity:0, damping:0.55, response:0.32, onUpdate:s=>{ b.style.transform = `scale(${s})`; }, onDone:()=>{ b.style.transform = ''; } });
+  }, true);
+
+  // ---- 4. Glas-Kopfzeile: weicher Übergang erst beim Scrollen
+  const onScroll = ()=>{ document.body.classList.toggle('kg-scrolled', window.scrollY > 4); };
+  window.addEventListener('scroll', onScroll, { passive:true }); onScroll();
+
+  // ---- 6. Umschalter: Markierung gleitet federnd zur Auswahl
+  function initSeg(seg){
+    if(seg.dataset.kgSeg) return; seg.dataset.kgSeg = '1';
+    seg.classList.add('kg-seg');
+    const ind = document.createElement('span'); ind.className = 'kg-seg-ind'; seg.insertBefore(ind, seg.firstChild);
+    let anim = null, cur = null;
+    const place = (animate)=>{
+      const a = seg.querySelector('.aufg-tab.active'); if(!a || !seg.offsetWidth){ ind.style.opacity = '0'; return; }
+      const to = { x:a.offsetLeft, w:a.offsetWidth };
+      ind.style.opacity = '1';
+      if(!cur || !animate || reduceMotion()){ cur = to; ind.style.transform = `translateX(${to.x}px)`; ind.style.width = to.w + 'px'; return; }
+      if(anim) anim.stop();
+      const from = Object.assign({}, cur);
+      anim = spring({ from:0, to:1, damping:0.9, response:0.32, onUpdate:p=>{ cur = { x: from.x + (to.x - from.x) * p, w: from.w + (to.w - from.w) * p }; ind.style.transform = `translateX(${cur.x}px)`; ind.style.width = cur.w + 'px'; } });
+    };
+    new MutationObserver(()=>place(true)).observe(seg, { subtree:true, attributes:true, attributeFilter:['class'] });
+    if(window.ResizeObserver) new ResizeObserver(()=>place(false)).observe(seg);
+    place(false);
+  }
+
+  // ---- 5. Wischgesten
+  // 5a) Aufgaben: rechts = erledigt, links = für heute
+  function attachRowSwipe(container){
+    let st = null;
+    container.addEventListener('touchstart', e=>{
+      const row = e.target.closest('.aufg-item'); if(!row || e.touches.length !== 1) return;
+      if(e.target.closest('button') && !e.target.closest('.aufg-main')) { /* Buttons erlauben trotzdem Swipe */ }
+      st = { row, x0:e.touches[0].clientX, y0:e.touches[0].clientY, drag:false, tr:tracker(), w:row.offsetWidth };
+    }, { passive:true });
+    container.addEventListener('touchmove', e=>{
+      if(!st) return;
+      const dx = e.touches[0].clientX - st.x0, dy = e.touches[0].clientY - st.y0;
+      if(!st.drag){
+        if(Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        if(Math.abs(dx) > Math.abs(dy) * 1.4){ st.drag = true; st.base = dx > 0 ? 10 : -10; st.row.classList.add('kg-swiping'); }
+        else { st = null; return; }
+      }
+      e.preventDefault();
+      const canLeft = !!st.row.querySelector('.aufg-star');
+      let x = dx - st.base; if(x < 0 && !canLeft) x = rubberband(x, st.w * 0.3);
+      if(Math.abs(x) > st.w * 0.6) x = Math.sign(x) * (st.w * 0.6 + rubberband(Math.abs(x) - st.w * 0.6, st.w));
+      st.tr.add(x); st.x = x;
+      st.row.style.transform = `translate3d(${x}px,0,0)`;
+      st.row.dataset.swipe = x > 0 ? 'done' : 'today';
+      st.row.style.setProperty('--sw', String(Math.min(1, Math.abs(x) / (st.w * 0.3))));
+    }, { passive:false });
+    const end = ()=>{
+      if(!st || !st.drag){ st = null; return; }
+      const { row, w } = st; const v = st.tr.v(); const x = st.x || 0;
+      const proj = x + project(v, 0.99);
+      const commit = Math.abs(proj) > w * 0.35 && Math.sign(proj) === Math.sign(x);
+      const target = commit ? Math.sign(x) * w * 0.35 : 0;
+      spring({ from:x, to: commit ? 0 : 0, velocity:v, damping: commit ? 1 : 0.85, response:0.3, onUpdate:p=>{ row.style.transform = `translate3d(${p}px,0,0)`; }, onDone:()=>{ row.style.transform = ''; row.classList.remove('kg-swiping'); delete row.dataset.swipe; } });
+      if(commit){
+        const btn = x > 0 ? row.querySelector('.aufg-check') : row.querySelector('.aufg-star');
+        if(btn) setTimeout(()=>btn.click(), 60);
+      }
+      st = null;
+    };
+    container.addEventListener('touchend', end); container.addEventListener('touchcancel', end);
+  }
+  // 5b) Horizontales Blättern (Kalender, Body-Tabs)
+  function attachPager(el, onPrev, onNext, enabled){
+    let st = null;
+    el.addEventListener('touchstart', e=>{
+      if(e.touches.length !== 1 || (enabled && !enabled())) return;
+      if(e.target.closest('input, textarea, select, .ern-cycle, .aufg-item, .modal-overlay')) return;
+      st = { x0:e.touches[0].clientX, y0:e.touches[0].clientY, drag:false, tr:tracker(), w:el.offsetWidth };
+    }, { passive:true });
+    el.addEventListener('touchmove', e=>{
+      if(!st) return;
+      const dx = e.touches[0].clientX - st.x0, dy = e.touches[0].clientY - st.y0;
+      if(!st.drag){
+        if(Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+        if(Math.abs(dx) > Math.abs(dy) * 1.5){ st.drag = true; st.base = dx > 0 ? 12 : -12; } else { st = null; return; }
+      }
+      e.preventDefault();
+      const x = rubberband(dx - st.base, st.w, 0.8); st.x = x; st.tr.add(x);
+      el.style.transform = `translate3d(${x}px,0,0)`; el.style.opacity = String(1 - Math.min(0.35, Math.abs(x) / st.w));
+    }, { passive:false });
+    const end = ()=>{
+      if(!st || !st.drag){ st = null; return; }
+      const v = st.tr.v(), x = st.x || 0, w = st.w; const proj = x + project(v, 0.99);
+      const go = Math.abs(proj) > w * 0.22 ? Math.sign(proj) : 0;
+      if(go){
+        spring({ from:x, to: go * w * 0.6, velocity:v, damping:1, response:0.2, onUpdate:p=>{ el.style.transform = `translate3d(${p}px,0,0)`; el.style.opacity = String(Math.max(0, 1 - Math.abs(p) / (w * 0.6))); }, onDone:()=>{
+          (go > 0 ? onPrev : onNext)();
+          // neuer Inhalt kommt von der Gegenseite (räumlich konsistent)
+          spring({ from: -go * w * 0.35, to:0, damping:1, response:0.34, onUpdate:p=>{ el.style.transform = `translate3d(${p}px,0,0)`; el.style.opacity = String(1 - Math.abs(p) / (w * 0.35) * 0.8); }, onDone:()=>{ el.style.transform = ''; el.style.opacity = ''; } });
+        } });
+      } else {
+        spring({ from:x, to:0, velocity:v, damping:0.85, response:0.3, onUpdate:p=>{ el.style.transform = `translate3d(${p}px,0,0)`; el.style.opacity = String(1 - Math.min(0.35, Math.abs(p) / w)); }, onDone:()=>{ el.style.transform = ''; el.style.opacity = ''; } });
+      }
+      st = null;
+    };
+    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+  }
+
+  // ---- Seitenwechsel: kurzes Einblenden
+  function panelIn(p){
+    if(reduceMotion() || !p) return;
+    spring({ from:1, to:0, damping:1, response:0.3, onUpdate:t=>{ p.style.opacity = String(1 - t * 0.9); p.style.transform = `translate3d(0,${t * 10}px,0)`; }, onDone:()=>{ p.style.opacity = ''; p.style.transform = ''; } });
+  }
+
+  function init(){
+    document.querySelectorAll('.modal-overlay').forEach(watchOverlay);
+    document.querySelectorAll('.aufg-tabs').forEach(initSeg);
+    ['aufgabenList', 'homeAufgabenList'].forEach(id=>{ const el = document.getElementById(id); if(el) attachRowSwipe(el); });
+    const calBody = document.getElementById('calBody');
+    if(calBody) attachPager(calBody, ()=>document.getElementById('calPrev').click(), ()=>document.getElementById('calNext').click(),
+      ()=>{ const a = document.querySelector('#calViews .aufg-tab.active'); return a && a.dataset.v !== 'liste'; });
+    const kb = document.getElementById('koerperBody');
+    if(kb){
+      const tabs = ()=>[...document.querySelectorAll('.k-tab')];
+      const go = d=>{ const t = tabs(); const i = t.findIndex(x=>x.classList.contains('active')); const n = t[i + d]; if(n) n.click(); };
+      attachPager(kb, ()=>go(-1), ()=>go(1), ()=>!document.getElementById('workoutOverlay') || document.getElementById('workoutOverlay').style.display === 'none' || !document.getElementById('workoutOverlay').style.display);
+    }
+    // Panels beim Sichtbarwerden einblenden
+    document.querySelectorAll('.wrap > [id^="panel"]').forEach(p=>{
+      let was = p.style.display !== 'none';
+      new MutationObserver(()=>{ const vis = p.style.display !== 'none'; if(vis && !was) panelIn(p); was = vis; }).observe(p, { attributes:true, attributeFilter:['style'] });
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
 </body>
 </html>
