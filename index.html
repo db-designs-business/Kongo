@@ -1050,6 +1050,7 @@
     .card, .modal-card, .aufg-tabs, .fs-tile, .badge{ border-color:rgba(255,255,255,.35) !important; }
     .hint, .sub, .modal-sub, .msg-snip{ color:#C9D1D3 !important; }
   }
+  .refl-quick-btn.done{ color:var(--forest); border-color:rgba(34,227,211,.45); background:rgba(34,227,211,.08); font-weight:700; }
 </style>
 </head>
 <body>
@@ -4178,7 +4179,7 @@
         const original = btn.textContent;
         btn.textContent = 'Lösche ...';
         btn.disabled = true;
-        try{ await airtableDelete(TABLE_EVENING, btn.dataset.key); loadEveningJournal(); }
+        try{ await airtableDelete(TABLE_EVENING, btn.dataset.key); loadEveningJournal(); refreshReflDone(true); }
         catch(e){ btn.textContent = 'Fehler — erneut versuchen'; btn.disabled = false; }
       };
     });
@@ -5014,6 +5015,28 @@
     if(sel) sel.value = 'Woche';
     document.getElementById('startQuickGoalsBtn').click();
   }
+
+  /* ---------- Startseite: Morgen-/Abendreflexion für heute erledigt? ---------- */
+  async function refreshReflDone(fresh){
+    const mb = document.getElementById('homeMorningBtn'), eb = document.getElementById('homeEveningBtn');
+    if(!mb || !eb) return;
+    const t = todayStr();
+    const isToday = r=>{ const d = (r.fields || {})['Datum']; return d && dayStr(new Date(d)) === t; };
+    try{
+      const [m, e] = await Promise.all([
+        (fresh ? airtableListFresh : airtableList)(TABLE_MORGENREFLEXION, MORGEN_BASE_ID).catch(()=>[]),
+        (fresh ? airtableListFresh : airtableList)(TABLE_EVENING, AIRTABLE_BASE_ID).catch(()=>[])
+      ]);
+      const mDone = m.some(isToday), eDone = e.some(isToday);
+      mb.classList.toggle('done', mDone); eb.classList.toggle('done', eDone);
+      mb.innerHTML = mDone ? '✓ Morgenreflexion' : '🌅 Morgenreflexion';
+      eb.innerHTML = eDone ? '✓ Abendreflexion' : '🌙 Abendreflexion';
+      mb.title = mDone ? 'Heute erledigt' : ''; eb.title = eDone ? 'Heute erledigt' : '';
+    }catch(err){}
+  }
+  authReady.then(()=>setTimeout(()=>refreshReflDone(false), 800));
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') refreshReflDone(false); });
+
   document.getElementById('homeMorningBtn').onclick = ()=>{ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); };
   document.getElementById('homeEveningBtn').onclick = ()=>{ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); };
   document.getElementById('homeZieleAll').onclick = ()=>{ switchTab('ziele'); window.scrollTo(0,0); };
@@ -5798,7 +5821,7 @@
       listEl.querySelectorAll('.entry-delete').forEach(btn=>{
         btn.onclick = async (ev)=>{
           ev.stopPropagation();
-          try{ await airtableDelete(TABLE_MORGENREFLEXION, btn.dataset.key, MORGEN_BASE_ID); loadMorgenreflexionHistorie(); }
+          try{ await airtableDelete(TABLE_MORGENREFLEXION, btn.dataset.key, MORGEN_BASE_ID); loadMorgenreflexionHistorie(); refreshReflDone(true); }
           catch(e){ /* ignore */ }
         };
       });
@@ -7727,8 +7750,8 @@
       const t = todayStr();
       switch(tableId){
         case TABLE_WORK: awardXP('work:' + id, 'The Work', 30); break;
-        case TABLE_EVENING: awardXP('evening:' + t, 'Tagesreflexion', 25); break;
-        case TABLE_MORGENREFLEXION: awardXP('morning:' + t, 'Morgenreflexion', 15); break;
+        case TABLE_EVENING: { const d = fields['Datum'] ? dayStr(new Date(fields['Datum'])) : t; awardXP('evening:' + d, 'Abendreflexion', 25); setTimeout(()=>refreshReflDone(true), 300); break; }
+        case TABLE_MORGENREFLEXION: awardXP('morning:' + t, 'Morgenreflexion', 15); setTimeout(()=>refreshReflDone(true), 300); break;
         case TABLE_WOCHENREFLEXION: awardXP('weekly:' + id, 'Wochenreflexion', 50); break;
         case TABLE_ROUTINE_LOG: {
           const komplett = !(fields['Offen'] || '').trim();
