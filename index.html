@@ -1059,6 +1059,32 @@
   .kg-undo.show{ opacity:1; transform:translate(-50%, 0); }
   .kg-undo button{ background:rgba(34,227,211,.14); border:1px solid rgba(34,227,211,.45); color:var(--forest); font-weight:800; font-size:13.5px; padding:7px 14px; border-radius:999px; cursor:pointer; }
   @media (min-width:1024px){ .kg-undo{ left:calc(50% + var(--side-w) / 2); bottom:28px; } }
+  .msg-bar{ margin-bottom:12px; }
+  .msg-bar .aufg-tabs{ margin-bottom:8px; }
+  .msg-bar-row{ display:flex; gap:8px; align-items:center; }
+  .msg-box-btn{ flex:1; min-width:0; display:inline-flex; align-items:center; gap:8px; justify-content:flex-start; padding:9px 14px; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer;
+    background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .msg-box-btn.active{ border-color:rgba(34,227,211,.45); color:var(--forest); }
+  .msg-box-btn #msgBoxLabel{ display:inline-flex; align-items:center; gap:7px; overflow:hidden; text-overflow:ellipsis; }
+  .msg-box-clear{ width:36px; height:38px; border-radius:12px; border:1px solid var(--line-soft); background:rgba(255,255,255,.03); color:var(--ink-soft); font-size:18px; cursor:pointer; flex-shrink:0; }
+  .msg-unread-btn{ flex-shrink:0; display:inline-flex; align-items:center; gap:7px; padding:9px 12px; border-radius:12px; font-size:13.5px; font-weight:600; cursor:pointer; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); color:var(--ink-soft); }
+  .msg-unread-btn .dot{ width:8px; height:8px; border-radius:99px; background:var(--ink-soft); }
+  .msg-unread-btn.active{ color:var(--forest); border-color:rgba(34,227,211,.45); background:rgba(34,227,211,.08); }
+  .msg-unread-btn.active .dot{ background:var(--forest); box-shadow:0 0 8px var(--forest-glow); }
+  .mbox-dot{ display:inline-block; width:9px; height:9px; border-radius:99px; flex-shrink:0; }
+  .msg-acc{ display:inline-flex; align-items:center; gap:6px; }
+  .mbox-all, .mbox-pick{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px; border-radius:12px; cursor:pointer; background:rgba(0,0,0,.25); border:1px solid var(--line-soft); color:var(--ink); font-size:15px; font-weight:600; }
+  .mbox-all{ margin-top:10px; justify-content:space-between; }
+  .mbox-all.active, .mbox-row.active .mbox-pick{ border-color:rgba(34,227,211,.5); background:rgba(34,227,211,.08); }
+  .mbox-row{ display:flex; gap:6px; margin-bottom:6px; }
+  .mbox-pick{ flex:1; min-width:0; }
+  .mbox-name{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .mbox-name small{ font-size:11.5px; font-weight:500; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mbox-cnt{ min-width:22px; height:22px; padding:0 6px; border-radius:99px; background:#FF5A5A; color:#fff; font-size:12px; display:inline-flex; align-items:center; justify-content:center; }
+  .mbox-edit{ width:44px; border-radius:12px; border:1px solid var(--line-soft); background:rgba(0,0,0,.25); color:var(--ink-soft); cursor:pointer; font-size:15px; flex-shrink:0; }
+  .mbox-colors{ display:flex; gap:10px; flex-wrap:wrap; }
+  .mbox-color{ width:34px; height:34px; border-radius:99px; border:2px solid transparent; cursor:pointer; }
+  .mbox-color.active{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.15); }
 </style>
 </head>
 <body>
@@ -1640,7 +1666,18 @@
         <button type="button" class="cal-nav" id="msgConnBtn" aria-label="Verbindungen" title="Verbindungen">🔗</button>
       </div>
     </div>
-    <div class="msg-filters" id="msgFilters"></div>
+    <div class="msg-bar">
+      <div class="aufg-tabs" id="msgSeg">
+        <button type="button" class="aufg-tab active" data-f="alle">Alle<span class="cnt" data-c="alle"></span></button>
+        <button type="button" class="aufg-tab" data-f="email">E-Mail<span class="cnt" data-c="email"></span></button>
+        <button type="button" class="aufg-tab" data-f="slack">Slack<span class="cnt" data-c="slack"></span></button>
+      </div>
+      <div class="msg-bar-row">
+        <button type="button" class="msg-box-btn" id="msgBoxBtn"><span id="msgBoxLabel">Alle Postfächer</span> ▾</button>
+        <button type="button" class="msg-box-clear" id="msgBoxClear" aria-label="Filter zurücksetzen" style="display:none;">×</button>
+        <button type="button" class="msg-unread-btn" id="msgUnreadBtn" aria-label="Nur ungelesen" title="Nur ungelesen"><span class="dot"></span> Ungelesen</button>
+      </div>
+    </div>
     <div id="msgErrors"></div>
     <div id="msgList"><div class="loading">Lade ...</div></div>
   </div>
@@ -8587,9 +8624,39 @@
   document.getElementById('homeTermineAll').onclick = ()=>{ switchTab('kalender'); window.scrollTo(0,0); };
 
   /* ---------- Nachrichten ---------- */
-  const msg = { items:[], filter:'alle', unreadOnly:false, loading:false, current:null, loadedAt:0 };
-  try{ msg.filter = localStorage.getItem('kongrow_msg_filter') || 'alle'; msg.unreadOnly = localStorage.getItem('kongrow_msg_unread') === '1'; }catch(e){}
+  const msg = { items:[], filter:'alle', account:'', unreadOnly:false, loading:false, current:null, loadedAt:0, sources:[] };
+  try{ msg.filter = localStorage.getItem('kongrow_msg_filter') || 'alle'; if(!['alle','email','slack'].includes(msg.filter)) msg.filter = 'alle'; msg.account = localStorage.getItem('kongrow_msg_account') || ''; msg.unreadOnly = localStorage.getItem('kongrow_msg_unread') === '1'; }catch(e){}
   const SRC_ICON = { gmail:'✉️', mail:'✉️', slack:'💬' };
+  // Kurze Namen + Farben pro Postfach (auf dem Server gespeichert)
+  const TABLE_MSG_LABELS = 'tblKgMsgLabels001';
+  const MSG_COLORS = ['#22E3D3','#FFC56B','#A78BFA','#FF7A9A','#6EE7A8','#60A5FA','#F97316','#E5E7EB'];
+  let msgLabels = { id:'', map:{} };
+  async function loadMsgLabels(){
+    try{ const r = await airtableList(TABLE_MSG_LABELS, ROUTINEN_BASE_ID); if(r[0]){ msgLabels.id = r[0].id; try{ msgLabels.map = JSON.parse(r[0].fields['Map'] || '{}'); }catch(e){} } }catch(e){}
+  }
+  async function saveMsgLabels(){
+    const fields = { 'Map': JSON.stringify(msgLabels.map) };
+    if(msgLabels.id) await airtableFetch(TABLE_MSG_LABELS + '/' + msgLabels.id, { method:'PATCH', body: JSON.stringify({ fields }) }, ROUTINEN_BASE_ID);
+    else msgLabels.id = await airtableCreate(TABLE_MSG_LABELS, fields, ROUTINEN_BASE_ID);
+  }
+  function defaultShortName(src, account){
+    if(src === 'slack') return account;
+    const dom = (String(account).split('@')[1] || '').toLowerCase();
+    if(/^gmx\./.test(dom)) return 'GMX';
+    if(/^(gmail|googlemail)\./.test(dom)) return 'Gmail';
+    if(/^web\.de$/.test(dom)) return 'WEB.DE';
+    if(/^(outlook|hotmail|live)\./.test(dom)) return 'Outlook';
+    const first = dom.split('.')[0] || account; const base = first.split('-')[0];
+    return base ? base.toUpperCase() : account;
+  }
+  const msgKey = (src, account)=>(src === 'slack' ? 'slack' : 'mail') + '|' + account;
+  function msgLabel(src, account){ const k = msgKey(src, account); const e = msgLabels.map[k] || {}; return e.name || defaultShortName(src, account); }
+  function msgColor(src, account){
+    const k = msgKey(src, account); const e = msgLabels.map[k];
+    if(e && e.color) return e.color;
+    const keys = msg.sources.map(x=>x.key); const i = Math.max(0, keys.indexOf(k));
+    return MSG_COLORS[i % MSG_COLORS.length];
+  }
   async function loadMessages(force){
     if(msg.loading) return;
     if(!force && Date.now() - msg.loadedAt < 60000 && msg.items.length){ renderMessages(); return; }
@@ -8598,26 +8665,67 @@
     if(!msg.items.length) listEl.innerHTML = '<div class="loading">Lade Nachrichten ...</div>';
     const errors = []; const jobs = [];
     const [gs, ms, ss] = await Promise.all([
-      kgApi('google.php?action=status').catch(()=>({})), kgApi('mail.php?action=accounts').catch(()=>({ accounts:[] })), kgApi('slack.php?action=status').catch(()=>({ teams:[] }))
+      kgApi('google.php?action=status').catch(()=>({})), kgApi('mail.php?action=accounts').catch(()=>({ accounts:[] })), kgApi('slack.php?action=status').catch(()=>({ teams:[] })),
+      msgLabels.id ? Promise.resolve() : loadMsgLabels()
     ]);
-    if(gs.connected) jobs.push(kgApi('google.php?action=mail_list&max=30').then(j=>j.messages).catch(e=>{ errors.push('Gmail: ' + e.message); return []; }));
-    (ms.accounts || []).forEach(a=>jobs.push(kgApi('mail.php?action=list&account=' + encodeURIComponent(a.id)).then(j=>j.messages).catch(e=>{ errors.push(e.message); return []; })));
+    const sources = [];
+    if(gs.connected){ sources.push({ src:'gmail', account: gs.email || 'Google' }); jobs.push(kgApi('google.php?action=mail_list&max=30').then(j=>j.messages).catch(e=>{ errors.push('Gmail: ' + e.message); return []; })); }
+    (ms.accounts || []).forEach(a=>{ sources.push({ src:'mail', account:a.label }); jobs.push(kgApi('mail.php?action=list&account=' + encodeURIComponent(a.id)).then(j=>j.messages).catch(e=>{ errors.push(e.message); return []; })); });
+    (ss.teams || []).forEach(t=>sources.push({ src:'slack', account:t.team_name }));
     if((ss.teams || []).length) jobs.push(kgApi('slack.php?action=list' + (force ? '&fresh=1' : '')).then(j=>{ (j.errors || []).forEach(x=>errors.push('Slack ' + x)); return j.messages; }).catch(e=>{ errors.push('Slack: ' + e.message); return []; }));
-    const none = !gs.connected && !(ms.accounts || []).length && !(ss.teams || []).length;
+    msg.sources = sources.map(x=>Object.assign(x, { key: msgKey(x.src, x.account) }));
+    const none = !sources.length;
     const results = await Promise.all(jobs);
     msg.items = [].concat(...results).sort((a,b)=>b.date.localeCompare(a.date));
     msg.loadedAt = Date.now(); msg.loading = false; msg.none = none;
+    if(msg.account && !msg.sources.some(x=>x.key === msg.account)) msg.account = '';
     document.getElementById('msgErrors').innerHTML = errors.map(e=>`<div class="msg-err">⚠️ ${escapeHtml(e)}</div>`).join('');
     renderMessages();
     updateMsgBadge();
   }
-  function msgAccounts(){ const s = new Map(); msg.items.forEach(m=>s.set(m.source + '|' + m.account, { src:m.source, account:m.account })); return [...s.values()]; }
-  function msgMatches(m){
-    if(msg.unreadOnly && !m.unread) return false;
-    if(msg.filter === 'alle') return true;
+  function msgItemKey(m){ return msgKey(m.source, m.account); }
+  function msgMatches(m, ignoreUnread){
+    if(!ignoreUnread && msg.unreadOnly && !m.unread) return false;
+    if(msg.account) return msgItemKey(m) === msg.account;
     if(msg.filter === 'email') return m.source === 'gmail' || m.source === 'mail';
     if(msg.filter === 'slack') return m.source === 'slack';
-    return (m.source + '|' + m.account) === msg.filter;
+    return true;
+  }
+  function openMsgBoxPicker(){
+    const unread = k=>msg.items.filter(m=>m.unread && msgItemKey(m) === k).length;
+    const group = (title, list)=>list.length ? `<div class="hz-cat-label" style="margin:14px 0 6px;">${title}</div>` + list.map(x=>`<div class="mbox-row ${msg.account === x.key ? 'active' : ''}">
+        <button type="button" class="mbox-pick" data-k="${escapeHtml(x.key)}"><span class="mbox-dot" style="background:${msgColor(x.src, x.account)}"></span><span class="mbox-name">${escapeHtml(msgLabel(x.src, x.account))}<small>${escapeHtml(x.account)}</small></span>${unread(x.key) ? `<b class="mbox-cnt">${unread(x.key)}</b>` : ''}</button>
+        <button type="button" class="mbox-edit" data-e="${escapeHtml(x.key)}" aria-label="Umbenennen">✎</button>
+      </div>`).join('') : '';
+    const mails = msg.sources.filter(x=>x.src !== 'slack'), slacks = msg.sources.filter(x=>x.src === 'slack');
+    openErnModal(`<div class="modal-title">Postfach wählen</div>
+      <button type="button" class="mbox-all ${!msg.account ? 'active' : ''}" data-k="">Alle Postfächer${msg.items.filter(m=>m.unread).length ? ` <b class="mbox-cnt">${msg.items.filter(m=>m.unread).length}</b>` : ''}</button>
+      ${group('E-Mail', mails)}${group('Slack', slacks)}
+      ${msg.sources.length ? '' : '<div class="hint">Noch keine Konten verbunden.</div>'}
+      <button type="button" class="aufg-link" id="mboxConn" style="margin-top:14px;">Konten verwalten</button>`);
+    const c = ernModalCard();
+    c.querySelectorAll('[data-k]').forEach(b=>b.onclick = ()=>{ msg.account = b.dataset.k; try{ localStorage.setItem('kongrow_msg_account', msg.account); }catch(e){} closeErnModal(); renderMessages(); });
+    c.querySelectorAll('[data-e]').forEach(b=>b.onclick = ()=>openMsgBoxEdit(msg.sources.find(x=>x.key === b.dataset.e)));
+    c.querySelector('#mboxConn').onclick = ()=>{ closeErnModal(); openConnections(); };
+  }
+  function openMsgBoxEdit(x){
+    if(!x) return;
+    let color = msgColor(x.src, x.account);
+    const draw = ()=>{
+      openErnModal(`<div class="modal-title">Postfach benennen</div><div class="modal-sub">${escapeHtml(x.account)}</div>
+        <input type="text" id="mboxName" value="${escapeHtml(msgLabel(x.src, x.account))}" placeholder="Kurzer Name" style="margin-bottom:12px;">
+        <div class="mbox-colors">${MSG_COLORS.map(cl=>`<button type="button" class="mbox-color ${cl === color ? 'active' : ''}" data-c="${cl}" style="background:${cl}" aria-label="Farbe"></button>`).join('')}</div>
+        <button type="button" class="primary" id="mboxSave" style="width:100%;margin-top:14px;">Speichern</button>
+        <div class="save-status" data-st></div>`);
+      const c = ernModalCard();
+      c.querySelectorAll('.mbox-color').forEach(b=>b.onclick = ()=>{ const v = c.querySelector('#mboxName').value; color = b.dataset.c; draw(); ernModalCard().querySelector('#mboxName').value = v; });
+      c.querySelector('#mboxSave').onclick = async ()=>{
+        const name = c.querySelector('#mboxName').value.trim();
+        msgLabels.map[x.key] = { name: name && name !== defaultShortName(x.src, x.account) ? name : '', color };
+        try{ await saveMsgLabels(); openMsgBoxPicker(); renderMessages(); }catch(e){ c.querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
+      };
+    };
+    draw();
   }
   function relTime(iso){
     const d = new Date(iso), n = new Date();
@@ -8627,26 +8735,32 @@
   }
   function fromName(f){ const m = /^\s*"?([^"<]+?)"?\s*<[^>]+>/.exec(f || ''); return m ? m[1] : (f || '').replace(/[<>]/g, ''); }
   function renderMessages(){
-    const chips = [['alle','Alle'],['email','E-Mail'],['slack','Slack']].concat(msgAccounts().length > 1 ? msgAccounts().map(a=>[a.src + '|' + a.account, a.account]) : []);
-    const cnt = k=>msg.items.filter(m=>m.unread && (k === 'alle' || (k === 'email' ? (m.source !== 'slack') : k === 'slack' ? m.source === 'slack' : (m.source + '|' + m.account) === k))).length;
-    document.getElementById('msgFilters').innerHTML = chips.map(([k,l])=>`<button type="button" class="aufg-filter ${msg.filter === k ? 'active' : ''}" data-f="${escapeHtml(k)}">${escapeHtml(l)}${cnt(k) ? ` <b>${cnt(k)}</b>` : ''}</button>`).join('')
-      + `<button type="button" class="aufg-filter ${msg.unreadOnly ? 'active' : ''}" data-u="1">Nur ungelesen</button>`;
-    document.querySelectorAll('#msgFilters [data-f]').forEach(b=>b.onclick = ()=>{ msg.filter = b.dataset.f; try{ localStorage.setItem('kongrow_msg_filter', msg.filter); }catch(e){} renderMessages(); });
-    document.querySelector('#msgFilters [data-u]').onclick = ()=>{ msg.unreadOnly = !msg.unreadOnly; try{ localStorage.setItem('kongrow_msg_unread', msg.unreadOnly ? '1' : '0'); }catch(e){} renderMessages(); };
+    // Umschalter + Zähler
+    const cnt = k=>msg.items.filter(m=>m.unread && (k === 'alle' || (k === 'email' ? m.source !== 'slack' : m.source === 'slack'))).length;
+    document.querySelectorAll('#msgSeg .aufg-tab').forEach(b=>{ b.classList.toggle('active', !msg.account && b.dataset.f === msg.filter); const c = b.querySelector('[data-c]'); const n = cnt(b.dataset.f); c.textContent = n ? n : ''; });
+    const box = msg.sources.find(x=>x.key === msg.account);
+    document.getElementById('msgBoxLabel').innerHTML = box ? `<span class="mbox-dot" style="background:${msgColor(box.src, box.account)}"></span>${escapeHtml(msgLabel(box.src, box.account))}` : 'Alle Postfächer';
+    document.getElementById('msgBoxBtn').classList.toggle('active', !!box);
+    document.getElementById('msgBoxClear').style.display = box ? '' : 'none';
+    document.getElementById('msgUnreadBtn').classList.toggle('active', msg.unreadOnly);
     const listEl = document.getElementById('msgList');
     if(msg.none){ listEl.innerHTML = `<div class="card"><div class="hint" style="margin-bottom:12px;">Noch keine Quelle verbunden. Verbinde Google, deine E-Mail-Postfächer und Slack.</div><button type="button" class="primary" id="msgConnNow">Verbindungen einrichten</button></div>`; document.getElementById('msgConnNow').onclick = openConnections; return; }
-    const items = msg.items.filter(msgMatches);
+    const items = msg.items.filter(m=>msgMatches(m));
     listEl.innerHTML = items.length ? '<div class="card msg-card">' + items.map((m, i)=>`<button type="button" class="msg-item ${m.unread ? 'unread' : ''}" data-i="${msg.items.indexOf(m)}">
         <span class="msg-ico">${SRC_ICON[m.source] || '•'}</span>
         <span class="msg-main">
           <span class="msg-top"><span class="msg-from">${escapeHtml(m.source === 'slack' ? m.subject : fromName(m.from))}</span><span class="msg-time">${escapeHtml(relTime(m.date))}</span></span>
           <span class="msg-subj">${escapeHtml(m.source === 'slack' ? (m.from + ': ' + m.snippet) : m.subject)}</span>
           ${m.source !== 'slack' && m.snippet ? `<span class="msg-snip">${escapeHtml(m.snippet)}</span>` : ''}
-          <span class="msg-acc">${escapeHtml(m.account)}</span>
+          <span class="msg-acc"><span class="mbox-dot" style="background:${msgColor(m.source, m.account)}"></span>${escapeHtml(msgLabel(m.source, m.account))}</span>
         </span>
       </button>`).join('') + '</div>' : '<div class="card"><div class="empty">Keine Nachrichten für diesen Filter.</div></div>';
     listEl.querySelectorAll('.msg-item').forEach(b=>b.onclick = ()=>openMessage(msg.items[+b.dataset.i]));
   }
+  document.querySelectorAll('#msgSeg .aufg-tab').forEach(b=>b.onclick = ()=>{ msg.filter = b.dataset.f; msg.account = ''; try{ localStorage.setItem('kongrow_msg_filter', msg.filter); localStorage.setItem('kongrow_msg_account', ''); }catch(e){} renderMessages(); });
+  document.getElementById('msgBoxBtn').onclick = openMsgBoxPicker;
+  document.getElementById('msgBoxClear').onclick = ()=>{ msg.account = ''; try{ localStorage.setItem('kongrow_msg_account', ''); }catch(e){} renderMessages(); };
+  document.getElementById('msgUnreadBtn').onclick = ()=>{ msg.unreadOnly = !msg.unreadOnly; try{ localStorage.setItem('kongrow_msg_unread', msg.unreadOnly ? '1' : '0'); }catch(e){} renderMessages(); };
   function updateMsgBadge(){
     const n = msg.items.filter(m=>m.unread).length;
     document.querySelectorAll('[data-tab="nachrichten"]').forEach(b=>{ let s = b.querySelector('.nav-badge'); if(!s){ s = document.createElement('span'); s.className = 'nav-badge'; b.appendChild(s); } s.textContent = n ? (n > 99 ? '99+' : n) : ''; s.style.display = n ? '' : 'none'; });
@@ -8659,7 +8773,7 @@
   function addrOnly(s){ const m = /<([^>]+)>/.exec(s || ''); return m ? m[1] : (s || '').trim(); }
   async function openMessage(m){
     msg.current = { item:m, detail:null };
-    document.getElementById('msgSrc').textContent = (SRC_ICON[m.source] || '') + ' ' + m.account;
+    document.getElementById('msgSrc').textContent = (SRC_ICON[m.source] || '') + ' ' + msgLabel(m.source, m.account);
     document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; document.getElementById('msgStatus').textContent = '';
     const det = document.getElementById('msgDetail');
     det.innerHTML = '<div class="loading">Lade ...</div>';
