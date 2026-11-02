@@ -779,6 +779,34 @@
   .cal-ev-time{ flex-shrink:0; font-size:12.5px; color:var(--ink-soft); min-width:84px; font-variant-numeric:tabular-nums; }
   .cal-ev-title{ font-weight:600; font-size:14.5px; min-width:0; overflow-wrap:break-word; }
   .cal-add-day{ margin-top:4px; }
+  /* Zeitraster (Google-Kalender-Ansicht) */
+  .tg{ --tg-gut:44px; background:var(--card, rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.08); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+  .tg-head, .tg-allday{ display:grid; grid-template-columns:var(--tg-gut) repeat(var(--n), 1fr); border-bottom:1px solid rgba(255,255,255,.08); }
+  .tg-n1{ --n:1; } .tg-n3{ --n:3; } .tg-n7{ --n:7; }
+  .tg-dh{ display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 0 6px; cursor:pointer; min-width:0; }
+  .tg-dh span{ font-size:11px; color:var(--muted, #8a9a9a); letter-spacing:.02em; }
+  .tg-dh b{ font-size:18px; font-weight:600; width:32px; height:32px; line-height:32px; text-align:center; border-radius:999px; font-variant-numeric:tabular-nums; }
+  .tg-dh.today span{ color:var(--forest); }
+  .tg-dh.today b{ background:var(--forest); color:#04110F; }
+  .tg-adcol{ display:flex; flex-direction:column; gap:2px; padding:3px 2px; min-width:0; border-left:1px solid rgba(255,255,255,.06); }
+  .tg-ad{ font-size:11px; font-weight:600; border:0; border-radius:5px; padding:2px 5px; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:0; }
+  .tg-scroll{ height:min(68vh, 680px); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  .tg-grid{ position:relative; }
+  .tg-h{ position:absolute; left:0; right:0; height:0; border-top:1px solid rgba(255,255,255,.06); }
+  .tg-h span{ position:absolute; left:0; width:calc(var(--tg-gut) - 6px); top:-7px; text-align:right; font-size:10px; color:var(--muted, #8a9a9a); font-variant-numeric:tabular-nums; }
+  .tg-cols{ position:absolute; top:0; bottom:0; left:var(--tg-gut); right:0; display:grid; grid-template-columns:repeat(var(--n), 1fr); }
+  .tg-col{ position:relative; border-left:1px solid rgba(255,255,255,.06); cursor:pointer; }
+  .tg-col.today{ background:rgba(34,227,211,.035); }
+  .tg-ev{ position:absolute; border:0; border-radius:6px; padding:3px 5px; text-align:left; overflow:hidden; display:flex; flex-direction:column; gap:1px; font-size:12px; line-height:1.2; min-height:0; box-shadow:0 0 0 1px rgba(0,0,0,.25); }
+  .tg-ev b{ font-weight:600; overflow:hidden; overflow-wrap:anywhere; hyphens:auto; }
+  .tg-ev.short b{ white-space:nowrap; text-overflow:ellipsis; }
+  .tg-ev span{ font-size:11px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tg-ev.short{ flex-direction:row; align-items:center; padding:1px 5px; }
+  .tg-n7 .tg-ev{ font-size:11px; padding:2px 3px; } .tg-n7 .tg-ev span{ display:none; }
+  .tg-now{ position:absolute; height:2px; background:#FF453A; z-index:3; pointer-events:none; }
+  .tg-now::before{ content:''; position:absolute; left:-5px; top:-4px; width:10px; height:10px; border-radius:999px; background:#FF453A; }
+  @media (min-width:900px){ .tg{ --tg-gut:56px; } .tg-n7 .tg-ev span{ display:block; } .tg-scroll{ height:min(74vh, 900px); } }
+
   .cal-week{ display:flex; flex-direction:column; gap:12px; }
   .cal-week-day{ background:rgba(255,255,255,.02); border:1px solid var(--line-soft); border-radius:14px; padding:10px; }
   .cal-week-day.today{ border-color:rgba(34,227,211,.5); }
@@ -1647,9 +1675,9 @@
       </div>
     </div>
     <div class="aufg-tabs" id="calViews">
-      <button type="button" class="aufg-tab active" data-v="monat">Monat</button>
-      <button type="button" class="aufg-tab" data-v="woche">Woche</button>
-      <button type="button" class="aufg-tab" data-v="liste">Liste</button>
+      <button type="button" class="aufg-tab" data-v="tag">Tag</button>
+      <button type="button" class="aufg-tab" data-v="3tage">3 Tage</button>
+      <button type="button" class="aufg-tab active" data-v="woche">Woche</button>
     </div>
     <div id="calBody"><div class="loading">Lade ...</div></div>
     <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:14px;">
@@ -8393,21 +8421,17 @@
     return fmtTime(s) + '–' + fmtTime(en);
   }
 
-  /* ---------- Kalender ---------- */
-  const cal = { view:'monat', cursor:new Date(), selected:new Date(), events:[], loadedKey:'', status:null, calendars:null };
-  try{ const v = localStorage.getItem('kongrow_cal_view'); if(v) cal.view = v; }catch(e){}
-  function calRange(){
-    if(cal.view === 'monat'){
-      const first = new Date(cal.cursor.getFullYear(), cal.cursor.getMonth(), 1);
-      const from = startOfWeek(first); return [from, addDays(from, 42)];
-    }
-    if(cal.view === 'woche'){ const from = startOfWeek(cal.cursor); return [from, addDays(from, 7)]; }
-    const from = new Date(); from.setHours(0,0,0,0); return [from, addDays(from, 45)];
-  }
+  /* ---------- Kalender: Zeitraster wie Google Kalender (Tag · 3 Tage · Woche) ---------- */
+  const CAL_HOUR_H = 52;   // Pixel pro Stunde
+  const cal = { view:'woche', cursor:new Date(), selected:new Date(), events:[], loadedKey:'', status:null, calendars:null, scrolled:false };
+  try{ const v = localStorage.getItem('kongrow_cal_view'); if(['tag','3tage','woche'].includes(v)) cal.view = v; }catch(e){}
+  const calDaysCount = ()=>cal.view === 'tag' ? 1 : cal.view === '3tage' ? 3 : 7;
+  function calStart(){ if(cal.view === 'woche') return startOfWeek(cal.cursor); const d = new Date(cal.cursor); d.setHours(0,0,0,0); return d; }
+  function calRange(){ const from = calStart(); return [from, addDays(from, calDaysCount())]; }
   async function loadGoogleStatus(){ try{ cal.status = await kgApi('google.php?action=status'); }catch(e){ cal.status = { connected:false, error:e.message }; } return cal.status; }
   async function loadCalendar(force){
     const body = document.getElementById('calBody');
-    if(!cal.status) await loadGoogleStatus();
+    if(!cal.status || !cal.status.connected) await loadGoogleStatus();
     renderCalHead();
     if(!cal.status.connected){
       body.innerHTML = `<div class="card"><div class="hint" style="margin-bottom:12px;">Verbinde deinen Google-Workspace-Kalender, dann siehst du hier alle Termine und kannst neue anlegen.</div>
@@ -8418,7 +8442,7 @@
     const [from, to] = calRange();
     const key = cal.view + dKey(from) + dKey(to);
     if(force || key !== cal.loadedKey){
-      if(!cal.events.length || key !== cal.loadedKey) body.innerHTML = '<div class="loading">Lade Termine ...</div>';
+      if(!body.querySelector('.tg')) body.innerHTML = '<div class="loading">Lade Termine ...</div>';
       try{
         const j = await kgApi('google.php?action=events&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()));
         cal.events = j.events || []; cal.loadedKey = key;
@@ -8427,76 +8451,81 @@
     renderCalendar();
   }
   function renderCalHead(){
+    const [from, to] = calRange(); const last = addDays(to, -1);
     const t = document.getElementById('calTitle');
-    if(cal.view === 'monat') t.textContent = MONTHS[cal.cursor.getMonth()] + ' ' + cal.cursor.getFullYear();
-    else if(cal.view === 'woche'){ const s = startOfWeek(cal.cursor), e = addDays(s, 6); t.textContent = s.getDate() + '.' + (s.getMonth()+1) + '. bis ' + e.getDate() + '.' + (e.getMonth()+1) + '.'; }
-    else t.textContent = 'Nächste Termine';
+    t.textContent = from.getMonth() === last.getMonth() ? MONTHS[from.getMonth()] + ' ' + from.getFullYear()
+      : MONTHS[from.getMonth()].slice(0,3) + '. – ' + MONTHS[last.getMonth()].slice(0,3) + '. ' + last.getFullYear();
     document.querySelectorAll('#calViews .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === cal.view));
-    document.getElementById('calPrev').style.visibility = cal.view === 'liste' ? 'hidden' : '';
-    document.getElementById('calNext').style.visibility = cal.view === 'liste' ? 'hidden' : '';
   }
-  function evChip(e, day){
-    return `<button type="button" class="cal-ev" data-id="${escapeHtml(e.id)}" data-cal="${escapeHtml(e.calendarId)}" style="--c:${escapeHtml(e.color)}">
-      <span class="cal-ev-time">${escapeHtml(evTimeLabel(e, day))}</span><span class="cal-ev-title">${escapeHtml(e.title)}</span></button>`;
+  function textColorFor(hex){
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex || ''); if(!m) return '#04110F';
+    const [r,g,b] = [1,2,3].map(i=>parseInt(m[i],16)); return (0.299*r + 0.587*g + 0.114*b) > 150 ? '#0B1215' : '#FFFFFF';
   }
-  function dayAgendaHtml(day){
-    const evs = cal.events.filter(e=>evOnDay(e, day));
-    return `<div class="cal-day-agenda">
-      <div class="cal-day-title">${escapeHtml(fmtDayLong(day))}${dKey(day) === dKey(new Date()) ? ' · Heute' : ''}</div>
-      ${evs.length ? evs.map(e=>evChip(e, day)).join('') : '<div class="hint" style="margin:4px 0 0;">Keine Termine.</div>'}
-      <button type="button" class="aufg-link cal-add-day" data-day="${dKey(day)}">+ Termin an diesem Tag</button>
-    </div>`;
+  // Überlappende Termine nebeneinander legen
+  function layoutDay(evs){
+    const items = evs.map(e=>({ e, s:+e._s, en:Math.max(+e._e, +e._s + 15*60000) })).sort((a,b)=>a.s - b.s || b.en - a.en);
+    const groups = []; let cur = null, curEnd = 0;
+    items.forEach(it=>{ if(!cur || it.s >= curEnd){ cur = []; groups.push(cur); curEnd = 0; } cur.push(it); curEnd = Math.max(curEnd, it.en); });
+    groups.forEach(g=>{ const cols = []; g.forEach(it=>{ let c = cols.findIndex(end=>end <= it.s); if(c < 0){ c = cols.length; cols.push(0); } cols[c] = it.en; it.col = c; }); g.forEach(it=>it.cols = cols.length); });
+    return items;
   }
   function renderCalendar(){
     renderCalHead();
     const body = document.getElementById('calBody');
-    const todayK = dKey(new Date());
-    if(cal.view === 'monat'){
-      const [from] = calRange(); const m = cal.cursor.getMonth();
-      let html = '<div class="card cal-month"><div class="cal-grid cal-wd">' + WD.map(w=>`<div>${w}</div>`).join('') + '</div><div class="cal-grid">';
-      for(let i=0;i<42;i++){
-        const d = addDays(from, i); const evs = cal.events.filter(e=>evOnDay(e, d));
-        html += `<button type="button" class="cal-cell ${d.getMonth() !== m ? 'out' : ''} ${dKey(d) === todayK ? 'today' : ''} ${dKey(d) === dKey(cal.selected) ? 'sel' : ''}" data-day="${dKey(d)}">
-          <span class="cal-num">${d.getDate()}</span>
-          <span class="cal-cell-evs">${evs.slice(0,3).map(e=>`<span class="cal-cell-ev" style="--c:${escapeHtml(e.color)}"><i></i><em>${escapeHtml(e.allDay ? e.title : fmtTime(evStart(e)) + ' ' + e.title)}</em></span>`).join('')}${evs.length > 3 ? `<span class="cal-more">+${evs.length-3}</span>` : ''}</span>
-        </button>`;
-      }
-      html += '</div></div>' + dayAgendaHtml(cal.selected);
-      body.innerHTML = html;
-      body.querySelectorAll('.cal-cell').forEach(c=>c.onclick = ()=>{ cal.selected = new Date(c.dataset.day + 'T12:00:00'); renderCalendar(); });
-    } else if(cal.view === 'woche'){
-      const s = startOfWeek(cal.cursor);
-      body.innerHTML = '<div class="cal-week">' + [0,1,2,3,4,5,6].map(i=>{
-        const d = addDays(s, i); const evs = cal.events.filter(e=>evOnDay(e, d));
-        return `<div class="cal-week-day ${dKey(d) === todayK ? 'today' : ''}">
-          <div class="cal-week-head"><span>${WD[i]}</span><b>${d.getDate()}.${d.getMonth()+1}.</b></div>
-          ${evs.map(e=>evChip(e, d)).join('') || '<div class="cal-week-empty">–</div>'}
-          <button type="button" class="aufg-link cal-add-day" data-day="${dKey(d)}">+</button>
-        </div>`;
-      }).join('') + '</div>';
-    } else {
-      const [from] = calRange(); let html = '';
-      for(let i=0;i<45;i++){
-        const d = addDays(from, i); const evs = cal.events.filter(e=>evOnDay(e, d));
-        if(!evs.length) continue;
-        html += `<div class="cal-day-agenda"><div class="cal-day-title">${escapeHtml(fmtDayLong(d))}${dKey(d) === todayK ? ' · Heute' : ''}</div>${evs.map(e=>evChip(e, d)).join('')}</div>`;
-      }
-      body.innerHTML = html || '<div class="card"><div class="empty">Keine Termine in den nächsten Wochen.</div></div>';
-    }
-    body.querySelectorAll('.cal-ev').forEach(b=>b.onclick = (ev)=>{ ev.stopPropagation(); const e = cal.events.find(x=>x.id === b.dataset.id && x.calendarId === b.dataset.cal); if(e) openEventDetail(e); });
-    body.querySelectorAll('.cal-add-day').forEach(b=>b.onclick = ()=>openEventForm(null, new Date(b.dataset.day + 'T09:00:00')));
+    const prevScroll = body.querySelector('.tg-scroll') ? body.querySelector('.tg-scroll').scrollTop : null;
+    const n = calDaysCount(); const from = calStart(); const todayK = dKey(new Date());
+    const days = [...Array(n)].map((_, i)=>addDays(from, i));
+    const allDay = days.map(d=>cal.events.filter(e=>e.allDay && evOnDay(e, d)));
+    const hasAllDay = allDay.some(a=>a.length);
+    const timed = days.map(d=>{
+      const ds = new Date(d); ds.setHours(0,0,0,0); const de = addDays(ds, 1);
+      return layoutDay(cal.events.filter(e=>!e.allDay && evOnDay(e, d)).map(e=>Object.assign({}, e, { _s: new Date(Math.max(+evStart(e), +ds)), _e: new Date(Math.min(+evEnd(e), +de)) })));
+    });
+    const head = days.map(d=>`<div class="tg-dh ${dKey(d) === todayK ? 'today' : ''}" data-day="${dKey(d)}"><span>${WD[(d.getDay() + 6) % 7]}</span><b>${d.getDate()}</b></div>`).join('');
+    const ad = hasAllDay ? `<div class="tg-allday"><div class="tg-gutter"></div>${allDay.map(list=>`<div class="tg-adcol">${list.map(e=>`<button type="button" class="tg-ad" data-id="${escapeHtml(e.id)}" data-cal="${escapeHtml(e.calendarId)}" style="background:${escapeHtml(e.color)};color:${textColorFor(e.color)}">${escapeHtml(e.title)}</button>`).join('')}</div>`).join('')}</div>` : '';
+    const hours = [...Array(24)].map((_, h)=>`<div class="tg-h" style="top:${h * CAL_HOUR_H}px"><span>${h ? pad2(h) + ':00' : ''}</span></div>`).join('');
+    const cols = days.map((d, i)=>`<div class="tg-col ${dKey(d) === todayK ? 'today' : ''}" data-day="${dKey(d)}">${timed[i].map(it=>{
+        const top = (it.s - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 3600000 * CAL_HOUR_H;
+        const h = Math.max(18, (it.en - it.s) / 3600000 * CAL_HOUR_H - 2);
+        const w = 100 / it.cols; const short = h < 34;
+        return `<button type="button" class="tg-ev ${short ? 'short' : ''}" data-id="${escapeHtml(it.e.id)}" data-cal="${escapeHtml(it.e.calendarId)}"
+          style="top:${top.toFixed(1)}px;height:${h.toFixed(1)}px;left:calc(${(it.col * w).toFixed(3)}% + 1px);width:calc(${w.toFixed(3)}% - 3px);background:${escapeHtml(it.e.color)};color:${textColorFor(it.e.color)}">
+          <b>${escapeHtml(it.e.title)}</b>${short ? '' : `<span>${fmtTime(it.e._s)}${it.e.location ? ' · ' + escapeHtml(it.e.location) : ''}</span>`}</button>`; }).join('')}</div>`).join('');
+    body.innerHTML = `<div class="tg tg-n${n}">
+      <div class="tg-head"><div class="tg-gutter"></div>${head}</div>
+      ${ad}
+      <div class="tg-scroll"><div class="tg-grid" style="height:${24 * CAL_HOUR_H}px">${hours}<div class="tg-cols">${cols}</div><div class="tg-now" id="tgNow"></div></div></div>
+    </div>`;
+    // Jetzt-Linie
+    const placeNow = ()=>{
+      const el = document.getElementById('tgNow'); if(!el) return;
+      const now = new Date(); const i = days.findIndex(d=>dKey(d) === dKey(now));
+      if(i < 0){ el.style.display = 'none'; return; }
+      el.style.display = ''; el.style.top = ((now.getHours() + now.getMinutes() / 60) * CAL_HOUR_H) + 'px';
+      el.style.left = `calc(var(--tg-gut) + (100% - var(--tg-gut)) * ${i} / ${n})`; el.style.width = `calc((100% - var(--tg-gut)) / ${n})`;
+    };
+    placeNow(); clearInterval(cal.nowTimer); cal.nowTimer = setInterval(placeNow, 60000);
+    // Startposition: aktuelle Uhrzeit bzw. 7 Uhr
+    const sc = body.querySelector('.tg-scroll');
+    if(prevScroll !== null) sc.scrollTop = prevScroll;
+    else { const now = new Date(); const showsToday = days.some(d=>dKey(d) === todayK); sc.scrollTop = Math.max(0, ((showsToday ? now.getHours() - 1.5 : 7) * CAL_HOUR_H)); }
+    // Termin antippen
+    body.querySelectorAll('.tg-ev, .tg-ad').forEach(b=>b.onclick = ev=>{ ev.stopPropagation(); const e = cal.events.find(x=>x.id === b.dataset.id && x.calendarId === b.dataset.cal); if(e) openEventDetail(e); });
+    // Leeren Slot antippen -> neuer Termin zur angetippten Zeit (auf 30 Min gerundet)
+    body.querySelectorAll('.tg-col').forEach(col=>col.onclick = ev=>{
+      if(ev.target.closest('.tg-ev')) return;
+      const r = col.getBoundingClientRect(); const y = ev.clientY - r.top;
+      const mins = Math.max(0, Math.min(23.5 * 60, Math.round(y / CAL_HOUR_H * 2) / 2 * 60));
+      const d = new Date(col.dataset.day + 'T00:00:00'); d.setMinutes(mins);
+      openEventForm(null, d);
+    });
+    body.querySelectorAll('.tg-dh').forEach(h=>h.onclick = ()=>{ cal.view = 'tag'; cal.cursor = new Date(h.dataset.day + 'T12:00:00'); try{ localStorage.setItem('kongrow_cal_view', cal.view); }catch(e){} loadCalendar(); });
   }
-  document.querySelectorAll('#calViews .aufg-tab').forEach(b=>b.onclick = ()=>{ cal.view = b.dataset.v; try{ localStorage.setItem('kongrow_cal_view', cal.view); }catch(e){} loadCalendar(); });
-  document.getElementById('calPrev').onclick = ()=>{
-    if(cal.view === 'monat') cal.cursor = new Date(cal.cursor.getFullYear(), cal.cursor.getMonth() - 1, 1); else cal.cursor = addDays(cal.cursor, -7);
-    loadCalendar();
-  };
-  document.getElementById('calNext').onclick = ()=>{
-    if(cal.view === 'monat') cal.cursor = new Date(cal.cursor.getFullYear(), cal.cursor.getMonth() + 1, 1); else cal.cursor = addDays(cal.cursor, 7);
-    loadCalendar();
-  };
-  document.getElementById('calTodayBtn').onclick = ()=>{ cal.cursor = new Date(); cal.selected = new Date(); loadCalendar(); };
-  document.getElementById('calNew').onclick = ()=>openEventForm(null, (()=>{ const d = new Date(cal.selected); const n = new Date(); d.setHours(n.getHours() + 1, 0, 0, 0); return d; })());
+  document.querySelectorAll('#calViews .aufg-tab').forEach(b=>b.onclick = ()=>{ cal.view = b.dataset.v; try{ localStorage.setItem('kongrow_cal_view', cal.view); }catch(e){} const sc = document.querySelector('#calBody .tg-scroll'); loadCalendar(); });
+  document.getElementById('calPrev').onclick = ()=>{ cal.cursor = addDays(cal.cursor, -calDaysCount()); loadCalendar(); };
+  document.getElementById('calNext').onclick = ()=>{ cal.cursor = addDays(cal.cursor, calDaysCount()); loadCalendar(); };
+  document.getElementById('calTodayBtn').onclick = ()=>{ cal.cursor = new Date(); cal.selected = new Date(); const b = document.getElementById('calBody'); b.innerHTML = ''; loadCalendar(); };
+  document.getElementById('calNew').onclick = ()=>openEventForm(null, (()=>{ const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0); return d; })());
   document.getElementById('calConnBtn').onclick = ()=>openConnections();
 
   const calEventOverlay = document.getElementById('calEventOverlay');
@@ -8676,7 +8705,7 @@
     msg.sources = sources.map(x=>Object.assign(x, { key: msgKey(x.src, x.account) }));
     const none = !sources.length;
     const results = await Promise.all(jobs);
-    msg.items = [].concat(...results).sort((a,b)=>b.date.localeCompare(a.date));
+    msg.items = [].concat(...results).filter(m=>m && typeof m === "object").map(m=>Object.assign({ date:"" }, m)).sort((a,b)=>b.date.localeCompare(a.date));
     msg.loadedAt = Date.now(); msg.loading = false; msg.none = none;
     if(msg.account && !msg.sources.some(x=>x.key === msg.account)) msg.account = '';
     document.getElementById('msgErrors').innerHTML = errors.map(e=>`<div class="msg-err">⚠️ ${escapeHtml(e)}</div>`).join('');
@@ -10349,7 +10378,7 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
     ['aufgabenList', 'homeAufgabenList'].forEach(id=>{ const el = document.getElementById(id); if(el) attachRowSwipe(el); });
     const calBody = document.getElementById('calBody');
     if(calBody) attachPager(calBody, ()=>document.getElementById('calPrev').click(), ()=>document.getElementById('calNext').click(),
-      ()=>{ const a = document.querySelector('#calViews .aufg-tab.active'); return a && a.dataset.v !== 'liste'; });
+      ()=>true);
     const kb = document.getElementById('koerperBody');
     if(kb){
       const tabs = ()=>[...document.querySelectorAll('.k-tab')];
