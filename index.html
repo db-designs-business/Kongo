@@ -649,8 +649,10 @@
   .wo-row.done .wo-check{ background:var(--forest); border-color:var(--forest); box-shadow:0 0 12px var(--forest-glow); }
   .wo-row.done input{ border-color:rgba(34,227,211,.4); background:rgba(34,227,211,.06); }
   .wo-ex-actions{ display:flex; justify-content:space-between; margin-top:6px; }
-  .rest-bar{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom)); z-index:75; width:calc(100% - 32px); max-width:600px;
-    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:16px; background:#0F1517; border:1px solid rgba(34,227,211,.45); box-shadow:0 10px 30px rgba(0,0,0,.6), 0 0 20px rgba(34,227,211,.15); }
+  .rest-bar{ position:fixed; left:0; right:0; bottom:0; z-index:90;
+    display:flex; align-items:center; gap:10px; padding:12px max(16px, calc((100% - 640px) / 2 + 16px)) calc(12px + env(safe-area-inset-bottom));
+    background:rgba(15,21,23,.97); border-top:1px solid rgba(34,227,211,.45); box-shadow:0 -10px 30px rgba(0,0,0,.5); }
+  #workoutOverlay{ scroll-padding-bottom:110px; }
   .rest-bar span{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); }
   .rest-bar b{ flex:1; font-size:24px; color:var(--forest); font-variant-numeric:tabular-nums; }
   .rest-bar button{ min-height:40px; padding:8px 14px; font-size:13.5px; }
@@ -752,7 +754,6 @@
     .bb-item.active{ background:rgba(34,227,211,.08); }
     #routinePausedBanner{ left:var(--side-w) !important; bottom:0 !important; }
     .xp-toast{ bottom:24px !important; }
-    .rest-bar{ left:calc(50% + var(--side-w) / 2); }
     /* Startseite: zweispaltig */
     #panelHome{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"dailys termine" "dailys ziele" "aufg ziele" "links links"; gap:0 22px; align-items:start; }
     #homeTermineCard{ grid-area:termine; }
@@ -1896,12 +1897,12 @@
     <button class="modal-close" id="workoutMinimize" aria-label="Minimieren" style="position:sticky; top:0; float:right; font-size:15px;">⌄</button>
     <div id="workoutBody" style="margin-top:8px;"></div>
   </div>
+</div>
   <div class="rest-bar" id="restBar" style="display:none;">
     <span>Pause</span><b id="restTime">1:30</b>
     <button type="button" class="ghost" id="restPlus">+30 s</button>
     <button type="button" class="primary" id="restSkip">Weiter</button>
   </div>
-</div>
 
 <div class="modal-overlay" id="kPickerOverlay" style="display:none; z-index:80;">
   <div class="modal-card picker-card">
@@ -9810,9 +9811,23 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   }
   function confirmReplace(){ openWorkout(); return false; }   // laufendes Training zuerst beenden
 
+  /* Bildschirm wach halten, solange ein Training läuft */
+  let wakeLock = null;
+  async function keepAwake(on){
+    try{
+      if(on){
+        if(!('wakeLock' in navigator) || (wakeLock && !wakeLock.released)) return;
+        wakeLock = await navigator.wakeLock.request('screen');
+      } else if(wakeLock){ const w = wakeLock; wakeLock = null; await w.release(); }
+    }catch(e){ /* nicht unterstützt oder Energiesparmodus */ }
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible' && activeWorkout) keepAwake(true); });
+  authReady.then(()=>{ if(activeWorkout) keepAwake(true); });
+
   let workoutTick = null;
   function openWorkout(){
     if(!activeWorkout) return;
+    keepAwake(true);
     document.getElementById('workoutOverlay').style.display = 'flex';
     renderWorkout();
     clearInterval(workoutTick);
@@ -9892,7 +9907,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     el.querySelector('#woAddEx').onclick = ()=>openExercisePicker(list=>{ list.forEach(n=>w.uebungen.push({ name:n, sets: setsFromLast(n) })); saveActiveWorkout(); renderWorkout(); }, false);
     el.querySelector('#woNotiz').oninput = e=>{ w.notiz = e.target.value; saveActiveWorkout(); };
     const disc = el.querySelector('#woDiscard'); let dArmed = false;
-    disc.onclick = ()=>{ if(!dArmed){ dArmed = true; disc.textContent = 'Wirklich verwerfen?'; return; } activeWorkout = null; saveActiveWorkout(); stopRest(); closeWorkoutOverlay(); };
+    disc.onclick = ()=>{ if(!dArmed){ dArmed = true; disc.textContent = 'Wirklich verwerfen?'; return; } activeWorkout = null; saveActiveWorkout(); stopRest(); keepAwake(false); closeWorkoutOverlay(); };
     el.querySelector('#woFinish').onclick = finishWorkout;
     const wt = el.querySelector('#woTips'); if(wt) wt.onclick = openTrainingTips;
   }
@@ -9932,7 +9947,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       // Passendes Daily automatisch abhaken
       const daily = prioCache.find(p=>/training|workout|gym|sport/i.test(p.titel) && p.erledigtAm !== todayStr());
       if(daily) prioToggle(daily.id);
-      activeWorkout = null; saveActiveWorkout(); stopRest();
+      activeWorkout = null; saveActiveWorkout(); stopRest(); keepAwake(false);
       document.getElementById('workoutBody').innerHTML = `<div class="card" style="text-align:center;padding:36px 20px;">
           <div class="step-label">Training gespeichert</div>
           <div class="question" style="font-size:24px;">Stark. 💪</div>
