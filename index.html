@@ -611,10 +611,29 @@
   .k-plan:hover{ border-color:var(--forest); }
   .k-plan.empty{ border-style:dashed; border-color:rgba(34,227,211,.35); }
   .k-plan.empty b{ color:var(--forest); }
+  .k-plan.next{ border-color:var(--forest); background:rgba(34,227,211,.06); }
+  .k-next{ font-style:normal; font-size:11px; font-weight:700; color:#04110F; background:var(--forest); border-radius:999px; padding:2px 8px; margin-left:6px; vertical-align:2px; }
+  .k-tips-btn{ width:100%; margin-top:10px; background:transparent; border:1px dashed var(--line-soft); color:var(--forest); border-radius:14px; padding:12px; font-weight:600; }
+  .tip-sec{ margin-top:16px; } .tip-sec p{ margin:6px 0 0; font-size:14.5px; line-height:1.5; color:var(--ink-soft); } .tip-sec p b{ color:var(--ink); }
+  .tip-title{ font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--forest); }
+  .tip-week{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; margin-top:8px; }
+  .tip-week div{ display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px; border-radius:10px; background:rgba(34,227,211,.08); text-align:center; min-width:0; }
+  .tip-week div.off{ background:rgba(255,255,255,.03); opacity:.55; }
+  .tip-week b{ font-size:11px; } .tip-week span{ font-size:10px; line-height:1.2; color:var(--ink-soft); }
+  .wo-plan-info{ display:flex; flex-direction:column; gap:4px; margin:0 0 12px; padding:10px 12px; border-radius:12px; background:rgba(34,227,211,.06); font-size:13px; color:var(--ink-soft); }
+  .wo-plan-info .aufg-link{ align-self:flex-start; margin-top:2px; }
+  .wo-sets-target{ color:var(--forest); font-weight:600; }
+  .wo-tip{ margin-top:6px; font-size:13px; color:var(--ink-soft); }
+  .wo-tip summary{ cursor:pointer; color:var(--forest); font-weight:600; list-style:none; }
+  .wo-tip summary::-webkit-details-marker{ display:none; }
+  .wo-tip summary::after{ content:' ▾'; } .wo-tip[open] summary::after{ content:' ▴'; }
+  .wo-tip p{ margin:6px 0 0; line-height:1.45; }
+
   .k-plan-ex span{ flex:1; font-size:14.5px; }
   .wo-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin:8px 0 16px; }
   .wo-title{ font-size:24px; font-weight:800; letter-spacing:-.02em; }
-  .wo-time{ text-align:right; }
+  .wo-time{ text-align:right; flex:0 0 auto; white-space:nowrap; }
+  .wo-head > div:first-child{ min-width:0; }
   .wo-time span{ display:block; font-size:26px; font-weight:800; color:var(--forest); font-variant-numeric:tabular-nums; }
   .wo-time small{ font-size:11px; color:var(--ink-soft); letter-spacing:.08em; text-transform:uppercase; }
   .wo-ex{ padding:16px 14px !important; }
@@ -9445,13 +9464,14 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       ernPlaene = ep.map(mapPlan);
       rezepteCache = rz.map(mapRezept).filter(x=>x.name).sort((a,b)=>a.name.localeCompare(b.name, 'de'));
       uebungenCustom = u.map(r=>({ id:r.id, name:(r.fields||{})['Name'] || '', gruppe:(r.fields||{})['Muskelgruppe'] || '' })).filter(x=>x.name);
-      plaeneCache = p.map(r=>{ let list = []; try{ list = JSON.parse((r.fields||{})['Uebungen'] || '[]'); }catch(_){ list = ((r.fields||{})['Uebungen'] || '').split('\n').filter(Boolean); } return { id:r.id, name:(r.fields||{})['Name'] || '', uebungen:list }; }).filter(x=>x.name);
+      plaeneCache = p.map(mapTrainingPlan).filter(x=>x.name);
       trainingsCache = t.map(r=>{ const f = r.fields || {}; let s = []; try{ s = JSON.parse(f['Saetze'] || '[]'); }catch(_){} return { id:r.id, datum:f['Datum'] || '', plan:f['Plan'] || '', dauer:f['Dauer (Min)'] || 0, saetze:s, volumen:f['Volumen (kg)'] || 0, notiz:f['Notiz'] || '' }; })
         .sort((a,b)=> (b.datum || '').localeCompare(a.datum || ''));
       gewichtCache = mapGewicht(g);
       ernCache = e.map(r=>{ const f = r.fields || {}; let er = [], ab = {}; try{ er = JSON.parse(f['Erledigt'] || '[]'); }catch(_){} try{ ab = JSON.parse(f['Abweichungen'] || '{}'); }catch(_){}
         return { id:r.id, datum:f['Datum'] || '', kcal:f['Kcal'] || 0, protein:f['Protein'] || 0, wasser:f['Wasser'] || 0, notiz:f['Notiz'] || '', erledigt:er, abw:ab, tagtypId:f['TagtypId'] || '', tagtyp:f['Tagtyp'] || '' }; }).filter(x=>x.datum).sort((a,b)=> b.datum.localeCompare(a.datum));
       renderKoerper();
+      importSplitOnce();
     }catch(e){
       document.getElementById('koerperBody').innerHTML = '<div class="card"><div class="empty">Daten konnten nicht geladen werden.</div></div>';
     }
@@ -9496,14 +9516,16 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       <div class="card">
         <div class="home-aufg-head"><div class="step-label" style="margin:0;">Training starten</div><button type="button" class="prio-edit-toggle" id="kPlansBtn">Pläne verwalten</button></div>
         <div class="k-plan-list">
-          ${plaeneCache.map(p=>`<button type="button" class="k-plan" data-id="${p.id}"><b>${escapeHtml(p.name)}</b><span>${p.uebungen.length} Übungen · ${escapeHtml(p.uebungen.slice(0,3).join(', '))}${p.uebungen.length > 3 ? ' …' : ''}</span></button>`).join('')}
+          ${(()=>{ const nx = nextSplitPlan(); return plaeneCache.slice().sort((a,b)=>(a.tag || 99) - (b.tag || 99)).map(p=>`<button type="button" class="k-plan ${nx && nx.id === p.id ? 'next' : ''}" data-id="${p.id}"><b>${escapeHtml(p.name)}${nx && nx.id === p.id ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>${p.uebungen.length} Übungen · ${escapeHtml(p.uebungen.slice(0,3).join(', '))}${p.uebungen.length > 3 ? ' …' : ''}</span></button>`).join(''); })()}
           <button type="button" class="k-plan empty" id="kFreeBtn"><b>+ Freies Training</b><span>Übungen spontan hinzufügen</span></button>
         </div>
+        <button type="button" class="k-tips-btn" id="kTipsBtn">📘 Regeln & Tipps aus deinem Plan</button>
       </div>
       <div class="step-label" style="margin-top:18px;">Verlauf</div>
       <div id="kHistory">${trainingsCache.length ? '' : '<div class="card"><div class="empty">Noch keine Trainings gespeichert.</div></div>'}</div>`;
     const rb = body.querySelector('#kResumeBtn'); if(rb) rb.onclick = openWorkout;
     body.querySelector('#kPlansBtn').onclick = openPlanManager;
+    body.querySelector('#kTipsBtn').onclick = openTrainingTips;
     body.querySelector('#kFokusBtn').onclick = openFokusPicker;
     body.querySelector('#kFreeBtn').onclick = ()=>startWorkout(null);
     body.querySelectorAll('.k-plan[data-id]').forEach(b=>b.onclick = ()=>startWorkout(plaeneCache.find(p=>p.id === b.dataset.id)));
@@ -9588,6 +9610,117 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     ov.style.display = 'flex';
   }
 
+
+  /* ----- Trainingsplan: 4er Split (vom Coach) + Core, mit Tipps ----- */
+  const TABLE_FLAGS = 'tblKgFlags0000001';
+  const SATZ_HINT_5_8 = 'Ein Satz darf schwer sein: 5 bis 8 Wdh.';
+  const SPLIT_V1 = [
+    { name:'Tag 1 · Brust & Schultern', tag:1, schema:'pyramide', pause:60, hinweis:'Danach optional Bauch und Core.', ex:[
+      ['Fliegende mit Kurzhanteln flach', 'Brust', '2 bis 3', 'Ganz tief in die Dehnung, solange die Brust noch Spannung hat. Dort entsteht das meiste Wachstum.'],
+      ['Bankdrücken flach', 'Brust', '2 bis 4', SATZ_HINT_5_8 + ' Nicht ganz durchstrecken, oben verlässt die Spannung die Brust.'],
+      ['Negativ Cable Flys + Negativdrücken', 'Brust', '2 bis 4', 'Kabel oben, aufrecht stehen, 1 bis 2 Schritte vor der Mitte, nach unten Richtung Schritt ziehen. Alternativ Negativ Fliegende mit Kurzhanteln. Bis (fast) Versagen, dann mit dem gleichen Gewicht als Negativdrücken weiter bis (fast) Versagen.'],
+      ['Schrägbankdrücken', 'Brust', '2 bis 4', ''],
+      ['Kurzhantel Schulterdrücken seitlich am Kopf', 'Schultern', '3 bis 5', 'Hanteln hinter bzw. seitlich am Kopf. ' + SATZ_HINT_5_8],
+      ['Seitheben mit gestreckten Armen', 'Schultern', '3 bis 5', ''],
+      ['Frontheben', 'Schultern', '2 bis 3', '']
+    ]},
+    { name:'Tag 3 · Rücken & hintere Schulter', tag:3, schema:'pyramide', pause:60, hinweis:'Rücken: Schulterblätter bei jeder Wdh ganz lösen, dann kräftig zusammenziehen.', ex:[
+      ['Kreuzheben', 'Rücken', '2 bis 3', 'Am Anfang oder am Ende des Trainings, je nachdem wie sich dein Rücken anfühlt.'],
+      ['Kurzhantelrudern auf der Schrägbank', 'Rücken', '3 bis 4', 'Ellbogen leicht ausgestellt. ' + SATZ_HINT_5_8],
+      ['Rudern im Untergriff', 'Rücken', '2 bis 3', 'Mit Kurz oder Langhantel.'],
+      ['Enge Klimmzüge oder Latzug im Untergriff', 'Rücken', '2 bis 4', 'Handflächen zeigen zu dir.'],
+      ['Breite Klimmzüge oder Latzug im Obergriff', 'Rücken', '2 bis 4', 'Handflächen zeigen von dir weg.'],
+      ['Reverse Flys vorgebeugt + Face Pull Rudern', 'Rücken', '3 bis 4', 'Sitzend, Brust auf den Oberschenkeln. Schultern und Schulterblätter ganz lösen, dann kräftig nach hinten ziehen. Das ist für den Rücken, nicht die Arme. Kurz vor Erschöpfung Ellbogen ausstellen und zur oberen Brust bzw. zum Hals rudern bis kurz vor Versagen. Im 2. Satz das Rudern zuerst.'],
+      ['Shrugs mit Kurzhanteln', 'Rücken', '4 bis 5', 'Leicht vorgebeugt: Schulterblätter zurückziehen, dann hochziehen. Bei Ermüdung aufrecht als normale Shrugs weiter. Gern als Supersatz mit den letzten Übungen. ' + SATZ_HINT_5_8],
+      ['Reverse Flys 45 Grad', 'Schultern', '2 bis 3', 'Hintere Schulter. Sitzend, Oberkörper im 45 Grad Winkel, Hanteln eher Richtung Gesäß führen statt zur Seite.']
+    ]},
+    { name:'Tag 5 · Arme', tag:5, schema:'pyramide', pause:60, hinweis:'Bizeps und Trizeps dürfen als Supersatz laufen, Unterarme ebenso.', ex:[
+      ['Diamant Liegestütze', 'Arme', '2 bis 3', ''],
+      ['Bankdips', 'Arme', '2 bis 4', 'Bei Bedarf mit Zusatzgewicht.'],
+      ['Kurzhantel Kickbacks', 'Arme', '2 bis 4', 'Oberkörper leicht aufgerichtet, nicht waagerecht. Ellbogen so weit wie möglich nach hinten, bis der Oberarm waagerecht ist und der Ellbogen höher als der Rücken. Spannung ist vor allem in der ersten Hälfte, nicht ins Hängen gehen.'],
+      ['Skullcrusher über den Körper', 'Arme', '2 bis 4', 'Mit Kurzhantel quer über den Körper bis über die andere Schulter.'],
+      ['Überkopf Trizepsstrecken', 'Arme', '2 bis 3', 'Am Seil oder mit Kurzhantel.'],
+      ['Curls weiter Griff', 'Arme', '3 bis 4', 'Kurz oder Langhantel, Ellbogen bleiben an der Seite.'],
+      ['Schrägbank Curls oder Drag Curls', 'Arme', '3 bis 4', 'Ellbogen eng, Hanteln weit weg vom Körper.'],
+      ['Preacher Curls oder Konzentrationscurls', 'Arme', '3 bis 4', 'Maschine, enge Curls oder Konzentrationscurls.'],
+      ['Hammercurls', 'Arme', '3 bis 4', ''],
+      ['Handgelenkcurls', 'Arme', '4 bis 5', 'Als Supersatz mit den Reverse Handgelenkcurls.'],
+      ['Reverse Handgelenkcurls', 'Arme', '4 bis 5', '']
+    ]},
+    { name:'Tag 6 · Beine', tag:6, schema:'pyramide', pause:60, hinweis:'Isolationsübungen für Quads, Gesäß und Beinbeuger dürfen als Supersatz laufen.', ex:[
+      ['Ausfallschritte vor und zurück', 'Beine', '2 bis 4', 'Pro Bein 1 Schritt nach vorn, dann 1 Schritt zurück, wiederholen. Beim Vorwärtsschritt weit zur Seite treten und den Oberkörper nach vorn lehnen.'],
+      ['Kniebeuge oder Beinpresse breit', 'Beine', '2 bis 4', SATZ_HINT_5_8],
+      ['Kniebeuge oder Beinpresse eng', 'Beine', '2 bis 4', 'Für mehr Quadrizeps halbe Wiederholungen.'],
+      ['Kreuzheben gestreckte Beine mit Kurzhanteln', 'Beine', '2 bis 3', 'Nicht ganz hochkommen: stoppen, wenn die Spannung den Beinbeuger verlässt. Beim Absenken den Po weiter nach hinten schieben statt den Oberkörper zu beugen. Mit dem Coach besprechen.'],
+      ['Beinbeuger sitzend oder liegend', 'Beine', '2 bis 3', 'Jedes Training abwechseln: einmal sitzend, nächstes Mal liegend.'],
+      ['Wadenheben einbeinig', 'Beine', '3 bis 6', 'Mit Körpergewicht oder Kurzhantel, ganz hoch und ganz runter. Anzahl der Sätze je nach Ermüdung. Gern als Supersatz am Ende.']
+    ]},
+    { name:'Core · täglich', tag:0, schema:'frei', pause:45, hinweis:'Täglich oder wann du Zeit hast, mindestens 3 Mal pro Woche. Geht auch zu Hause.', ex:[
+      ['Crunches', 'Core', '2', 'Bis zur Erschöpfung.'],
+      ['Plank', 'Core', '2', '60 bis 120 Sekunden. Schaffst du mehr, Gewicht auflegen. Bei Wdh die Sekunden eintragen.'],
+      ['Beinheben', 'Core', '2', 'Knie leicht gebeugt, Füße berühren den Boden nicht. Bis zur Erschöpfung.'],
+      ['Seitbeugen mit Kurzhantel', 'Core', '2', 'Bis zur Erschöpfung.'],
+      ['Rumpfdrehen mit Kurzhantel', 'Core', '2', 'Hantel mit gestreckten Armen vor dir halten und von Seite zu Seite drehen. Bis zur Erschöpfung.']
+    ]}
+  ];
+  const SPLIT_WOCHE = [['1','Brust Schulter'],['2','Pause'],['3','Rücken'],['4','Pause'],['5','Arme'],['6','Beine'],['7','Pause']];
+  function satzMin(s){ const m = /(\d+)/.exec(s || ''); return m ? Math.max(1, +m[1]) : 3; }
+  function repTarget(schema, si){ return schema === 'frei' ? 'max' : si === 0 ? '15–25' : '10–20'; }
+  async function importSplitOnce(){
+    try{
+      const flags = await airtableListFresh(TABLE_FLAGS).catch(()=>[]);
+      if(flags.some(r=>(r.fields || {})['Key'] === 'split_v1')) return;
+      if(plaeneCache.some(p=>SPLIT_V1.some(s=>s.name === p.name))) return;
+      await airtableCreate(TABLE_FLAGS, { 'Key':'split_v1', 'Datum': new Date().toISOString() });
+      for(const s of SPLIT_V1){
+        const details = {}; s.ex.forEach(([n, g, saetze, h])=>details[n] = { g, s:saetze, h });
+        const fields = { 'Name': s.name, 'Uebungen': JSON.stringify(s.ex.map(x=>x[0])), 'Details': JSON.stringify(details), 'Schema': s.schema, 'Pause': s.pause, 'Hinweis': s.hinweis, 'Tag': s.tag, 'Erstellt am': new Date().toISOString() };
+        const id = await airtableCreate(TABLE_PLAENE, fields, ROUTINEN_BASE_ID);
+        plaeneCache.push(mapTrainingPlan({ id, fields }));
+      }
+      // Übungen in die eigene Bibliothek, damit sie in der Auswahl auftauchen
+      const neu = []; SPLIT_V1.forEach(s=>s.ex.forEach(([n, g])=>{ if(!allUebungen().some(u=>u.name.toLowerCase() === n.toLowerCase()) && !neu.some(x=>x[0] === n)) neu.push([n, g]); }));
+      for(let i = 0; i < neu.length; i += 6){
+        const chunk = neu.slice(i, i + 6);
+        const ids = await Promise.all(chunk.map(([n, g])=>airtableCreate(TABLE_UEBUNGEN, { 'Name': n, 'Muskelgruppe': g, 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID).catch(()=>null)));
+        chunk.forEach(([n, g], j)=>{ if(ids[j]) uebungenCustom.push({ id:ids[j], name:n, gruppe:g }); });
+      }
+      cacheDrop(TABLE_PLAENE, ROUTINEN_BASE_ID); cacheDrop(TABLE_UEBUNGEN, ROUTINEN_BASE_ID);
+      if(koerperView === 'training') renderKoerper();
+      kgUndoToast('Dein Trainingsplan ist eingetragen ✓');
+    }catch(e){ console.warn('Split-Import', e); }
+  }
+  function mapTrainingPlan(r){
+    const f = r.fields || {}; let list = [], det = {};
+    try{ list = JSON.parse(f['Uebungen'] || '[]'); }catch(_){ list = (f['Uebungen'] || '').split('\n').filter(Boolean); }
+    try{ det = JSON.parse(f['Details'] || '{}'); }catch(_){}
+    return { id:r.id, name:f['Name'] || '', uebungen:list, details:det, schema:f['Schema'] || '', pause:+f['Pause'] || 0, hinweis:f['Hinweis'] || '', tag:+f['Tag'] || 0 };
+  }
+  // Welcher Split-Tag ist als Nächstes dran (nach dem zuletzt gemachten)
+  function nextSplitPlan(){
+    const split = plaeneCache.filter(p=>p.tag > 0).sort((a,b)=>a.tag - b.tag);
+    if(!split.length) return null;
+    const last = trainingsCache.find(t=>split.some(p=>p.name === t.plan));
+    if(!last) return split[0];
+    const i = split.findIndex(p=>p.name === last.plan);
+    return split[(i + 1) % split.length];
+  }
+  function openTrainingTips(){
+    const sec = (t, html)=>`<div class="tip-sec"><div class="tip-title">${t}</div>${html}</div>`;
+    openErnModal(`<div class="modal-title">Regeln & Tipps</div>
+      <div class="modal-sub">Aus deinem Trainingsplan. Gilt für alle Übungen, wenn nichts anderes dabei steht.</div>
+      ${sec('Wochenplan', `<div class="tip-week">${SPLIT_WOCHE.map(([d, n])=>`<div class="${n === 'Pause' ? 'off' : ''}"><b>Tag ${d}</b><span>${n}</span></div>`).join('')}</div>`)}
+      ${sec('Sätze & Wiederholungen', `<p>Umgekehrte Pyramide: <b>Satz 1 mit 15 bis 25 Wdh</b>, alle weiteren Sätze <b>10 bis 20 Wdh</b>. Jeden Satz bis <b>1 bis 2 Wdh vor dem Muskelversagen</b>.</p><p>Hör auf deinen Körper. Fühlt sich bei einer Übung ein 4. Satz richtig an, mach ihn.</p>`)}
+      ${sec('Pause', `<p>30 bis 60 Sekunden nach Gefühl. Nicht auf die Sekunde genau, aber gut erholt. Bei schweren Grundübungen etwas länger.</p>`)}
+      ${sec('Fokus Squeeze', `<p>Das Wichtigste: bei jedem Zentimeter der Bewegung den Zielmuskel so fest wie möglich anspannen. Nicht ans Gewicht denken, sondern ans Zusammendrücken des Muskels.</p><p>Beispiel Bankdrücken: beim Hochdrücken die Brust zusammendrücken, oben weiter drücken und auch beim Absenken nicht locker lassen. Genau beim Ablassen wollen die meisten entspannen.</p>`)}
+      ${sec('Rücken', `<p>Den Rücken nicht dauerhaft angespannt lassen. Bei jeder Wdh Schultern und Schulterblätter ganz nach vorn lösen, dann kräftig zusammenziehen. Auch beim Zurückgeben des Gewichts die Spannung halten, während sich die Schulterblätter öffnen.</p>`)}
+      ${sec('Bewegungsradius', `<p>Achte darauf, wo die Spannung den Muskel verlässt, und geh nur so weit, wie der Muskel arbeitet. Beispiele: beim Bankdrücken nicht ganz durchstrecken, bei Kickbacks nicht ins Hängen gehen.</p><p>Aber keinen Bereich auslassen, in dem noch Spannung ist: die tiefste Dehnung bei Flys bringt das meiste Wachstum.</p>`)}
+      ${sec('Volumen', `<p>Das ist der Startpunkt. Lässt der Pump im Training oder über die Woche nach, ist es zu viel Volumen. Spürst du eine Übung nicht, Bescheid geben und austauschen.</p>`)}
+      ${sec('Aktive Erholung · täglich', `<p>An jedem Tag, am besten morgens und nicht direkt am Training: Ganzkörper mit nur 2 bis 5 kg. Pro Körperteil 1 bis 2 Sätze einer beliebigen Übung, schnelle Wdh auf Pump, nur bis zu <b>leichter</b> Erschöpfung. Das bringt Blut in die Muskeln, hilft der Regeneration und dem Kreislauf.</p>`)}
+      ${sec('Core', `<p>Täglich oder wann du Zeit hast, mindestens 3 Mal pro Woche. Eigener Plan „Core · täglich“.</p>`)}
+      ${sec('Abwechseln', `<p>„Abwechseln“ heißt: beim nächsten Training die andere Variante machen.</p>`)}`);
+  }
+
   /* ----- Pläne verwalten ----- */
   function openPlanManager(){
     const ov = document.getElementById('kPlanOverlay');
@@ -9657,14 +9790,21 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   }
 
   /* ----- Training live loggen ----- */
-  function setsFromLast(name){
+  function exDetail(name, w){
+    const d = w && w.details && w.details[name]; if(d) return d;
+    for(const p of plaeneCache) if(p.details && p.details[name]) return p.details[name];
+    return null;
+  }
+  function setsFromLast(name, n){
     const last = lastSetsFor(name);
     if(last) return last.sets.map(s=>({ kg:s.kg, wdh:s.wdh, done:false }));
-    return [{ kg:'', wdh:'', done:false }, { kg:'', wdh:'', done:false }, { kg:'', wdh:'', done:false }];
+    return [...Array(n || 3)].map(()=>({ kg:'', wdh:'', done:false }));
   }
   function startWorkout(plan){
     if(activeWorkout && !confirmReplace()) return;
-    activeWorkout = { plan: plan ? plan.name : '', start: Date.now(), uebungen: (plan ? plan.uebungen : []).map(n=>({ name:n, sets: setsFromLast(n) })), notiz:'' };
+    const det = plan && plan.details || {};
+    activeWorkout = { plan: plan ? plan.name : '', start: Date.now(), details: det, schema: plan ? plan.schema : '', pause: plan ? plan.pause : 0, hinweis: plan ? plan.hinweis : '',
+      uebungen: (plan ? plan.uebungen : []).map(n=>({ name:n, sets: setsFromLast(n, det[n] ? satzMin(det[n].s) : 3) })), notiz:'' };
     saveActiveWorkout();
     openWorkout();
   }
@@ -9694,13 +9834,16 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
         <div><div class="step-label" style="margin:0;">Training</div><div class="wo-title">${escapeHtml(w.plan || 'Freies Training')}</div></div>
         <div class="wo-time"><span id="woElapsed">0:00</span><small>${doneSets} Sätze</small></div>
       </div>
+      ${w.schema || w.hinweis ? `<div class="wo-plan-info">${w.schema === 'pyramide' ? '<span>Satz 1: 15 bis 25 Wdh · danach 10 bis 20 · 1 bis 2 vor Versagen</span>' : ''}${w.hinweis ? `<span>${escapeHtml(w.hinweis)}</span>` : ''}<button type="button" class="aufg-link" id="woTips">📘 Regeln & Tipps</button></div>` : ''}
       ${w.uebungen.map((u,ui)=>{
         const last = lastSetsFor(u.name);
         const best = bestFor(u.name);
+        const dt = exDetail(u.name, w);
         return `<div class="card wo-ex">
           <div class="wo-ex-head">
             <div><div class="wo-ex-name">${escapeHtml(u.name)}</div>
-              <div class="wo-ex-meta">${escapeHtml(gruppeOf(u.name))}${last ? ' · Letztes Mal: ' + last.sets.map(s=>`${fmtNum(s.kg)}×${s.wdh}`).join(', ') : ''}${best ? ' · Bestwert ' + fmtNum(best) + ' kg' : ''}</div></div>
+              <div class="wo-ex-meta">${dt && dt.s ? `<b class="wo-sets-target">${escapeHtml(dt.s)} Sätze</b> · ` : ''}${escapeHtml(gruppeOf(u.name) || (dt && dt.g) || '')}${last ? ' · Letztes Mal: ' + last.sets.map(s=>`${fmtNum(s.kg)}×${s.wdh}`).join(', ') : ''}${best ? ' · Bestwert ' + fmtNum(best) + ' kg' : ''}</div>
+              ${dt && dt.h ? `<details class="wo-tip"><summary>Ausführung</summary><p>${escapeHtml(dt.h)}</p></details>` : ''}</div>
             <button type="button" class="aufg-mini" data-ui="${ui}" data-a="rmex" aria-label="Übung entfernen">×</button>
           </div>
           <div class="wo-sets">
@@ -9708,7 +9851,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
             ${u.sets.map((s,si)=>`<div class="wo-row ${s.done?'done':''}">
               <span class="wo-n">${si+1}</span>
               <input type="number" inputmode="decimal" step="0.5" min="0" value="${s.kg}" data-ui="${ui}" data-si="${si}" data-f="kg" placeholder="kg">
-              <input type="number" inputmode="numeric" step="1" min="0" value="${s.wdh}" data-ui="${ui}" data-si="${si}" data-f="wdh" placeholder="Wdh">
+              <input type="number" inputmode="numeric" step="1" min="0" value="${s.wdh}" data-ui="${ui}" data-si="${si}" data-f="wdh" placeholder="${w.schema ? repTarget(w.schema, si) : 'Wdh'}">
               <button type="button" class="wo-check" data-ui="${ui}" data-si="${si}">${s.done ? '✓' : ''}</button>
             </div>`).join('')}
           </div>
@@ -9751,11 +9894,12 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     const disc = el.querySelector('#woDiscard'); let dArmed = false;
     disc.onclick = ()=>{ if(!dArmed){ dArmed = true; disc.textContent = 'Wirklich verwerfen?'; return; } activeWorkout = null; saveActiveWorkout(); stopRest(); closeWorkoutOverlay(); };
     el.querySelector('#woFinish').onclick = finishWorkout;
+    const wt = el.querySelector('#woTips'); if(wt) wt.onclick = openTrainingTips;
   }
 
   function startRest(){
     stopRest();
-    restLeft = REST_SECONDS;
+    restLeft = (activeWorkout && activeWorkout.pause) || REST_SECONDS;
     const bar = document.getElementById('restBar');
     bar.style.display = 'flex';
     const draw = ()=>{ document.getElementById('restTime').textContent = Math.floor(restLeft/60) + ':' + String(restLeft%60).padStart(2,'0'); };
