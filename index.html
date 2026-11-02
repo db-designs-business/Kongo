@@ -1024,7 +1024,7 @@
   .aufg-item.kg-swiping{ z-index:2; }
   .aufg-item.kg-swiping::before, .aufg-item.kg-swiping::after{ position:absolute; top:0; bottom:0; width:100vw; display:flex; align-items:center; font-weight:800; font-size:14px; opacity:var(--sw, 0); }
   .aufg-item.kg-swiping[data-swipe="done"]::before{ content:'✓ Erledigt'; right:100%; justify-content:flex-end; padding-right:18px; color:#04110F; background:var(--forest); border-radius:12px 0 0 12px; }
-  .aufg-item.kg-swiping[data-swipe="today"]::after{ content:'★ Heute'; left:100%; justify-content:flex-start; padding-left:18px; color:#1A1203; background:#FFC56B; border-radius:0 12px 12px 0; }
+  .aufg-item.kg-swiping[data-swipe="delete"]::after{ content:'🗑 Löschen'; left:100%; justify-content:flex-start; padding-left:18px; color:#fff; background:#E5484D; border-radius:0 12px 12px 0; }
   #calBody, #koerperBody{ will-change:transform; touch-action:pan-y; }
   /* 7. Typografie: Laufweite und Zeilenabstand je nach Größe */
   body{ line-height:1.5; font-feature-settings:"cv11", "ss01"; }
@@ -1051,6 +1051,14 @@
     .hint, .sub, .modal-sub, .msg-snip{ color:#C9D1D3 !important; }
   }
   .refl-quick-btn.done{ color:var(--forest); border-color:rgba(34,227,211,.45); background:rgba(34,227,211,.08); font-weight:700; }
+  .aufg-item.kg-leaving{ animation:kgLeave .42s cubic-bezier(.3,0,.2,1) forwards; overflow:hidden; }
+  @keyframes kgLeave{ 0%{ opacity:1; max-height:120px; } 45%{ opacity:.55; transform:translateX(0); max-height:120px; } 100%{ opacity:0; transform:translateX(40px); max-height:0; padding-top:0; padding-bottom:0; border-width:0; } }
+  .kg-undo{ position:fixed; left:50%; bottom:calc(var(--bb-h) + 18px + env(safe-area-inset-bottom)); transform:translate(-50%, 20px); opacity:0; z-index:1150;
+    display:flex; align-items:center; gap:14px; padding:10px 10px 10px 18px; border-radius:999px; font-size:14px; font-weight:600; color:var(--ink);
+    background:rgba(20,27,31,.94); border:1px solid rgba(255,255,255,.1); box-shadow:0 10px 30px rgba(0,0,0,.5); transition:opacity .2s ease, transform .25s cubic-bezier(.2,.9,.3,1); white-space:nowrap; }
+  .kg-undo.show{ opacity:1; transform:translate(-50%, 0); }
+  .kg-undo button{ background:rgba(34,227,211,.14); border:1px solid rgba(34,227,211,.45); color:var(--forest); font-weight:800; font-size:13.5px; padding:7px 14px; border-radius:999px; cursor:pointer; }
+  @media (min-width:1024px){ .kg-undo{ left:calc(50% + var(--side-w) / 2); bottom:28px; } }
 </style>
 </head>
 <body>
@@ -7059,7 +7067,7 @@
   let aufgabenCache = [];
   let aufgabenView = 'heute';      // heute | next | alle
   let aufgabenFilter = 'Alle';     // Alle | Business | Privat
-  let aufgabenShowDone = false;
+  let aufgabenShowDone = false, aufgabenShowDoneHeute = false;
   let aufgabenEditId = null;
   let aufgabenNewPrio = 'B';
   let aufgabenNewBereich = (function(){ try{ return localStorage.getItem('kongrow_aufg_bereich') || 'Business'; }catch(e){ return 'Business'; } })();
@@ -7202,8 +7210,14 @@
         btn.disabled = true;
         const prev = t.erledigtAm;
         t.erledigtAm = prev ? '' : todayStr();
-        if(t.erledigtAm) vibrateDevice();
-        renderAufgaben(); renderHomeAufgaben();
+        if(t.erledigtAm){
+          vibrateDevice();
+          // kurz als erledigt zeigen, dann aus der Liste gleiten lassen
+          const row = btn.closest('.aufg-item');
+          if(row){ row.classList.add('done', 'kg-leaving'); btn.textContent = '✓'; }
+          setTimeout(()=>{ renderAufgaben(); renderHomeAufgaben(); }, row ? 420 : 0);
+          kgUndoToast('Erledigt ✓', async ()=>{ t.erledigtAm = ''; renderAufgaben(); renderHomeAufgaben(); try{ await patchAufgabe(t, { 'Erledigt am': '' }); revokeXP('task:' + t.id); }catch(e){} });
+        } else { renderAufgaben(); renderHomeAufgaben(); }
         try{
           await patchAufgabe(t, { 'Erledigt am': t.erledigtAm });
           if(t.erledigtAm) awardXP('task:' + t.id, 'Aufgabe ' + t.prio + ': ' + t.titel, { A:15, B:10, C:5 }[t.prio] || 10);
@@ -7237,6 +7251,37 @@
     });
   }
 
+
+  // Rückgängig-Hinweis unten (5 Sekunden)
+  function kgUndoToast(text, onUndo, ms){
+    document.querySelectorAll('.kg-undo').forEach(x=>x.remove());
+    const t = document.createElement('div'); t.className = 'kg-undo';
+    t.innerHTML = `<span>${escapeHtml(text)}</span>${onUndo ? '<button type="button">Rückgängig</button>' : ''}`;
+    document.body.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    let done = false;
+    const close = ()=>{ if(done) return; done = true; t.classList.remove('show'); setTimeout(()=>t.remove(), 300); };
+    const btn = t.querySelector('button'); if(btn) btn.onclick = ()=>{ close(); onUndo(); };
+    setTimeout(close, ms || 5000);
+    return close;
+  }
+  window.kgUndoToast = kgUndoToast;
+  // Aufgabe löschen: sofort weg, endgültig nach 5 Sek., bis dahin rückgängig machbar
+  function deleteAufgabeWithUndo(id){
+    const idx = aufgabenCache.findIndex(x=>x.id === id); if(idx < 0) return;
+    const t = aufgabenCache[idx];
+    aufgabenCache.splice(idx, 1);
+    renderAufgaben(); renderHomeAufgaben();
+    let undone = false;
+    const timer = setTimeout(async ()=>{
+      if(undone) return;
+      try{ await airtableDelete(TABLE_AUFGABEN, t.id, ROUTINEN_BASE_ID); revokeXP('task:' + t.id); }
+      catch(e){ aufgabenCache.push(t); renderAufgaben(); renderHomeAufgaben(); aufgabenStatus('Löschen fehlgeschlagen.'); }
+    }, 5200);
+    kgUndoToast('Aufgabe gelöscht', ()=>{ undone = true; clearTimeout(timer); aufgabenCache.splice(Math.min(idx, aufgabenCache.length), 0, t); renderAufgaben(); renderHomeAufgaben(); });
+  }
+  window.kgDeleteAufgabe = deleteAufgabeWithUndo;
+
   function aufgabenStatus(msg){ const el = document.getElementById('aufgabenStatus'); if(el) el.textContent = msg; }
 
   function renderAufgaben(){
@@ -7264,7 +7309,11 @@
       if(!total){
         html += `<div class="card"><div class="empty">Tippe bei einer Aufgabe auf ★, um sie für heute auszuwählen, oder leg oben eine neue an und markiere „Heute".</div></div>`;
       } else {
-        html += `<div class="card aufg-card">${heuteOpen.sort(aufgabenSort).map(t=>aufgabeRowHtml(t)).join('')}${heuteDone.map(t=>aufgabeRowHtml(t)).join('')}</div>`;
+        html += heuteOpen.length ? `<div class="card aufg-card">${heuteOpen.sort(aufgabenSort).map(t=>aufgabeRowHtml(t)).join('')}</div>` : `<div class="card"><div class="empty">Alles für heute erledigt. Stark. 💪</div></div>`;
+        if(heuteDone.length){
+          html += `<button type="button" class="journal-toggle" id="aufgHeuteDoneToggle" style="margin-top:4px;">${aufgabenShowDoneHeute ? 'Erledigte ausblenden' : 'Erledigt heute (' + heuteDone.length + ')'}</button>`;
+          if(aufgabenShowDoneHeute) html += `<div class="card aufg-card">${heuteDone.map(t=>aufgabeRowHtml(t)).join('')}</div>`;
+        }
         if(heuteOpen.length){
           html += `<button type="button" class="ghost" id="aufgCarryBtn" style="width:100%;">Offene Heute-Aufgaben auf morgen schieben</button>`;
         }
@@ -7299,6 +7348,8 @@
 
     const carry = document.getElementById('aufgCarryBtn');
     if(carry) carry.onclick = ()=>carryAufgabenToTomorrow(carry);
+    const hdt = document.getElementById('aufgHeuteDoneToggle');
+    if(hdt) hdt.onclick = ()=>{ aufgabenShowDoneHeute = !aufgabenShowDoneHeute; renderAufgaben(); };
     const dt = document.getElementById('aufgDoneToggle');
     if(dt) dt.onclick = ()=>{ aufgabenShowDone = !aufgabenShowDone; renderAufgaben(); };
 
@@ -7360,6 +7411,18 @@
       ${t.termin ? `<div class="hint" style="margin:10px 0 0;">📅 Im Kalender: ${escapeHtml(new Date(t.termin).toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} Uhr</div>` : ''}
       <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink-soft);">Beschreibung</div>
       <textarea id="aufgEditNotiz" placeholder="Beschreibung (optional)" style="min-height:110px;margin-top:6px;">${escapeHtml(t.notiz)}</textarea>
+      ${t.termin ? '' : `<div class="aufg-cal-box">
+        <label class="aufg-cal-toggle"><input type="checkbox" id="aufgEditCalOn"> 📅 Im Kalender eintragen</label>
+        <div id="aufgEditCalFields" style="display:none;">
+          <div class="ev-grid" style="margin-top:10px;">
+            <label>Datum<input type="date" id="aufgEditCalDate" value="${t.faellig || todayStr()}"></label>
+            <label>Uhrzeit<input type="time" id="aufgEditCalTime" value="09:00"></label>
+            <label>Dauer<select id="aufgEditCalDur"><option value="15">15 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60" selected>1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option><option value="180">3 Std</option></select></label>
+            <label>Erinnerung<select id="aufgEditCalRem"><option value="-1">Keine</option><option value="0">Zum Start</option><option value="10">10 Min vorher</option><option value="15" selected>15 Min vorher</option><option value="30">30 Min vorher</option><option value="60">1 Std vorher</option><option value="1440">1 Tag vorher</option></select></label>
+          </div>
+          <div class="hint" id="aufgEditCalHint" style="margin:8px 0 0;">Titel und Beschreibung werden übernommen.</div>
+        </div>
+      </div>`}
       <div class="nav-row" style="margin-top:12px;">
         <button type="button" class="entry-delete" id="aufgEditDelete" style="margin:0;">Löschen</button>
         <div style="display:flex;gap:8px;">
@@ -7370,6 +7433,15 @@
     let prio = t.prio, bereich = t.bereich;
     host.querySelectorAll('#aufgEditPrio button').forEach(b=>b.onclick = ()=>{ prio = b.dataset.v; host.querySelectorAll('#aufgEditPrio button').forEach(x=>x.classList.toggle('active', x===b)); });
     host.querySelectorAll('#aufgEditBereich button').forEach(b=>b.onclick = ()=>{ bereich = b.dataset.v; host.querySelectorAll('#aufgEditBereich button').forEach(x=>x.classList.toggle('active', x===b)); });
+    const ecal = host.querySelector('#aufgEditCalOn');
+    if(ecal) ecal.onchange = async ()=>{
+      host.querySelector('#aufgEditCalFields').style.display = ecal.checked ? 'block' : 'none';
+      if(ecal.checked){
+        const st = cal.status || await loadGoogleStatus();
+        const hint = host.querySelector('#aufgEditCalHint');
+        if(!st.connected){ hint.innerHTML = '⚠️ Google ist noch nicht verbunden. <button type="button" class="aufg-link" id="aufgEditCalConn">Jetzt verbinden</button>'; host.querySelector('#aufgEditCalConn').onclick = ()=>{ closeAufgabeEdit(); openConnections(); }; }
+      }
+    };
     const clr = host.querySelector('#aufgEditFaelligClear');
     if(clr) clr.onclick = ()=>{ host.querySelector('#aufgEditFaellig').value = ''; clr.remove(); };
     host.querySelector('#aufgEditCancel').onclick = closeAufgabeEdit;
@@ -7385,27 +7457,31 @@
         'Notiz': host.querySelector('#aufgEditNotiz').value.trim()
       };
       saveBtn.disabled = true;
+      // Optional: jetzt als Termin in Google Kalender eintragen
+      if(ecal && ecal.checked){
+        const date = host.querySelector('#aufgEditCalDate').value || todayStr();
+        const time = host.querySelector('#aufgEditCalTime').value || '09:00';
+        const dur = Number(host.querySelector('#aufgEditCalDur').value) || 60;
+        const sdt = new Date(date + 'T' + time), edt = new Date(+sdt + dur * 60000);
+        const loc = d=>d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00';
+        try{
+          const ev = await kgApi('google.php?action=event_save', { calendarId:'primary', title: titel, allDay:false, start: loc(sdt), end: loc(edt), description: fields['Notiz'] || '', location:'', reminder: Number(host.querySelector('#aufgEditCalRem').value) });
+          fields['EventId'] = ev.id || ''; fields['Termin'] = loc(sdt);
+          if(!fields['Faellig']) fields['Faellig'] = date;
+          homeTermineLoaded = 0; cal.loadedKey = '';
+        }catch(err){ saveBtn.disabled = false; aufgabenStatus('Kalender-Eintrag fehlgeschlagen: ' + err.message); host.querySelector('#aufgEditCalHint').textContent = 'Kalender-Eintrag fehlgeschlagen: ' + err.message; return; }
+      }
       try{
         await patchAufgabe(t, fields);
         Object.assign(t, { titel, prio, bereich, faellig: fields['Faellig'], zielId: fields['ZielId'], notiz: fields['Notiz'] });
+        if(fields['Termin']){ t.termin = fields['Termin']; t.eventId = fields['EventId']; renderHomeTermine(true); }
         closeAufgabeEdit();
         aufgabenStatus('');
         renderAufgaben(); renderHomeAufgaben();
       }catch(e){ saveBtn.disabled = false; aufgabenStatus('Speichern fehlgeschlagen.'); }
     };
     const delBtn = host.querySelector('#aufgEditDelete');
-    let armed = false;
-    delBtn.onclick = async ()=>{
-      if(delBtn.disabled) return;
-      if(!armed){ armed = true; delBtn.textContent = 'Wirklich löschen?'; return; }
-      delBtn.disabled = true;
-      try{
-        await airtableDelete(TABLE_AUFGABEN, t.id, ROUTINEN_BASE_ID);
-        aufgabenCache = aufgabenCache.filter(x=>x.id !== t.id);
-        closeAufgabeEdit();
-        renderAufgaben(); renderHomeAufgaben();
-      }catch(e){ delBtn.disabled = false; armed = false; delBtn.textContent = 'Löschen'; aufgabenStatus('Löschen fehlgeschlagen.'); }
-    };
+    delBtn.onclick = ()=>{ closeAufgabeEdit(); deleteAufgabeWithUndo(t.id); };
   }
 
   function renderHomeAufgaben(){
@@ -7417,8 +7493,10 @@
     meta.textContent = (open.length + done.length) ? `${done.length}/${open.length + done.length}` : '';
     if(!open.length && !done.length){
       el.innerHTML = `<div class="empty">Keine Aufgaben für heute ausgewählt.</div>`;
+    } else if(!open.length){
+      el.innerHTML = `<div class="empty">Alles für heute erledigt. Stark. 💪</div>`;
     } else {
-      el.innerHTML = open.map(t=>aufgabeRowHtml(t, { compact:true })).join('') + done.map(t=>aufgabeRowHtml(t, { compact:true })).join('');
+      el.innerHTML = open.map(t=>aufgabeRowHtml(t, { compact:true })).join('');
     }
     wireAufgabenRows(el, renderHomeAufgaben);
   }
@@ -10086,12 +10164,11 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
         else { st = null; return; }
       }
       e.preventDefault();
-      const canLeft = !!st.row.querySelector('.aufg-star');
-      let x = dx - st.base; if(x < 0 && !canLeft) x = rubberband(x, st.w * 0.3);
+      let x = dx - st.base;
       if(Math.abs(x) > st.w * 0.6) x = Math.sign(x) * (st.w * 0.6 + rubberband(Math.abs(x) - st.w * 0.6, st.w));
       st.tr.add(x); st.x = x;
       st.row.style.transform = `translate3d(${x}px,0,0)`;
-      st.row.dataset.swipe = x > 0 ? 'done' : 'today';
+      st.row.dataset.swipe = x > 0 ? 'done' : 'delete';
       st.row.style.setProperty('--sw', String(Math.min(1, Math.abs(x) / (st.w * 0.3))));
     }, { passive:false });
     const end = ()=>{
@@ -10102,8 +10179,8 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
       const target = commit ? Math.sign(x) * w * 0.35 : 0;
       spring({ from:x, to: commit ? 0 : 0, velocity:v, damping: commit ? 1 : 0.85, response:0.3, onUpdate:p=>{ row.style.transform = `translate3d(${p}px,0,0)`; }, onDone:()=>{ row.style.transform = ''; row.classList.remove('kg-swiping'); delete row.dataset.swipe; } });
       if(commit){
-        const btn = x > 0 ? row.querySelector('.aufg-check') : row.querySelector('.aufg-star');
-        if(btn) setTimeout(()=>btn.click(), 60);
+        if(x > 0){ const btn = row.querySelector('.aufg-check'); if(btn && !row.classList.contains('done')) setTimeout(()=>btn.click(), 60); }
+        else { const id = row.dataset.id; if(id && window.kgDeleteAufgabe) setTimeout(()=>window.kgDeleteAufgabe(id), 60); }
       }
       st = null;
     };
