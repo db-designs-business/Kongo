@@ -8770,7 +8770,7 @@
   function msgItemKey(m){ return msgKey(m.source, m.account); }
   function msgMatches(m, ignoreUnread){
     if(!ignoreUnread && msg.unreadOnly && !m.unread) return false;
-    if(msg.account) return msgItemKey(m) === msg.account;
+    if(msg.account && msgItemKey(m) !== msg.account) return false;
     if(msg.filter === 'email') return m.source === 'gmail' || m.source === 'mail';
     if(msg.filter === 'slack') return m.source === 'slack';
     return true;
@@ -8781,11 +8781,16 @@
         <button type="button" class="mbox-pick" data-k="${escapeHtml(x.key)}"><span class="mbox-dot" style="background:${msgColor(x.src, x.account)}"></span><span class="mbox-name">${escapeHtml(msgLabel(x.src, x.account))}<small>${escapeHtml(x.account)}</small></span>${unread(x.key) ? `<b class="mbox-cnt">${unread(x.key)}</b>` : ''}</button>
         <button type="button" class="mbox-edit" data-e="${escapeHtml(x.key)}" aria-label="Umbenennen">✎</button>
       </div>`).join('') : '';
-    const mails = msg.sources.filter(x=>x.src !== 'slack'), slacks = msg.sources.filter(x=>x.src === 'slack');
-    openErnModal(`<div class="modal-title">Postfach wählen</div>
-      <button type="button" class="mbox-all ${!msg.account ? 'active' : ''}" data-k="">Alle Postfächer${msg.items.filter(m=>m.unread).length ? ` <b class="mbox-cnt">${msg.items.filter(m=>m.unread).length}</b>` : ''}</button>
+    // nur Konten des gewählten Bereichs (Alle / E-Mail / Slack) anbieten
+    const f = msg.filter;
+    const mails = f === 'slack' ? [] : msg.sources.filter(x=>x.src !== 'slack'), slacks = f === 'email' ? [] : msg.sources.filter(x=>x.src === 'slack');
+    const inSeg = m=>f === 'email' ? m.source !== 'slack' : f === 'slack' ? m.source === 'slack' : true;
+    const allUnread = msg.items.filter(m=>m.unread && inSeg(m)).length;
+    const allLabel = f === 'email' ? 'Alle E-Mail-Postfächer' : f === 'slack' ? 'Alle Slack-Workspaces' : 'Alle Postfächer';
+    openErnModal(`<div class="modal-title">${f === 'slack' ? 'Workspace wählen' : 'Postfach wählen'}</div>
+      <button type="button" class="mbox-all ${!msg.account ? 'active' : ''}" data-k="">${allLabel}${allUnread ? ` <b class="mbox-cnt">${allUnread}</b>` : ''}</button>
       ${group('E-Mail', mails)}${group('Slack', slacks)}
-      ${msg.sources.length ? '' : '<div class="hint">Noch keine Konten verbunden.</div>'}
+      ${mails.length + slacks.length ? '' : `<div class="hint">${f === 'slack' ? 'Noch kein Slack-Workspace verbunden.' : f === 'email' ? 'Noch kein E-Mail-Postfach verbunden.' : 'Noch keine Konten verbunden.'}</div>`}
       <button type="button" class="aufg-link" id="mboxConn" style="margin-top:14px;">Konten verwalten</button>`);
     const c = ernModalCard();
     c.querySelectorAll('[data-k]').forEach(b=>b.onclick = ()=>{ msg.account = b.dataset.k; try{ localStorage.setItem('kongrow_msg_account', msg.account); }catch(e){} closeErnModal(); renderMessages(); });
@@ -8821,9 +8826,9 @@
   function renderMessages(){
     // Umschalter + Zähler
     const cnt = k=>msg.items.filter(m=>m.unread && (k === 'alle' || (k === 'email' ? m.source !== 'slack' : m.source === 'slack'))).length;
-    document.querySelectorAll('#msgSeg .aufg-tab').forEach(b=>{ b.classList.toggle('active', !msg.account && b.dataset.f === msg.filter); const c = b.querySelector('[data-c]'); const n = cnt(b.dataset.f); c.textContent = n ? n : ''; });
+    document.querySelectorAll('#msgSeg .aufg-tab').forEach(b=>{ b.classList.toggle('active', b.dataset.f === msg.filter); const c = b.querySelector('[data-c]'); const n = cnt(b.dataset.f); c.textContent = n ? n : ''; });
     const box = msg.sources.find(x=>x.key === msg.account);
-    document.getElementById('msgBoxLabel').innerHTML = box ? `<span class="mbox-dot" style="background:${msgColor(box.src, box.account)}"></span>${escapeHtml(msgLabel(box.src, box.account))}` : 'Alle Postfächer';
+    document.getElementById('msgBoxLabel').innerHTML = box ? `<span class="mbox-dot" style="background:${msgColor(box.src, box.account)}"></span>${escapeHtml(msgLabel(box.src, box.account))}` : (msg.filter === 'email' ? 'Alle E-Mail-Postfächer' : msg.filter === 'slack' ? 'Alle Workspaces' : 'Alle Postfächer');
     document.getElementById('msgBoxBtn').classList.toggle('active', !!box);
     document.getElementById('msgBoxClear').style.display = box ? '' : 'none';
     document.getElementById('msgUnreadBtn').classList.toggle('active', msg.unreadOnly);
