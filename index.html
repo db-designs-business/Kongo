@@ -137,12 +137,12 @@
   }
   .question{ font-family:var(--font); font-weight:600; font-size:19px; letter-spacing:-.01em; line-height:1.3; margin:0 0 8px; color:var(--ink); }
   .hint{ font-size:13.5px; color:var(--ink-soft); margin-bottom:16px; }
-  textarea, input[type=text], input[type=password]{
+  textarea, input[type=text], input[type=password], input[type=url]{
     width:100%; font-family:var(--font); font-size:16px; color:var(--ink);
     background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px;
     padding:12px 14px; resize:vertical; min-height:64px; transition:border-color .2s, box-shadow .2s;
   }
-  input[type=text], input[type=password]{min-height:auto;}
+  input[type=text], input[type=password], input[type=url]{min-height:auto;}
   textarea::placeholder, input::placeholder{ color:#5C6568; }
   textarea:focus, input:focus, select:focus{
     outline:none; border-color:var(--forest); box-shadow:0 0 0 3px rgba(34,227,211,.15);
@@ -779,6 +779,46 @@
   .cal-ev-time{ flex-shrink:0; font-size:12.5px; color:var(--ink-soft); min-width:84px; font-variant-numeric:tabular-nums; }
   .cal-ev-title{ font-weight:600; font-size:14.5px; min-width:0; overflow-wrap:break-word; }
   .cal-add-day{ margin-top:4px; }
+  /* Upwork */
+  #panelUpwork .card{ margin-bottom:12px; }
+  .up-step{ margin-top:12px; }
+  .up-step-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .up-step-top span{ font-size:15px; color:var(--ink); }
+  .up-step-top b{ font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .up-bar{ height:10px; border-radius:999px; background:rgba(255,255,255,.06); margin-top:6px; overflow:hidden; }
+  .up-bar i{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--forest), #7CF5EA); transition:width 400ms cubic-bezier(.2,.8,.2,1); }
+  .up-rate{ font-size:12px; color:var(--muted, #8a9a9a); margin-top:4px; }
+  .up-total{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line-soft, rgba(255,255,255,.08)); font-size:14px; color:var(--muted, #8a9a9a); }
+  .up-total b{ color:var(--forest); font-size:16px; }
+  .up-tiles{ margin-bottom:12px; }
+  .up-date{ width:auto !important; max-width:170px; padding:6px 10px !important; font-size:14px !important; }
+  .up-form{ display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; }
+  .up-in label{ display:block; font-size:13px; color:var(--muted, #8a9a9a); margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .up-stepper{ display:flex; align-items:stretch; border:1px solid var(--line-soft, rgba(255,255,255,.1)); border-radius:12px; overflow:hidden; background:rgba(0,0,0,.25); }
+  .up-stepper button{ width:38px; flex:0 0 38px; border:0; background:transparent; color:var(--forest); font-size:20px; padding:0; min-height:44px; }
+  .up-stepper input{ flex:1; min-width:0; border:0 !important; background:transparent !important; text-align:center; font-size:17px; font-variant-numeric:tabular-nums; padding:0 !important; border-radius:0 !important; box-shadow:none !important; -moz-appearance:textfield; }
+  .up-stepper input::-webkit-outer-spin-button, .up-stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .up-table-wrap{ overflow-x:auto; margin-top:12px; }
+  .up-table{ width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  .up-table th{ text-align:right; font-weight:600; color:var(--muted, #8a9a9a); padding:6px 6px; white-space:nowrap; font-size:12px; }
+  .up-table td{ text-align:right; padding:7px 6px; border-top:1px solid rgba(255,255,255,.06); }
+  .up-table th:first-child, .up-table td:first-child{ text-align:left; }
+  .up-hist{ display:flex; align-items:center; gap:6px; border-top:1px solid rgba(255,255,255,.06); }
+  .up-hist:first-of-type{ border-top:0; }
+  .up-hist-main{ flex:1; min-width:0; text-align:left; background:transparent; border:0; color:var(--ink); padding:10px 0; display:flex; flex-direction:column; gap:2px; }
+  .up-hist-main span{ font-size:13px; color:var(--muted, #8a9a9a); }
+  .up-hist-main em{ font-size:12px; font-style:normal; color:var(--muted, #8a9a9a); opacity:.8; }
+  .up-hist-del{ background:transparent; border:0; color:var(--muted, #8a9a9a); font-size:20px; width:40px; height:40px; padding:0; }
+  .up-link-row{ display:flex; gap:8px; } .up-link-row input{ flex:1; min-width:0; } .up-link-row button{ flex:0 0 auto; }
+  .up-sheet-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .up-sheet-row b{ display:block; } .up-sheet-row small{ color:var(--muted, #8a9a9a); font-size:12px; }
+  .up-open{ text-decoration:none; padding:10px 14px; border-radius:12px; white-space:nowrap; color:var(--forest) !important; border:1px solid var(--line-soft, rgba(255,255,255,.12)); font-weight:600; }
+  .up-kpi-row{ display:flex; gap:6px; margin-bottom:8px; align-items:center; }
+  .up-kpi-row input{ flex:1; min-width:0; } .up-kpi-row select{ flex:0 0 96px; }
+  .up-kpi-row button{ flex:0 0 40px; height:44px; padding:0; border-radius:10px; background:rgba(255,255,255,.05); border:1px solid var(--line-soft, rgba(255,255,255,.1)); color:var(--ink); }
+  .up-kpi-row button:disabled{ opacity:.3; }
+  @media (min-width:700px){ .up-form{ grid-template-columns:repeat(3, 1fr); } }
+
   /* Zeitraster (Google-Kalender-Ansicht) */
   .tg{ --tg-gut:44px; background:var(--card, rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.08); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
   .tg-head, .tg-allday{ display:grid; grid-template-columns:var(--tg-gut) repeat(var(--n), 1fr); border-bottom:1px solid rgba(255,255,255,.08); }
@@ -1180,6 +1220,7 @@
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="koerper">Körper</button>
       <button type="button" class="nav-menu-item" data-tab="fortschritt">Fortschritt</button>
+      <button type="button" class="nav-menu-item" data-tab="upwork">Upwork</button>
       <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
       <button type="button" class="nav-menu-item" id="openConnMenuBtn">🔗 Verbindungen</button>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
@@ -1719,6 +1760,16 @@
     <div id="fsBody"><div class="loading">Lade ...</div></div>
   </div>
 
+  <div id="panelUpwork" style="display:none;">
+    <div class="aufg-head"><h1>Upwork</h1><button type="button" class="prio-edit-toggle" id="upKpiBtn">KPIs ✎</button></div>
+    <div class="aufg-tabs" id="upRange">
+      <button type="button" class="aufg-tab active" data-v="woche">Woche</button>
+      <button type="button" class="aufg-tab" data-v="monat">Monat</button>
+      <button type="button" class="aufg-tab" data-v="gesamt">Gesamt</button>
+    </div>
+    <div id="upBody"><div class="loading">Lade ...</div></div>
+  </div>
+
   <div id="panelLesen" style="display:none;">
     <div class="eyebrow">Lesen</div>
     <h1>Lesen</h1>
@@ -1791,6 +1842,10 @@
   <button type="button" class="bb-item bb-desk" data-tab="fortschritt">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
     <span>Fortschritt</span>
+  </button>
+  <button type="button" class="bb-item bb-desk" data-tab="upwork">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg>
+    <span>Upwork</span>
   </button>
   <button type="button" class="bb-item bb-desk" data-tab="aktivitaeten">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
@@ -2532,7 +2587,7 @@
   const panelKoerper = document.getElementById('panelKoerper');
   const panelAktivitaeten = document.getElementById('panelAktivitaeten');
 
-  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper, kalender: document.getElementById('panelKalender'), fortschritt: document.getElementById('panelFortschritt'), nachrichten: document.getElementById('panelNachrichten') };
+  const panels = { home: panelHome, work: panelWork, reflexion: panelReflexion, routinen: panelRoutinen, ziele: panelZiele, affirmationen: panelAffirmationen, wutjournal: panelWutjournal, satzergaenzung: panelSatzergaenzung, sprechuebung: panelSprechuebung, worksheets: panelWorksheets, lesen: panelLesen, aktivitaeten: panelAktivitaeten, aufgaben: panelAufgaben, koerper: panelKoerper, kalender: document.getElementById('panelKalender'), fortschritt: document.getElementById('panelFortschritt'), nachrichten: document.getElementById('panelNachrichten'), upwork: document.getElementById('panelUpwork') };
 
   const AKTIVITAETEN_TABS = ['sprechuebung','lesen','work','affirmationen','wutjournal','satzergaenzung','worksheets'];
   // Zurück-Buttons nur für Aktivitäten-Unterseiten (Start erreicht man über die Bottom-Bar)
@@ -8969,6 +9024,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(key === 'nachrichten') loadMessages();
     if(key === 'home') renderHomeTermine();
     if(key === 'fortschritt') renderFortschritt();
+    if(key === 'upwork') renderUpwork();
   };
   authReady.then(()=>{ setTimeout(()=>{ renderHomeTermine(true); loadMessages(); withingsSync(); }, 1500); });
   setInterval(()=>{ if(document.visibilityState === 'visible'){ msg.loadedAt = 0; loadMessages(); } }, 5 * 60 * 1000);
@@ -9042,6 +9098,221 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   }
   document.querySelectorAll('#fsRange .aufg-tab').forEach(b=>b.onclick = ()=>{ fsRange = b.dataset.v; try{ localStorage.setItem('kongrow_fs_range', fsRange); }catch(e){} renderFortschritt(); });
 
+  /* =========================================================
+     UPWORK: KPIs eintragen, Funnel auswerten, Google Sheet abgleichen
+     ========================================================= */
+  const TABLE_UPWORK = 'tblKgUpworkKpi001';
+  const TABLE_UPWORK_CFG = 'tblKgUpworkCfg001';
+  const UP_DEFAULT_KPIS = [
+    { id:'proposals', name:'Proposals', typ:'funnel' },
+    { id:'antworten', name:'Antworten', typ:'funnel' },
+    { id:'calls', name:'Sales Calls', typ:'funnel' },
+    { id:'closes', name:'Closes', typ:'funnel' },
+    { id:'connects', name:'Connects', typ:'zahl' },
+    { id:'umsatz', name:'Umsatz', typ:'euro' }
+  ];
+  const up = { loaded:false, entries:[], kpis:UP_DEFAULT_KPIS.slice(), cfgId:null, range:'woche', date:todayStr(), sheet:undefined, g:null, syncTimer:null, syncMsg:'' };
+  try{ const r = localStorage.getItem('kongrow_up_range'); if(['woche','monat','gesamt'].includes(r)) up.range = r; }catch(e){}
+  const upFunnel = ()=>up.kpis.filter(k=>k.typ === 'funnel');
+  const upPct = (a, b)=>b ? Math.round(a / b * 1000) / 10 : 0;
+  const upFmt = (k, v)=>k.typ === 'euro' ? Math.round(v).toLocaleString('de-DE') + ' €' : Math.round(v * 10) / 10 === Math.round(v) ? String(Math.round(v)) : fmtNum(v);
+  function upMap(r){ const f = r.fields || {}; let w = {}; try{ w = JSON.parse(f['Werte'] || '{}'); }catch(e){} return { id:r.id, datum:f['Datum'] || '', werte:w, notiz:f['Notiz'] || '' }; }
+  async function upLoad(force){
+    if(up.loaded && !force) return;
+    const [recs, cfg] = await Promise.all([airtableListFresh(TABLE_UPWORK), airtableListFresh(TABLE_UPWORK_CFG).catch(()=>[])]);
+    up.entries = recs.map(upMap).filter(e=>e.datum).sort((a,b)=>a.datum.localeCompare(b.datum));
+    const c = cfg[0];
+    if(c){ up.cfgId = c.id; try{ const k = JSON.parse((c.fields || {})['KPIs'] || '[]'); if(k.length) up.kpis = k; }catch(e){} }
+    up.loaded = true;
+  }
+  function upWeekStart(ds){ const d = new Date(ds + 'T12:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return dayStr(d); }
+  function upIsoWeek(ds){ const d = new Date(ds + 'T12:00'); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7); const y = new Date(d.getFullYear(), 0, 4); return { kw: 1 + Math.round(((d - y) / 86400000 - 3 + (y.getDay() + 6) % 7) / 7), jahr: d.getFullYear() }; }
+  function upSum(list){ const s = {}; up.kpis.forEach(k=>s[k.id] = 0); list.forEach(e=>up.kpis.forEach(k=>s[k.id] += num(e.werte[k.id] || 0))); return s; }
+  function upInRange(range){
+    const t = todayStr();
+    if(range === 'woche'){ const s = upWeekStart(t); return up.entries.filter(e=>e.datum >= s && e.datum <= t); }
+    if(range === 'monat'){ const s = t.slice(0, 8) + '01'; return up.entries.filter(e=>e.datum >= s && e.datum <= t); }
+    return up.entries.slice();
+  }
+  // Gruppen (Wochen/Monate) für Tabelle, Chart und Sheet
+  function upGroups(kind){
+    const m = new Map();
+    up.entries.forEach(e=>{ const key = kind === 'woche' ? upWeekStart(e.datum) : e.datum.slice(0, 7); if(!m.has(key)) m.set(key, []); m.get(key).push(e); });
+    return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([key, list])=>({ key, sum: upSum(list), n:list.length }));
+  }
+
+  function renderUpwork(){
+    const el = document.getElementById('upBody'); if(!el) return;
+    document.querySelectorAll('#upRange .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === up.range));
+    if(!up.loaded){ el.innerHTML = '<div class="loading">Lade ...</div>'; upLoad().then(renderUpwork).catch(e=>{ el.innerHTML = '<div class="card"><div class="empty">Konnte nicht laden: ' + escapeHtml(e.message) + '</div></div>'; }); return; }
+    const F = upFunnel(); const S = upSum(upInRange(up.range));
+    const first = F[0] ? S[F[0].id] : 0;
+    const funnel = F.length ? F.map((k, i)=>{
+      const v = S[k.id]; const w = first ? Math.max(v ? 4 : 0, v / first * 100) : 0;
+      return `<div class="up-step"><div class="up-step-top"><span>${escapeHtml(k.name)}</span><b>${upFmt(k, v)}</b></div>
+        <div class="up-bar"><i style="width:${w.toFixed(1)}%"></i></div>
+        ${i ? `<div class="up-rate">${upPct(v, S[F[i-1].id]).toLocaleString('de-DE')} % aus ${escapeHtml(F[i-1].name)}</div>` : ''}</div>`; }).join('')
+      + (F.length > 1 ? `<div class="up-total">${escapeHtml(F[0].name)} → ${escapeHtml(F[F.length-1].name)}: <b>${upPct(S[F[F.length-1].id], first).toLocaleString('de-DE')} %</b></div>` : '')
+      : '<div class="hint" style="margin:0;">Lege unter „KPIs“ mindestens einen Funnel-Schritt an.</div>';
+    const last = F[F.length - 1];
+    const extras = up.kpis.filter(k=>k.typ !== 'funnel').map(k=>`<div class="fs-tile"><b>${upFmt(k, S[k.id])}</b><small>${escapeHtml(k.name)}</small>${last && S[last.id] ? `<em>${upFmt(k, S[k.id] / S[last.id])} pro ${escapeHtml(last.name.replace(/s$/, ''))}</em>` : ''}</div>`).join('');
+    // Eintragen
+    const cur = up.entries.find(e=>e.datum === up.date);
+    const form = up.kpis.map(k=>`<div class="up-in"><label for="upv_${k.id}">${escapeHtml(k.name)}${k.typ === 'euro' ? ' (€)' : ''}</label>
+      <div class="up-stepper"><button type="button" data-dec="${k.id}" aria-label="weniger">−</button><input type="number" inputmode="decimal" min="0" id="upv_${k.id}" value="${cur && cur.werte[k.id] != null ? cur.werte[k.id] : ''}" placeholder="0"><button type="button" data-inc="${k.id}" aria-label="mehr">+</button></div></div>`).join('');
+    // Wochen
+    const weeks = upGroups('woche').slice(-8);
+    const chart = F[0] && weeks.length ? barChartSvg(weeks.map(w=>w.sum[F[0].id]), weeks.map(w=>'KW' + upIsoWeek(w.key).kw)) : '';
+    const wTable = weeks.length ? `<div class="up-table-wrap"><table class="up-table"><thead><tr><th>KW</th>${F.map(k=>`<th>${escapeHtml(k.name)}</th>`).join('')}${F.length > 1 ? '<th>Quote</th>' : ''}</tr></thead><tbody>
+      ${weeks.slice().reverse().map(w=>`<tr><td>${upIsoWeek(w.key).kw}</td>${F.map(k=>`<td>${upFmt(k, w.sum[k.id])}</td>`).join('')}${F.length > 1 ? `<td>${upPct(w.sum[last.id], w.sum[F[0].id]).toLocaleString('de-DE')} %</td>` : ''}</tr>`).join('')}</tbody></table></div>` : '';
+    const hist = up.entries.slice(-14).reverse();
+    el.innerHTML = `
+      <div class="card"><div class="step-label">Funnel · ${up.range === 'woche' ? 'Diese Woche' : up.range === 'monat' ? 'Dieser Monat' : 'Gesamt'}</div>${funnel}</div>
+      ${extras ? `<div class="fs-tiles up-tiles">${extras}</div>` : ''}
+      <div class="card" id="upFormCard">
+        <div class="home-aufg-head"><div class="step-label" style="margin:0;">Eintragen</div><input type="date" id="upDate" value="${up.date}" class="up-date"></div>
+        <div class="hint" style="margin:6px 0 12px;">${cur ? 'Für diesen Tag gibt es schon Werte. Speichern überschreibt sie.' : 'Was ist an diesem Tag passiert?'}</div>
+        <div class="up-form">${form}</div>
+        <input type="text" id="upNotiz" placeholder="Notiz (optional)" value="${cur ? escapeHtml(cur.notiz) : ''}" style="margin-top:10px;">
+        <button type="button" class="primary" id="upSave" style="width:100%;margin-top:12px;">Speichern</button>
+        <div class="hint" id="upStatus" style="margin:8px 0 0;min-height:1em;"></div>
+      </div>
+      ${weeks.length ? `<div class="card"><div class="step-label">${F[0] ? escapeHtml(F[0].name) + ' pro Woche' : 'Wochen'}</div>${chart}${wTable}</div>` : ''}
+      <div class="card"><div class="step-label">Verlauf</div>${hist.length ? hist.map(e=>`<div class="up-hist" data-d="${e.datum}">
+          <button type="button" class="up-hist-main" data-load="${e.datum}"><b>${new Date(e.datum + 'T12:00').toLocaleDateString('de-DE', { weekday:'short', day:'numeric', month:'short' })}</b>
+          <span>${up.kpis.filter(k=>num(e.werte[k.id] || 0)).map(k=>escapeHtml(k.name) + ' ' + upFmt(k, num(e.werte[k.id]))).join(' · ') || 'keine Werte'}</span>${e.notiz ? `<em>${escapeHtml(e.notiz)}</em>` : ''}</button>
+          <button type="button" class="up-hist-del" data-del="${e.id}" aria-label="Löschen">×</button></div>`).join('') : '<div class="hint" style="margin:0;">Noch keine Einträge.</div>'}</div>
+      <div class="card" id="upSheetCard"><div class="step-label">Google Sheet</div><div id="upSheet"><div class="hint" style="margin:0;">Prüfe Verbindung ...</div></div></div>`;
+    // Handler
+    el.querySelector('#upDate').onchange = e=>{ up.date = e.target.value || todayStr(); renderUpwork(); setTimeout(()=>document.getElementById('upFormCard').scrollIntoView({ block:'nearest' }), 0); };
+    el.querySelectorAll('[data-inc],[data-dec]').forEach(b=>b.onclick = ()=>{ const id = b.dataset.inc || b.dataset.dec; const i = document.getElementById('upv_' + id); const k = up.kpis.find(x=>x.id === id); const step = k && k.typ === 'euro' ? 50 : 1; i.value = Math.max(0, num(i.value) + (b.dataset.inc ? step : -step)); });
+    el.querySelector('#upSave').onclick = upSave;
+    el.querySelectorAll('[data-load]').forEach(b=>b.onclick = ()=>{ up.date = b.dataset.load; renderUpwork(); setTimeout(()=>document.getElementById('upFormCard').scrollIntoView({ behavior:'smooth', block:'start' }), 0); });
+    el.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>upDelete(b.dataset.del));
+    renderUpSheet(true);
+  }
+
+  async function upSave(){
+    const btn = document.getElementById('upSave'); const st = document.getElementById('upStatus');
+    const werte = {}; up.kpis.forEach(k=>{ const v = document.getElementById('upv_' + k.id).value; if(v !== '') werte[k.id] = num(v); });
+    const fields = { 'Datum': up.date, 'Werte': JSON.stringify(werte), 'Notiz': document.getElementById('upNotiz').value.trim() };
+    btn.disabled = true; st.textContent = 'Speichere ...';
+    try{
+      const cur = up.entries.find(e=>e.datum === up.date);
+      if(cur){ await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields }) }); Object.assign(cur, { werte, notiz:fields['Notiz'] }); }
+      else { const id = await airtableCreate(TABLE_UPWORK, fields); up.entries.push({ id, datum:up.date, werte, notiz:fields['Notiz'] }); up.entries.sort((a,b)=>a.datum.localeCompare(b.datum)); }
+      cacheDrop(TABLE_UPWORK);
+      renderUpwork();
+      kgUndoToast('Gespeichert ✓');
+      upScheduleSync();
+    }catch(e){ btn.disabled = false; st.textContent = 'Speichern fehlgeschlagen: ' + e.message; }
+  }
+  function upDelete(id){
+    const idx = up.entries.findIndex(e=>e.id === id); if(idx < 0) return;
+    const e = up.entries[idx]; up.entries.splice(idx, 1); renderUpwork();
+    let undone = false;
+    const timer = setTimeout(async ()=>{ if(undone) return; try{ await airtableDelete(TABLE_UPWORK, id); cacheDrop(TABLE_UPWORK); upScheduleSync(); }catch(err){ up.entries.splice(idx, 0, e); renderUpwork(); } }, 5200);
+    kgUndoToast('Eintrag gelöscht', ()=>{ undone = true; clearTimeout(timer); up.entries.splice(idx, 0, e); renderUpwork(); });
+  }
+
+  /* ----- KPIs bearbeiten ----- */
+  function openUpKpis(){
+    let list = up.kpis.map(k=>Object.assign({}, k));
+    const draw = ()=>{
+      openErnModal(`<div class="modal-title">KPIs</div>
+        <div class="modal-sub">Funnel-Schritte bauen aufeinander auf (Reihenfolge zählt), daraus werden die Quoten berechnet. Zahl und Euro werden einfach summiert.</div>
+        <div id="upKpiList">${list.map((k, i)=>`<div class="up-kpi-row" data-i="${i}">
+          <input type="text" value="${escapeHtml(k.name)}" data-name placeholder="Name">
+          <select data-typ><option value="funnel" ${k.typ === 'funnel' ? 'selected' : ''}>Funnel</option><option value="zahl" ${k.typ === 'zahl' ? 'selected' : ''}>Zahl</option><option value="euro" ${k.typ === 'euro' ? 'selected' : ''}>Euro</option></select>
+          <button type="button" data-up ${i ? '' : 'disabled'} aria-label="nach oben">↑</button>
+          <button type="button" data-rm aria-label="Entfernen">×</button></div>`).join('')}</div>
+        <button type="button" class="ghost" id="upKpiAdd" style="width:100%;margin-top:8px;">+ KPI hinzufügen</button>
+        <div class="hint" style="margin:10px 0 0;">Bereits eingetragene Werte bleiben erhalten, auch wenn du einen KPI umbenennst.</div>
+        <button type="button" class="primary" id="upKpiSave" style="width:100%;margin-top:12px;">Speichern</button>`);
+      const card = ernModalCard();
+      const sync = ()=>card.querySelectorAll('.up-kpi-row').forEach(r=>{ const k = list[+r.dataset.i]; k.name = r.querySelector('[data-name]').value; k.typ = r.querySelector('[data-typ]').value; });
+      card.querySelectorAll('[data-up]').forEach(b=>b.onclick = ()=>{ sync(); const i = +b.closest('.up-kpi-row').dataset.i; [list[i-1], list[i]] = [list[i], list[i-1]]; draw(); });
+      card.querySelectorAll('[data-rm]').forEach(b=>b.onclick = ()=>{ sync(); list.splice(+b.closest('.up-kpi-row').dataset.i, 1); draw(); });
+      card.querySelector('#upKpiAdd').onclick = ()=>{ sync(); list.push({ id:'k' + uidShort(), name:'', typ:'zahl' }); draw(); const ins = card.querySelectorAll('[data-name]'); ins[ins.length - 1].focus(); };
+      card.querySelector('#upKpiSave').onclick = async ()=>{
+        sync(); list = list.filter(k=>k.name.trim()).map(k=>Object.assign(k, { name:k.name.trim() }));
+        const fields = { 'KPIs': JSON.stringify(list) };
+        try{
+          if(up.cfgId) await airtableFetch(TABLE_UPWORK_CFG + '/' + up.cfgId, { method:'PATCH', body: JSON.stringify({ fields }) });
+          else up.cfgId = await airtableCreate(TABLE_UPWORK_CFG, fields);
+          cacheDrop(TABLE_UPWORK_CFG); up.kpis = list; closeErnModal(); renderUpwork(); upScheduleSync();
+        }catch(e){ kgUndoToast('Speichern fehlgeschlagen: ' + e.message); }
+      };
+    };
+    draw();
+  }
+
+  /* ----- Google Sheet ----- */
+  function upSheetTabs(){
+    const F = upFunnel(); const rest = up.kpis.filter(k=>k.typ !== 'funnel'); const all = F.concat(rest);
+    const rate = (s, i)=>s[F[i-1].id] ? Math.round(s[F[i].id] / s[F[i-1].id] * 10000) / 10000 : 0;
+    const rateHead = F.slice(1).map((k, i)=>'Quote ' + F[i].name + ' → ' + k.name);
+    const tot = F.length > 1 ? [F[0].name + ' → ' + F[F.length-1].name] : [];
+    const rowRates = s=>F.slice(1).map((_, i)=>rate(s, i + 1)).concat(F.length > 1 ? [s[F[0].id] ? Math.round(s[F[F.length-1].id] / s[F[0].id] * 10000) / 10000 : 0] : []);
+    const nPct = rateHead.length + tot.length;
+    const pctCols = start=>[...Array(nPct)].map((_, i)=>start + i);
+    const eurCols = start=>all.map((k, i)=>k.typ === 'euro' ? start + i : -1).filter(i=>i >= 0);
+    const tage = [['Datum'].concat(all.map(k=>k.name), rateHead, tot, ['Notiz'])].concat(up.entries.map(e=>{ const s = upSum([e]); return [e.datum].concat(all.map(k=>s[k.id]), rowRates(s), [e.notiz || '']); }));
+    const wochen = [['KW', 'Woche ab'].concat(all.map(k=>k.name), rateHead, tot)].concat(upGroups('woche').map(g=>{ const w = upIsoWeek(g.key); return [w.jahr + '-KW' + String(w.kw).padStart(2, '0'), g.key].concat(all.map(k=>g.sum[k.id]), rowRates(g.sum)); }));
+    const monate = [['Monat'].concat(all.map(k=>k.name), rateHead, tot)].concat(upGroups('monat').map(g=>[MONTHS[+g.key.slice(5) - 1] + ' ' + g.key.slice(0, 4)].concat(all.map(k=>g.sum[k.id]), rowRates(g.sum))));
+    const ov = [['Kennzahl', 'Diese Woche', 'Dieser Monat', 'Gesamt']];
+    const sums = ['woche', 'monat', 'gesamt'].map(r=>upSum(upInRange(r)));
+    all.forEach(k=>ov.push([k.name].concat(sums.map(s=>s[k.id]))));
+    F.slice(1).forEach((k, i)=>ov.push(['Quote ' + F[i].name + ' → ' + k.name].concat(sums.map(s=>rate(s, i + 1)))));
+    if(F.length > 1) ov.push([tot[0]].concat(sums.map(s=>s[F[0].id] ? Math.round(s[F[F.length-1].id] / s[F[0].id] * 10000) / 10000 : 0)));
+    ov.push([]); ov.push(['Stand', new Date().toLocaleString('de-DE')]);
+    return [
+      { name:'Upwork Übersicht', rows:ov },
+      { name:'Upwork Tage', rows:tage, pct:pctCols(1 + all.length), eur:eurCols(1) },
+      { name:'Upwork Wochen', rows:wochen, pct:pctCols(2 + all.length), eur:eurCols(2) },
+      { name:'Upwork Monate', rows:monate, pct:pctCols(1 + all.length), eur:eurCols(1) }
+    ];
+  }
+  async function upSync(manual){
+    if(!up.sheet && !manual) return;
+    up.syncMsg = 'Synchronisiere ...'; renderUpSheet(true);
+    try{ const j = await kgApi('google.php?action=sheet_sync', { title:'Kongrow · Upwork KPIs', tabs: upSheetTabs() }); up.sheet = Object.assign({}, up.sheet || {}, j.sheet); up.syncMsg = 'Synchronisiert ✓'; }
+    catch(e){ up.syncMsg = e.message; }
+    renderUpSheet(true);
+  }
+  function upScheduleSync(){ clearTimeout(up.syncTimer); up.syncTimer = setTimeout(()=>upSync(false), 1500); }
+  async function renderUpSheet(skipFetch){
+    let box = document.getElementById('upSheet'); if(!box) return;
+    if(!skipFetch || up.sheet === undefined || !up.g){
+      try{ up.g = await kgApi('google.php?action=status'); }catch(e){ up.g = { connected:false }; }
+      if(up.g.connected && up.g.sheets){ try{ up.sheet = (await kgApi('google.php?action=sheet_info')).sheet; }catch(e){ up.sheet = null; } } else up.sheet = null;
+      box = document.getElementById('upSheet'); if(!box) return;
+    }
+    const g = up.g;
+    if(!g.connected){ box.innerHTML = '<div class="hint" style="margin:0 0 10px;">Verbinde Google, dann landen deine Zahlen automatisch in einem Google Sheet.</div><button type="button" class="ghost" id="upGConn" style="width:100%;">Google verbinden</button>'; box.querySelector('#upGConn').onclick = ()=>openConnections(); return; }
+    if(!g.sheets){ box.innerHTML = '<div class="hint" style="margin:0 0 10px;">Für Google Sheets braucht Kongrow einmalig eine zusätzliche Freigabe. Danach ist Kalender und Mail weiter verbunden.</div><button type="button" class="ghost" id="upGRe" style="width:100%;">Sheets freigeben</button>';
+      box.querySelector('#upGRe').onclick = async ()=>{ try{ localStorage.setItem('kongrow_after_google', 'upwork'); const j = await kgApi('google.php?action=connect', {}); location.href = j.url; }catch(e){ kgUndoToast(e.message); } }; return; }
+    const msgLine = up.syncMsg ? `<div class="hint" style="margin:8px 0 0;">${escapeHtml(up.syncMsg)}</div>` : '';
+    if(!up.sheet){
+      box.innerHTML = `<div class="hint" style="margin:0 0 10px;">Füge den Link zu deinem Sheet ein. Kongrow legt dort eigene Blätter an (Upwork Übersicht, Tage, Wochen, Monate) und lässt deine anderen Blätter in Ruhe.</div>
+        <div class="up-link-row"><input type="url" id="upSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..."><button type="button" class="primary" id="upSheetLink">Verknüpfen</button></div>
+        <button type="button" class="aufg-link" id="upSheetNew" style="margin-top:10px;">Oder neues Sheet anlegen</button>${msgLine}`;
+      box.querySelector('#upSheetLink').onclick = async ()=>{ try{ const j = await kgApi('google.php?action=sheet_link', { url: box.querySelector('#upSheetUrl').value }); up.sheet = j.sheet; upSync(true); }catch(e){ up.syncMsg = e.message; renderUpSheet(true); } };
+      box.querySelector('#upSheetNew').onclick = ()=>upSync(true);
+      return;
+    }
+    const when = up.sheet.synced ? new Date(up.sheet.synced).toLocaleString('de-DE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'noch nie';
+    box.innerHTML = `<div class="up-sheet-row"><div><b>${escapeHtml(up.sheet.title || 'Kongrow · Upwork KPIs')}</b><small>Zuletzt abgeglichen: ${when}</small></div>
+        <a class="ghost up-open" href="${escapeHtml(up.sheet.url)}" target="_blank" rel="noopener">Öffnen ↗</a></div>
+      <button type="button" class="ghost" id="upSyncNow" style="width:100%;margin-top:10px;">Jetzt synchronisieren</button>
+      <button type="button" class="aufg-link" id="upSheetForget" style="margin-top:8px;">Anderes Sheet verknüpfen</button>${msgLine}
+      <div class="hint" style="margin:8px 0 0;">Die App ist die Quelle: Änderungen direkt im Sheet werden beim nächsten Abgleich überschrieben.</div>`;
+    box.querySelector('#upSyncNow').onclick = ()=>upSync(true);
+    box.querySelector('#upSheetForget').onclick = async ()=>{ await kgApi('google.php?action=sheet_forget', {}).catch(()=>{}); up.sheet = null; up.syncMsg = ''; renderUpSheet(true); };
+  }
+  document.querySelectorAll('#upRange .aufg-tab').forEach(b=>b.onclick = ()=>{ up.range = b.dataset.v; try{ localStorage.setItem('kongrow_up_range', up.range); }catch(e){} renderUpwork(); });
+  document.getElementById('upKpiBtn').onclick = ()=>{ if(up.loaded) openUpKpis(); };
+
   // Aus einer Benachrichtigung geöffnet: passende Reflexion starten
   (function(){
     const params = new URLSearchParams(location.search);
@@ -9052,6 +9323,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       const g = params.get('google'), sl = params.get('slack'), wi = params.get('withings');
       const note = g === 'ok' ? 'Google verbunden ✓' : g === 'error' ? 'Google-Verbindung fehlgeschlagen. Bitte erneut versuchen.' : sl === 'ok' ? 'Slack-Workspace verbunden ✓' : sl === 'error' ? 'Slack-Verbindung fehlgeschlagen.'
         : wi === 'ok' ? 'Withings verbunden ✓ Tippe auf „Jetzt abgleichen“, um deine Messungen zu übernehmen.' : wi === 'error' ? 'Withings-Verbindung fehlgeschlagen.' : '';
+      let back = null; try{ back = localStorage.getItem('kongrow_after_google'); localStorage.removeItem('kongrow_after_google'); }catch(e){}
+      if(back === 'upwork' && g){ authReady.then(()=>setTimeout(()=>{ switchTab('upwork'); if(g === 'error') kgUndoToast(note); }, 400)); return; }
       authReady.then(()=>setTimeout(()=>openConnections(note), 400));
       return;
     }

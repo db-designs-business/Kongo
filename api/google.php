@@ -2,7 +2,7 @@
 // Google Workspace: Kalender + Gmail (OAuth, Tokens verschlüsselt auf dem Server)
 require __DIR__ . '/lib.php';
 $action = $_GET['action'] ?? 'status';
-const G_SCOPES = 'openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send';
+const G_SCOPES = 'openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/spreadsheets';
 
 function g_redirect_uri(): string { return kg_base_url() . '/api/google.php?action=callback'; }
 
@@ -29,6 +29,7 @@ if ($action === 'callback') {
   $tok = kg_get($uid, 'google_tok', []);
   $tok['access'] = $j['access_token']; $tok['exp'] = time() + (int)($j['expires_in'] ?? 3500) - 60;
   if (!empty($j['refresh_token'])) $tok['refresh'] = $j['refresh_token'];
+  if (!empty($j['scope'])) $tok['scope'] = $j['scope'];
   if (!empty($j['id_token'])) { $p = explode('.', $j['id_token']); $pl = json_decode(base64_decode(strtr($p[1] ?? '', '-_', '+/')), true); if (!empty($pl['email'])) $tok['email'] = $pl['email']; }
   kg_set($uid, 'google_tok', $tok);
   kg_back_to_app('open=settings&google=ok');
@@ -48,6 +49,7 @@ function g_token(int $uid): string {
   $j = $r['json'] ?? [];
   if (empty($j['access_token'])) kg_json(['error' => ['type' => 'NOT_CONNECTED', 'message' => 'Google-Verbindung abgelaufen. Bitte neu verbinden.']], 409);
   $tok['access'] = $j['access_token']; $tok['exp'] = time() + (int)($j['expires_in'] ?? 3500) - 60;
+  if (!empty($j['scope'])) $tok['scope'] = $j['scope'];
   kg_set($uid, 'google_tok', $tok);
   return $tok['access'];
 }
@@ -58,12 +60,24 @@ function g_api(int $uid, string $method, string $url, $body = null): array {
   if ($r['code'] >= 400) kg_json(['error' => ['message' => 'Google: ' . (($r['json']['error']['message'] ?? '') ?: ('Fehler ' . $r['code']))]], 502);
   return $r['json'] ?? [];
 }
+function g_has_sheets($tok): bool { $sc = (string)($tok['scope'] ?? ''); return str_contains($sc, 'drive.file') || str_contains($sc, 'auth/spreadsheets'); }
+// Rohaufruf ohne Abbruch (für Sheets: 404 = Tabelle gelöscht -> neu anlegen)
+function g_raw(int $uid, string $method, string $url, $body = null): array {
+  $h = ['Authorization: Bearer ' . g_token($uid)];
+  if ($body !== null) { $h[] = 'Content-Type: application/json'; $body = json_encode($body, JSON_UNESCAPED_UNICODE); }
+  return kg_http($method, $url, $h, $body);
+}
+function g_err(array $r): void {
+  $m = (string)($r['json']['error']['message'] ?? ('Fehler ' . $r['code']));
+  $type = ($r['code'] == 403 && stripos($m, 'scope') !== false) ? 'SCOPE' : (($r['code'] == 403 && stripos($m, 'has not been used') !== false || stripos($m, 'disabled') !== false) ? 'API_DISABLED' : 'GOOGLE');
+  kg_json(['error' => ['type' => $type, 'message' => 'Google Sheets: ' . $m]], 502);
+}
 function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
 
 switch ($action) {
   case 'status':
     $cfg = kg_get($uid, 'google_cfg'); $tok = kg_get($uid, 'google_tok');
-    kg_json(['configured' => !empty($cfg['client_id']), 'connected' => !empty($tok['refresh']), 'email' => $tok['email'] ?? null, 'redirect_uri' => g_redirect_uri()]);
+    kg_json(['configured' => !empty($cfg['client_id']), 'connected' => !empty($tok['refresh']), 'email' => $tok['email'] ?? null, 'sheets' => g_has_sheets($tok), 'redirect_uri' => g_redirect_uri()]);
 
   case 'config':
     $cid = trim((string)($in['client_id'] ?? '')); $sec = trim((string)($in['client_secret'] ?? ''));
@@ -178,6 +192,77 @@ switch ($action) {
     if (in_array('UNREAD', $m['labelIds'] ?? [], true)) g_api($uid, 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '/modify', ['removeLabelIds' => ['UNREAD']]);
     kg_json(['id' => $id, 'thread' => $m['threadId'] ?? '', 'from' => $h['from'] ?? '', 'to' => $h['to'] ?? '', 'cc' => $h['cc'] ?? '', 'subject' => $h['subject'] ?? '', 'date' => $h['date'] ?? '',
       'messageId' => $h['message-id'] ?? '', 'references' => $h['references'] ?? '', 'replyTo' => $h['reply-to'] ?? '', 'text' => $plain !== '' ? $plain : kg_html_to_text($html)]);
+
+  case 'sheet_info':
+    $sh = kg_get($uid, 'upwork_sheet');
+    kg_json(['sheet' => $sh ? ['id' => $sh['id'], 'url' => $sh['url'], 'title' => $sh['title'] ?? '', 'synced' => $sh['synced'] ?? null] : null]);
+
+  case 'sheet_sync':
+    // Erwartet: {title, tabs:[{name, rows:[[...]], pct:[Spaltenindex], eur:[Spaltenindex]}]}
+    $tabs = $in['tabs'] ?? [];
+    if (!is_array($tabs) || !$tabs) kg_json(['error' => ['message' => 'Keine Daten.']], 400);
+    $tabs = array_slice($tabs, 0, 8);
+    $sh = kg_get($uid, 'upwork_sheet');
+    $base = 'https://sheets.googleapis.com/v4/spreadsheets/';
+    $meta = null;
+    if ($sh) {
+      $r = g_raw($uid, 'GET', $base . rawurlencode($sh['id']) . '?fields=spreadsheetId,spreadsheetUrl,sheets.properties');
+      if ($r['code'] == 404) $sh = null; elseif ($r['code'] >= 400) g_err($r); else $meta = $r['json'];
+      if ($meta && !empty($meta['trashed'])) $sh = null;
+    }
+    if (!$sh) {
+      $r = g_raw($uid, 'POST', rtrim($base, '/'), ['properties' => ['title' => (string)($in['title'] ?? 'Kongrow Upwork KPIs'), 'locale' => 'de_DE', 'timeZone' => 'Europe/Berlin'],
+        'sheets' => array_map(fn($t) => ['properties' => ['title' => (string)$t['name'], 'gridProperties' => ['frozenRowCount' => 1]]], $tabs)]);
+      if ($r['code'] >= 400) g_err($r);
+      $meta = $r['json'];
+      $sh = ['id' => $meta['spreadsheetId'], 'url' => $meta['spreadsheetUrl']];
+    }
+    // fehlende Tabellenblätter ergänzen
+    $have = [];
+    foreach (($meta['sheets'] ?? []) as $x) $have[$x['properties']['title']] = $x['properties']['sheetId'];
+    $add = [];
+    foreach ($tabs as $t) if (!isset($have[(string)$t['name']])) $add[] = ['addSheet' => ['properties' => ['title' => (string)$t['name'], 'gridProperties' => ['frozenRowCount' => 1]]]];
+    if ($add) {
+      $r = g_raw($uid, 'POST', $base . rawurlencode($sh['id']) . ':batchUpdate', ['requests' => $add]);
+      if ($r['code'] >= 400) g_err($r);
+      foreach (($r['json']['replies'] ?? []) as $rep) if (!empty($rep['addSheet'])) $have[$rep['addSheet']['properties']['title']] = $rep['addSheet']['properties']['sheetId'];
+    }
+    // Inhalte ersetzen
+    $ranges = array_map(fn($t) => "'" . str_replace("'", "''", (string)$t['name']) . "'!A:Z", $tabs);
+    $r = g_raw($uid, 'POST', $base . rawurlencode($sh['id']) . '/values:batchClear', ['ranges' => $ranges]);
+    if ($r['code'] >= 400) g_err($r);
+    $data = [];
+    foreach ($tabs as $t) $data[] = ['range' => "'" . str_replace("'", "''", (string)$t['name']) . "'!A1", 'values' => array_values(array_slice((array)($t['rows'] ?? []), 0, 5000))];
+    $r = g_raw($uid, 'POST', $base . rawurlencode($sh['id']) . '/values:batchUpdate', ['valueInputOption' => 'USER_ENTERED', 'data' => $data]);
+    if ($r['code'] >= 400) g_err($r);
+    // Formate: Kopfzeile fett, Prozent- und Euro-Spalten
+    $req = [];
+    foreach ($tabs as $t) {
+      $sid = $have[(string)$t['name']] ?? null; if ($sid === null) continue;
+      $req[] = ['repeatCell' => ['range' => ['sheetId' => $sid, 'startRowIndex' => 0, 'endRowIndex' => 1], 'cell' => ['userEnteredFormat' => ['textFormat' => ['bold' => true], 'backgroundColor' => ['red' => 0.88, 'green' => 0.97, 'blue' => 0.96]]], 'fields' => 'userEnteredFormat(textFormat,backgroundColor)']];
+      foreach ((array)($t['pct'] ?? []) as $c) $req[] = ['repeatCell' => ['range' => ['sheetId' => $sid, 'startRowIndex' => 1, 'startColumnIndex' => (int)$c, 'endColumnIndex' => (int)$c + 1], 'cell' => ['userEnteredFormat' => ['numberFormat' => ['type' => 'PERCENT', 'pattern' => '0.0%']]], 'fields' => 'userEnteredFormat.numberFormat']];
+      foreach ((array)($t['eur'] ?? []) as $c) $req[] = ['repeatCell' => ['range' => ['sheetId' => $sid, 'startRowIndex' => 1, 'startColumnIndex' => (int)$c, 'endColumnIndex' => (int)$c + 1], 'cell' => ['userEnteredFormat' => ['numberFormat' => ['type' => 'CURRENCY', 'pattern' => '#,##0 €']]], 'fields' => 'userEnteredFormat.numberFormat']];
+      $req[] = ['autoResizeDimensions' => ['dimensions' => ['sheetId' => $sid, 'dimension' => 'COLUMNS', 'startIndex' => 0, 'endIndex' => 16]]];
+    }
+    if ($req) { $r = g_raw($uid, 'POST', $base . rawurlencode($sh['id']) . ':batchUpdate', ['requests' => $req]); }
+    $sh['synced'] = date('c');
+    kg_set($uid, 'upwork_sheet', $sh);
+    kg_json(['ok' => true, 'sheet' => $sh]);
+
+  case 'sheet_link':
+    // Eigenes Sheet verknüpfen (Link oder ID)
+    $u = trim((string)($in['url'] ?? ''));
+    $id = preg_match('#/spreadsheets/d/([A-Za-z0-9_-]{20,})#', $u, $m) ? $m[1] : (preg_match('#^[A-Za-z0-9_-]{20,}$#', $u) ? $u : '');
+    if (!$id) kg_json(['error' => ['message' => 'Das sieht nicht nach einem Google-Sheet-Link aus.']], 400);
+    $r = g_raw($uid, 'GET', 'https://sheets.googleapis.com/v4/spreadsheets/' . rawurlencode($id) . '?fields=spreadsheetId,spreadsheetUrl,properties.title');
+    if ($r['code'] >= 400) g_err($r);
+    $sh = ['id' => $r['json']['spreadsheetId'], 'url' => $r['json']['spreadsheetUrl'], 'title' => $r['json']['properties']['title'] ?? ''];
+    kg_set($uid, 'upwork_sheet', $sh);
+    kg_json(['ok' => true, 'sheet' => $sh]);
+
+  case 'sheet_forget':
+    kg_set($uid, 'upwork_sheet', null);
+    kg_json(['ok' => true]);
 
   case 'mail_send':
     $tok = kg_get($uid, 'google_tok');
