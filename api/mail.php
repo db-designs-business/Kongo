@@ -8,7 +8,7 @@ imap_timeout(IMAP_OPENTIMEOUT, 15); imap_timeout(IMAP_READTIMEOUT, 20);
 
 const MAIL_PRESETS = [
   'gmx'    => ['imap_host' => 'imap.gmx.net', 'imap_port' => 993, 'smtp_host' => 'mail.gmx.net', 'smtp_port' => 587, 'smtp_secure' => 'tls'],
-  'netcup' => ['imap_host' => 'a2ed0.webhosting.systems', 'imap_port' => 993, 'smtp_host' => 'a2ed0.webhosting.systems', 'smtp_port' => 465, 'smtp_secure' => 'ssl'],
+  'netcup' => ['imap_host' => 'mx2ed2.netcup.net', 'imap_port' => 993, 'smtp_host' => 'mx2ed2.netcup.net', 'smtp_port' => 465, 'smtp_secure' => 'ssl'],
 ];
 
 function m_accounts(int $uid): array { return kg_get($uid, 'mail_accounts', []); }
@@ -116,7 +116,7 @@ switch ($action) {
     // netcup: Mailserver-Name hängt vom Paket ab. Mehrere Kandidaten probieren und den ersten funktionierenden merken.
     if (!$mb && $preset === 'netcup') {
       $dom = substr(strrchr($email, '@'), 1);
-      foreach (['a2ed0.netcup.net', 'mail.' . $dom, $dom, gethostname() ?: ''] as $h) {
+      foreach (['a2ed0.webhosting.systems', 'a2ed0.netcup.net', 'mail.' . $dom, gethostname() ?: ''] as $h) {
         if ($h === '' || $h === $a['imap_host']) continue;
         $try = array_merge($a, ['imap_host' => $h, 'smtp_host' => $h]);
         [$mb, $e2] = m_open($try, 'INBOX', OP_HALFOPEN);
