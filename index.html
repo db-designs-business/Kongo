@@ -999,6 +999,8 @@
   #msgDetail{ flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:16px; }
   .msg-actions{ display:flex; gap:10px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line-soft); background:#07090A; }
   .msg-actions:empty{ display:none; }
+  .msg-new-btn{ display:inline-flex; align-items:center; justify-content:center; }
+  .msg-new-btn svg{ width:18px; height:18px; }
   .msg-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
   .msg-att{ font-size:13px; padding:7px 11px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink-soft); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .msg-actions button{ flex:1; min-height:48px; font-size:15.5px; }
@@ -1028,6 +1030,8 @@
   .conn-sec{ padding:14px 0; border-top:1px solid var(--line-soft); }
   .conn-h{ font-weight:700; font-size:15px; margin-bottom:8px; }
   .conn-h span{ font-weight:500; font-size:12.5px; color:var(--ink-soft); margin-left:6px; }
+  .conn-acts{ display:flex; gap:14px; flex-shrink:0; }
+  .conn-name{ display:block; font-weight:600; }
   .conn-ok{ color:var(--forest); font-size:14px; margin-bottom:8px; overflow-wrap:anywhere; }
   .conn-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 0; font-size:14px; }
   .conn-row small{ display:block; color:var(--ink-soft); font-size:11.5px; }
@@ -1847,7 +1851,7 @@
       <h1>Nachrichten</h1>
       <div style="display:flex; gap:8px;">
         <button type="button" class="cal-nav" id="msgRefresh" aria-label="Aktualisieren">↻</button>
-        <button type="button" class="cal-nav" id="msgConnBtn" aria-label="Verbindungen" title="Verbindungen">🔗</button>
+        <button type="button" class="cal-nav msg-new-btn" id="msgNewBtn" aria-label="Neue E-Mail" title="Neue E-Mail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
       </div>
     </div>
     <div class="msg-bar">
@@ -2129,8 +2133,14 @@
     <div class="modal-title" id="msgComposeTitle">Antworten</div>
     <div class="modal-sub" id="msgComposeSub"></div>
     <div class="msg-ctx" id="msgCtx"></div>
+    <div id="msgFromRow" style="display:none;">
+      <select id="msgFrom" style="margin-bottom:10px;"></select>
+    </div>
     <div id="msgToRow" style="display:none;">
       <input type="email" id="msgTo" placeholder="Weiterleiten an (E-Mail-Adresse)" autocomplete="email" style="margin-bottom:10px;">
+    </div>
+    <div id="msgSubjRow" style="display:none;">
+      <input type="text" id="msgSubj" placeholder="Betreff" style="margin-bottom:10px;">
     </div>
     <div class="msg-ai-row">
       <input type="text" id="msgAiHint" placeholder="Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“">
@@ -9046,11 +9056,17 @@
     const first = dom.split('.')[0] || account; const base = first.split('-')[0];
     return base ? base.toUpperCase() : account;
   }
-  const msgKey = (src, account)=>(src === 'slack' ? 'slack' : 'mail') + '|' + account;
-  function msgLabel(src, account){ const k = msgKey(src, account); const e = msgLabels.map[k] || {}; return e.name || defaultShortName(src, account); }
+  // Schlüssel pro Konto: Gmail behält das alte "mail|", IMAP-Postfächer bekommen "imap|" (sonst teilen sich gleiche Adressen Namen/Farbe)
+  const msgKey = (src, account)=>src === 'slack' ? 'slack|' + account : src === 'gmail' ? 'mail|' + account : 'imap|' + account;
+  function msgEntry(src, account){
+    const k = msgKey(src, account); if(msgLabels.map[k]) return msgLabels.map[k];
+    if(src === 'mail' && !(msg.sources || []).some(x=>x.src === 'gmail' && x.account === account)) return msgLabels.map['mail|' + account] || {};
+    return {};
+  }
+  function msgLabel(src, account){ const e = msgEntry(src, account); return e.name || defaultShortName(src, account); }
   window.kgMsgLabel = msgLabel;
   function msgColor(src, account){
-    const k = msgKey(src, account); const e = msgLabels.map[k];
+    const k = msgKey(src, account); const e = msgEntry(src, account);
     if(e && e.color) return e.color;
     const keys = msg.sources.map(x=>x.key); const i = Math.max(0, keys.indexOf(k));
     return MSG_COLORS[i % MSG_COLORS.length];
@@ -9072,6 +9088,7 @@
     (ss.teams || []).forEach(t=>sources.push({ src:'slack', account:t.team_name }));
     if((ss.teams || []).length) jobs.push(kgApi('slack.php?action=list' + (force ? '&fresh=1' : '')).then(j=>{ (j.errors || []).forEach(x=>errors.push('Slack ' + x)); return j.messages; }).catch(e=>{ errors.push('Slack: ' + e.message); return []; }));
     msg.sources = sources.map(x=>Object.assign(x, { key: msgKey(x.src, x.account) }));
+    if(msg.account && !msg.sources.some(x=>x.key === msg.account)){ const alt = msg.account.replace(/^mail\|/, 'imap|'); msg.account = msg.sources.some(x=>x.key === alt) ? alt : ''; }
     const none = !sources.length;
     const results = await Promise.all(jobs);
     msg.items = [].concat(...results).filter(m=>m && typeof m === "object").map(m=>Object.assign({ date:"" }, m)).sort((a,b)=>b.date.localeCompare(a.date));
@@ -9092,7 +9109,7 @@
   function openMsgBoxPicker(){
     const unread = k=>msg.items.filter(m=>m.unread && msgItemKey(m) === k).length;
     const group = (title, list)=>list.length ? `<div class="hz-cat-label" style="margin:14px 0 6px;">${title}</div>` + list.map(x=>`<div class="mbox-row ${msg.account === x.key ? 'active' : ''}">
-        <button type="button" class="mbox-pick" data-k="${escapeHtml(x.key)}"><span class="mbox-dot" style="background:${msgColor(x.src, x.account)}"></span><span class="mbox-name">${escapeHtml(msgLabel(x.src, x.account))}<small>${escapeHtml(x.account)}</small></span>${unread(x.key) ? `<b class="mbox-cnt">${unread(x.key)}</b>` : ''}</button>
+        <button type="button" class="mbox-pick" data-k="${escapeHtml(x.key)}"><span class="mbox-dot" style="background:${msgColor(x.src, x.account)}"></span><span class="mbox-name">${escapeHtml(msgLabel(x.src, x.account))}<small>${escapeHtml(x.account)}${x.src === 'gmail' ? ' · Google' : ''}</small></span>${unread(x.key) ? `<b class="mbox-cnt">${unread(x.key)}</b>` : ''}</button>
         <button type="button" class="mbox-edit" data-e="${escapeHtml(x.key)}" aria-label="Umbenennen">✎</button>
       </div>`).join('') : '';
     // nur Konten des gewählten Bereichs (Alle / E-Mail / Slack) anbieten
@@ -9111,7 +9128,7 @@
     c.querySelectorAll('[data-e]').forEach(b=>b.onclick = ()=>openMsgBoxEdit(msg.sources.find(x=>x.key === b.dataset.e)));
     c.querySelector('#mboxConn').onclick = ()=>{ closeErnModal(); openConnections(); };
   }
-  function msgSig(src, account){ if(src === 'slack') return ''; const e = msgLabels.map[msgKey(src, account)] || {}; return (e.sig || '').trim(); }
+  function msgSig(src, account){ if(src === 'slack') return ''; const e = msgEntry(src, account); return (e.sig || '').trim(); }
   function openMsgBoxEdit(x, back){
     if(!x) return;
     let color = msgColor(x.src, x.account);
@@ -9175,7 +9192,7 @@
     document.querySelectorAll('[data-tab="nachrichten"]').forEach(b=>{ let s = b.querySelector('.nav-badge'); if(!s){ s = document.createElement('span'); s.className = 'nav-badge'; b.appendChild(s); } s.textContent = n ? (n > 99 ? '99+' : n) : ''; s.style.display = n ? '' : 'none'; });
   }
   document.getElementById('msgRefresh').onclick = ()=>loadMessages(true);
-  document.getElementById('msgConnBtn').onclick = ()=>openConnections();
+  document.getElementById('msgNewBtn').onclick = ()=>openNewMail();
 
   const msgOverlay = document.getElementById('msgOverlay');
   document.getElementById('msgClose').onclick = ()=>{ document.getElementById('msgComposeOverlay').style.display = 'none'; msgOverlay.style.display = 'none'; renderMessages(); updateMsgBadge(); };
@@ -9321,10 +9338,90 @@ ${ctx}`);
   };
   const msgComposeOverlay = document.getElementById('msgComposeOverlay');
   document.getElementById('msgComposeClose').onclick = ()=>{ msgComposeOverlay.style.display = 'none'; };
+  /* ---- Neue E-Mail schreiben ---- */
+  function newMailFrom(){ const v = document.getElementById('msgFrom').value; return (msg.sources || []).find(x=>x.key === v) || null; }
+  function openNewMail(prefill){
+    const boxes = (msg.sources || []).filter(x=>x.src !== 'slack');
+    if(!boxes.length){ kgUndoToast('Noch kein E-Mail-Postfach verbunden.'); openConnections(); return; }
+    msg.mode = 'new'; msg.composeFor = 'new'; msg.composeMode = 'new';
+    let last = ''; try{ last = localStorage.getItem('kongrow_mail_from') || ''; }catch(e){}
+    const sel = document.getElementById('msgFrom');
+    sel.innerHTML = boxes.map(x=>`<option value="${escapeHtml(x.key)}">Von: ${escapeHtml(msgLabel(x.src, x.account))} · ${escapeHtml(x.account)}${x.src === 'gmail' ? ' (Google)' : ''}</option>`).join('');
+    sel.value = boxes.some(x=>x.key === last) ? last : boxes[0].key;
+    let curSig = '';
+    const applySig = ()=>{ const f = newMailFrom(); const sig = f ? msgSig(f.src, f.account) : ''; const ta = document.getElementById('msgReply');
+      let v = ta.value; if(curSig && v.trimEnd().endsWith(curSig)) v = v.trimEnd().slice(0, -curSig.length).trimEnd();
+      ta.value = sig ? (v ? v + '\n\n' : '\n\n') + sig : v; curSig = sig;
+      const sl = document.getElementById('msgSigLink'); sl.style.display = ''; sl.textContent = sig ? '✎ Signatur bearbeiten' : '+ Signatur für dieses Postfach anlegen';
+      sl.onclick = ()=>{ msgComposeOverlay.style.display = 'none'; openMsgBoxEdit(f, ()=>{ closeErnModal(); msgComposeOverlay.style.display = 'flex'; curSig = ''; applySig(); }); }; };
+    sel.onchange = ()=>{ try{ localStorage.setItem('kongrow_mail_from', sel.value); }catch(e){} applySig(); };
+    document.getElementById('msgComposeTitle').textContent = 'Neue E-Mail';
+    document.getElementById('msgComposeSub').textContent = '';
+    document.getElementById('msgCtx').innerHTML = '';
+    ['msgFromRow','msgToRow','msgSubjRow'].forEach(id=>document.getElementById(id).style.display = '');
+    document.getElementById('msgFwdHint').style.display = 'none';
+    document.getElementById('msgTo').placeholder = 'An (E-Mail-Adresse)';
+    document.getElementById('msgTo').value = (prefill && prefill.to) || '';
+    document.getElementById('msgSubj').value = (prefill && prefill.subject) || '';
+    document.getElementById('msgReply').value = (prefill && prefill.body) || '';
+    document.getElementById('msgReply').placeholder = 'Deine Nachricht ...';
+    document.getElementById('msgAiHint').value = '';
+    document.getElementById('msgAiHint').placeholder = 'Worum geht es? z. B. „Angebot für Website nachfassen, freundlich“';
+    document.getElementById('msgStatus').textContent = '';
+    document.getElementById('mentionList').style.display = 'none';
+    applySig();
+    msgComposeOverlay.style.display = 'flex';
+    setTimeout(()=>{ try{ document.getElementById('msgTo').focus({ preventScroll:true }); }catch(e){} }, 350);
+  }
+  window.kgOpenNewMail = openNewMail;
+  async function newMailAi(btn, st){
+    const f = newMailFrom(); const sig = f ? msgSig(f.src, f.account) : '';
+    const hint = document.getElementById('msgAiHint').value.trim();
+    let draft = document.getElementById('msgReply').value; if(sig && draft.trimEnd().endsWith(sig)) draft = draft.trimEnd().slice(0, -sig.length); draft = draft.trim();
+    if(!hint && !draft){ st.textContent = 'Schreib kurz, worum es gehen soll.'; return; }
+    const prompt = `Du schreibst eine neue E-Mail im Namen von Dominic Brecht (Inhaber der Digitalagentur BDRIVEN aus Bruchsal: Webdesign, Local SEO, Kundengewinnung für Pflegedienste, Physiotherapie und Gesundheitsbetriebe). Absender-Postfach: ${f ? f.account : ''}.
+Empfänger: ${document.getElementById('msgTo').value || 'unbekannt'}. Betreff bisher: ${document.getElementById('msgSubj').value || 'noch keiner'}.
+${hint ? 'Worum es geht: ' + hint + '\n' : ''}${draft ? 'Dominics Stichpunkte/Entwurf (ausformulieren):\n' + draft + '\n' : ''}
+Klar, freundlich, auf den Punkt, Sie-Form wenn nichts anderes erkennbar, keine Floskeln, keine erfundenen Fakten, Termine oder Preise, fehlendes als [Platzhalter]. Keine Gedankenstriche.
+${sig ? 'Schreibe KEINEN Gruß und KEINE Signatur am Ende, das wird automatisch angehängt.' : 'Ende mit "Viele Grüße\nDominic".'}
+Antworte NUR mit JSON: {"betreff": "...", "text": "..."}`;
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '✨ Schreibe ...'; st.textContent = '';
+    try{
+      const out = await callClaudeCoach(prompt);
+      const j = JSON.parse((out.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+      if(j.betreff && !document.getElementById('msgSubj').value.trim()) document.getElementById('msgSubj').value = j.betreff;
+      document.getElementById('msgReply').value = (j.text || out).trim() + (sig ? '\n\n' + sig : '');
+      st.textContent = 'Entwurf eingefügt. Bitte prüfen und anpassen.';
+    }catch(e){ st.textContent = e.message; }
+    btn.disabled = false; btn.textContent = old;
+  }
+  async function newMailSend(btn, st){
+    const f = newMailFrom(); const to = document.getElementById('msgTo').value.trim();
+    const subject = document.getElementById('msgSubj').value.trim(); const body = document.getElementById('msgReply').value.trim();
+    if(!f){ st.textContent = 'Bitte ein Absender-Postfach wählen.'; return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to.split(/[,;\s]+/)[0] || '')){ st.textContent = 'Bitte eine gültige E-Mail-Adresse eintragen.'; return; }
+    const sig = msgSig(f.src, f.account);
+    if(!body || (sig && body === sig)){ st.textContent = 'Bitte zuerst einen Text schreiben.'; return; }
+    if(!subject && !btn.dataset.nosubj){ btn.dataset.nosubj = '1'; st.textContent = 'Ohne Betreff senden? Dann noch einmal auf Senden tippen.'; return; }
+    if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
+    btn.dataset.armed = ''; btn.dataset.nosubj = ''; btn.disabled = true; btn.textContent = 'Sende ...';
+    try{
+      if(f.src === 'gmail') await kgApi('google.php?action=mail_send', { to, subject, body });
+      else { const acc = (msg.items || []).find(x=>x.source === 'mail' && x.account === f.account); const accounts = await kgApi('mail.php?action=accounts'); const a = (accounts.accounts || []).find(x=>x.label === f.account);
+        await kgApi('mail.php?action=send', { account: a ? a.id : (acc && acc.accountId), to, subject, body }); }
+      st.textContent = 'Gesendet ✓';
+      ['msgReply','msgTo','msgSubj','msgAiHint'].forEach(id=>document.getElementById(id).value = '');
+      setTimeout(()=>{ msgComposeOverlay.style.display = 'none'; }, 700);
+      msg.loadedAt = 0;
+    }catch(e){ st.textContent = e.message; }
+    btn.disabled = false; btn.textContent = 'Senden';
+  }
   function openCompose(mode){
     if(!msg.current || !msg.current.detail) return;
     const m = msg.current.item, d = msg.current.detail;
     msg.mode = mode;
+    ['msgFromRow','msgSubjRow'].forEach(id=>document.getElementById(id).style.display = 'none');
+    document.getElementById('msgTo').placeholder = 'Weiterleiten an (E-Mail-Adresse)';
     const fwd = mode === 'forward';
     document.getElementById('msgComposeTitle').textContent = fwd ? 'Weiterleiten' : (m.source === 'slack' ? 'Nachricht an ' + m.subject : 'Antworten');
     document.getElementById('msgComposeSub').textContent = m.source === 'slack' ? msgLabel(m.source, m.account) : (fwd ? 'WG: ' + (d.subject || m.subject) : 'an ' + fromName(d.replyTo || d.from) + ' · Re: ' + (d.subject || m.subject).replace(/^re:\s*/i, ''));
@@ -9406,6 +9503,7 @@ ${ctx}`);
   }
   document.getElementById('msgAiBtn').onclick = async ()=>{
     const btn = document.getElementById('msgAiBtn'); const st = document.getElementById('msgStatus');
+    if(msg.mode === 'new'){ if(!btn.disabled) newMailAi(btn, st); return; }
     if(btn.disabled || !msg.current || !msg.current.detail) return;
     const m = msg.current.item, d = msg.current.detail;
     const hint = document.getElementById('msgAiHint').value.trim();
@@ -9440,6 +9538,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   };
   document.getElementById('msgSend').onclick = async ()=>{
     const btn = document.getElementById('msgSend'); const st = document.getElementById('msgStatus');
+    if(msg.mode === 'new'){ if(!btn.disabled) newMailSend(btn, st); return; }
     if(btn.disabled || !msg.current) return;
     const text = document.getElementById('msgReply').value.trim();
     const m = msg.current.item, d = msg.current.detail || {};
@@ -9493,7 +9592,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     body.innerHTML = `${note ? `<div class="conn-note">${escapeHtml(note)}</div>` : ''}
       <div class="conn-sec">
         <div class="conn-h">📅 Google Workspace <span>Kalender + Gmail</span></div>
-        ${g.connected ? `<div class="conn-ok">✓ Verbunden${g.email ? ' als ' + escapeHtml(g.email) : ''}</div><button type="button" class="ghost" data-g-disc>Trennen</button>`
+        ${g.connected ? `<div class="conn-ok">✓ Verbunden${g.email ? ' als ' + escapeHtml(g.email) : ''}${g.email ? ' · Name: <b>' + escapeHtml(msgLabel('gmail', g.email)) + '</b>' : ''}</div><div style="display:flex;gap:8px;flex-wrap:wrap;">${g.email ? `<button type="button" class="ghost" data-edit-src="gmail" data-edit-acc="${escapeHtml(g.email)}">Name & Signatur</button>` : ''}<button type="button" class="ghost" data-g-disc>Trennen</button></div>`
           : g.configured ? `<button type="button" class="primary" data-g-conn>Mit Google verbinden</button><button type="button" class="aufg-link" data-g-reset style="margin-left:10px;">Zugangsdaten ändern</button>`
           : `<div class="hint">Einmalig: OAuth-Client aus der Google Cloud Console eintragen. Weiterleitungs-URI dort hinterlegen:</div>${copyRow(g.redirect_uri || '')}
              <input type="text" id="gCid" placeholder="Client-ID (…apps.googleusercontent.com)" autocomplete="off" style="margin:8px 0;">
@@ -9502,7 +9601,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       </div>
       <div class="conn-sec">
         <div class="conn-h">✉️ E-Mail-Postfächer <span>GMX, netcup, …</span></div>
-        ${(m.accounts || []).map(a=>`<div class="conn-row"><span>${escapeHtml(a.label)}<small>${escapeHtml(a.imap_host)}</small></span><button type="button" class="aufg-link" data-m-del="${escapeHtml(a.id)}">Entfernen</button></div>`).join('')}
+        ${(m.accounts || []).map(a=>`<div class="conn-row"><span><b class="conn-name">${escapeHtml(msgLabel('mail', a.label))}</b><small>${escapeHtml(a.label)}</small></span><span class="conn-acts"><button type="button" class="aufg-link" data-edit-src="mail" data-edit-acc="${escapeHtml(a.label)}">Name & Signatur</button><button type="button" class="aufg-link" data-m-del="${escapeHtml(a.id)}">Entfernen</button></span></div>`).join('')}
         <details class="conn-add" ${(m.accounts || []).length ? '' : 'open'}><summary>+ Postfach hinzufügen</summary>
           <select id="mPreset" style="width:100%;margin:8px 0;"><option value="gmx">GMX</option><option value="netcup">netcup (Webhosting)</option><option value="">Anderer Anbieter</option></select>
           <input type="text" id="mEmail" placeholder="E-Mail-Adresse" autocomplete="off" style="margin-bottom:8px;">
@@ -9518,7 +9617,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       </div>
       <div class="conn-sec">
         <div class="conn-h">💬 Slack <span>mehrere Workspaces</span></div>
-        ${s.configured ? `${(s.teams || []).map(t=>`<div class="conn-row"><span>${escapeHtml(t.team_name)}</span><button type="button" class="aufg-link" data-s-del="${escapeHtml(t.team_id)}">Trennen</button></div>`).join('')}
+        ${s.configured ? `${(s.teams || []).map(t=>`<div class="conn-row"><span><b class="conn-name">${escapeHtml(msgLabel('slack', t.team_name))}</b>${msgLabel('slack', t.team_name) !== t.team_name ? '<small>' + escapeHtml(t.team_name) + '</small>' : ''}</span><span class="conn-acts"><button type="button" class="aufg-link" data-edit-src="slack" data-edit-acc="${escapeHtml(t.team_name)}">Name</button><button type="button" class="aufg-link" data-s-del="${escapeHtml(t.team_id)}">Trennen</button></span></div>`).join('')}
              <button type="button" class="primary" data-s-conn>+ Workspace verbinden</button>`
           : `<div class="hint">Einmalig: Slack-App anlegen und Client-ID/Secret eintragen. Redirect-URL in der Slack-App:</div>${copyRow(s.redirect_uri || '')}
              <input type="text" id="sCid" placeholder="Client ID (z. B. 1234567890.1234567890)" autocomplete="off" style="margin:8px 0;">
@@ -9553,6 +9652,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
         msg.loadedAt = 0; renderConnections('Postfach verbunden ✓');
       }catch(e){ st(e.message); b.disabled = false; }
     };
+    body.querySelectorAll('[data-edit-src]').forEach(b=>b.onclick = ()=>{ const src = b.dataset.editSrc, account = b.dataset.editAcc;
+      openMsgBoxEdit({ src, account, key: msgKey(src, account) }, ()=>{ closeErnModal(); renderConnections(); renderMessages(); }); });
     body.querySelectorAll('[data-m-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('mail.php?action=account_delete', { id:b.dataset.mDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
     if(q('[data-s-save]')) q('[data-s-save]').onclick = async ()=>{ try{ await kgApi('slack.php?action=config', { client_id:q('#sCid').value, client_secret:q('#sSec').value }); renderConnections(); }catch(e){ st(e.message); } };
     if(q('[data-s-conn]')) q('[data-s-conn]').onclick = async ()=>{ try{ const j = await kgApi('slack.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
