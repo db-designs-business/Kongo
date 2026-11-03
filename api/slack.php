@@ -74,8 +74,8 @@ switch ($action) {
       $res = kg_http_multi($urls, ['Authorization: Bearer ' . $t['token']]);
       foreach ($res as $cid => $j) {
         $m = $j['messages'][0] ?? null; if (!$m) continue;
-        $out[] = ['source' => 'slack', 'account' => $t['team_name'], 'team' => $t['team_id'], 'id' => $cid, 'from' => $users[$m['user'] ?? ''] ?? ($m['username'] ?? 'Slack'),
-          'subject' => s_conv_name($byId[$cid], $users), 'snippet' => mb_substr(s_text($m['text'] ?? '', $users), 0, 200), 'ts' => $m['ts'],
+        $out[] = ['source' => 'slack', 'account' => $t['team_name'], 'team' => $t['team_id'], 'id' => $cid, 'from' => !empty($m['user']) ? s_name($uid, $t, $users, $m['user']) : ($m['username'] ?? 'Slack'),
+          'subject' => s_conv_name($byId[$cid], $users), 'snippet' => mb_substr(s_text($m['text'] ?? '', $users, $t, $uid), 0, 200), 'ts' => $m['ts'],
           'date' => gmdate('c', (int)$m['ts']), 'mine' => ($m['user'] ?? '') === $t['user_id']];
       }
     }
@@ -89,8 +89,8 @@ switch ($action) {
     $j = s_api($t, 'conversations.history', ['channel' => $ch, 'limit' => 30]);
     if (empty($j['ok'])) kg_json(['error' => ['message' => 'Slack: ' . ($j['error'] ?? 'Fehler')]], 502);
     $msgs = [];
-    foreach (array_reverse($j['messages'] ?? []) as $m) $msgs[] = ['ts' => $m['ts'], 'user' => $users[$m['user'] ?? ''] ?? ($m['username'] ?? 'Slack'), 'mine' => ($m['user'] ?? '') === $t['user_id'],
-      'text' => s_text($m['text'] ?? '', $users), 'date' => gmdate('c', (int)$m['ts']), 'replies' => (int)($m['reply_count'] ?? 0)];
+    foreach (array_reverse($j['messages'] ?? []) as $m) $msgs[] = ['ts' => $m['ts'], 'user' => !empty($m['user']) ? s_name($uid, $t, $users, $m['user']) : ($m['username'] ?? 'Slack'), 'mine' => ($m['user'] ?? '') === $t['user_id'],
+      'text' => s_text($m['text'] ?? '', $users, $t, $uid), 'date' => gmdate('c', (int)$m['ts']), 'replies' => (int)($m['reply_count'] ?? 0)];
     $seen = kg_get($uid, 'slack_seen', []); if ($msgs) $seen[$ch] = end($msgs)['ts']; kg_set($uid, 'slack_seen', $seen);
     kg_json(['messages' => $msgs]);
 

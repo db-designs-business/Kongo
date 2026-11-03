@@ -18,11 +18,35 @@ function s_users(int $uid, array $t): array {
     foreach ($j['members'] ?? [] as $u) $m[$u['id']] = $u['profile']['display_name'] ?: ($u['real_name'] ?? $u['name'] ?? $u['id']);
     $cursor = $j['response_metadata']['next_cursor'] ?? '';
   } while ($cursor);
-  kg_set($uid, $key, ['t' => time(), 'm' => $m]);
+  if ($m) kg_set($uid, $key, ['t' => time(), 'm' => $m]);   // leere Antwort (Fehler) nicht einen Tag lang merken
   return $m;
 }
-function s_text(string $txt, array $users): string {
-  $txt = preg_replace_callback('/<@([A-Z0-9]+)(\|[^>]*)?>/', fn($m) => '@' . ($users[$m[1]] ?? $m[1]), $txt);
+// Einzelnen Nutzer nachschlagen (z. B. Gäste oder Leute aus verbundenen Workspaces, die users.list nicht liefert)
+function s_name(int $uid, ?array $t, array &$users, string $id): string {
+  if ($id === '') return '';
+  if (isset($users[$id])) return $users[$id];
+  static $tries = 0;
+  if ($t && $tries < 25) {
+    $tries++;
+    $j = s_api($t, 'users.info', ['user' => $id]);
+    $u = $j['user'] ?? null;
+    $name = $u ? (($u['profile']['display_name'] ?? '') ?: ($u['profile']['real_name'] ?? '') ?: ($u['real_name'] ?? '') ?: ($u['name'] ?? '')) : '';
+    if ($name !== '') {
+      $users[$id] = $name;
+      $key = 'slack_users_' . $t['team_id']; $c = kg_get($uid, $key);
+      if ($c) { $c['m'][$id] = $name; kg_set($uid, $key, $c); }
+      return $name;
+    }
+  }
+  return $id;
+}
+function s_text(string $txt, array &$users, ?array $t = null, int $uid = 0): string {
+  $txt = preg_replace_callback('/<@([A-Z0-9]+)(?:\|([^>]*))?>/', function ($m) use (&$users, $t, $uid) {
+    if (!isset($users[$m[1]]) && !empty($m[2])) return '@' . $m[2];
+    return '@' . s_name($uid, $t, $users, $m[1]);
+  }, $txt);
+  $txt = preg_replace('/<!subteam\^[A-Z0-9]+\|([^>]+)>/', '$1', $txt);
+  $txt = preg_replace('/<!(here|channel|everyone)(\|[^>]*)?>/', '@$1', $txt);
   $txt = preg_replace('/<#[A-Z0-9]+\|([^>]+)>/', '#$1', $txt);
   $txt = preg_replace('/<(https?:[^|>]+)\|([^>]+)>/', '$2 ($1)', $txt);
   $txt = preg_replace('/<(https?:[^>]+)>/', '$1', $txt);
@@ -79,7 +103,7 @@ function s_new_messages(int $uid): array {
         if ((float)$m['ts'] <= $prev || ($m['user'] ?? '') === $t['user_id'] || (float)$m['ts'] <= (float)($seen[$cid] ?? 0)) continue;
         if (!empty($m['subtype']) && !in_array($m['subtype'], ['bot_message', 'file_share', 'thread_broadcast'], true)) continue;
         $new[] = ['team' => $t['team_id'], 'account' => $t['team_name'], 'channel' => $cid, 'conv' => s_conv_name($byId[$cid], $users),
-          'from' => $users[$m['user'] ?? ''] ?? ($m['username'] ?? 'Slack'), 'text' => mb_substr(s_text($m['text'] ?? '', $users), 0, 140), 'ts' => $m['ts']];
+          'from' => !empty($m['user']) ? s_name($uid, $t, $users, $m['user']) : ($m['username'] ?? 'Slack'), 'text' => mb_substr(s_text($m['text'] ?? '', $users, $t, $uid), 0, 140), 'ts' => $m['ts']];
       }
     }
   }
