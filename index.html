@@ -9935,14 +9935,25 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(!restSoundOn()) return;
     const ctx = restCtx(); if(!ctx) return;
     const t0 = ctx.currentTime + sec;
-    const tone = (at, dur, f, vol)=>{
+    // Lauter Alarm: Rechteckwelle im gut hörbaren Bereich (~1,8 bis 2,6 kHz), über einen Kompressor maximal laut,
+    // abwechselnde Töne wie ein Wecker, damit er auch über Musik auffällt
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 6; comp.ratio.value = 12; comp.attack.value = 0.002; comp.release.value = 0.1;
+    const master = ctx.createGain(); master.gain.value = 1;
+    comp.connect(master); master.connect(ctx.destination);
+    const tone = (at, dur, f, vol, type)=>{
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(vol, at + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-      o.connect(g); g.connect(ctx.destination); o.start(at); o.stop(at + dur + 0.05); restNodes.push(o);
+      o.type = type || 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(vol, at + 0.006);
+      g.gain.setValueAtTime(vol, at + dur - 0.02); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g); g.connect(comp); o.start(at); o.stop(at + dur + 0.05); restNodes.push(o);
     };
-    [3, 2, 1].forEach(x=>{ if(sec > x + 0.5) tone(t0 - x, 0.09, 660, 0.25); });   // leises Ticken 3, 2, 1
-    tone(t0, 0.2, 880, 0.6); tone(t0 + 0.28, 0.2, 880, 0.6); tone(t0 + 0.56, 0.45, 1175, 0.65);
+    [3, 2, 1].forEach(x=>{ if(sec > x + 0.5) tone(t0 - x, 0.1, 1760, 0.9); });   // Ticken 3, 2, 1
+    // 3 Runden à 4 schnelle Piepser (hoch, tiefer, hoch, tiefer), kurze Lücke dazwischen
+    for(let r = 0; r < 3; r++){
+      const rs = t0 + r * 0.9;
+      [2637, 2093, 2637, 2093].forEach((f, i)=>tone(rs + i * 0.15, 0.12, f, 1));
+    }
   }
   function drawRest(){
     const left = Math.max(0, Math.ceil((restEnd - Date.now()) / 1000));
