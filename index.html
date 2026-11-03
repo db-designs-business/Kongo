@@ -2258,7 +2258,7 @@
         <button type="button" class="ghost" id="faceIdAdd" style="margin-top:6px;">Face ID auf diesem Gerät einrichten</button>
         <div class="set-list" id="appLockRow" style="display:none; margin-top:12px;">
           <label class="set-toggle"><span><b>App mit Face ID sperren</b><small>Beim Öffnen Face ID, sonst Passwort</small></span><input type="checkbox" role="switch" id="appLockOn"><i></i></label>
-          <div class="set-row"><span>Sperren nach</span><select id="appLockIdle"><option value="30">Sofort</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option><option value="3600">1 Stunde</option></select></div>
+          <div class="set-row"><span>Sperren nach</span><select id="appLockIdle"><option value="0">Sofort beim Verlassen</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option><option value="3600">1 Stunde</option></select></div>
         </div>
         <div class="save-status" id="faceIdStatus"></div>
       </div>
@@ -2294,7 +2294,8 @@
   const authScreen = document.getElementById('authScreen');
   const authErr = document.getElementById('authErr');
 
-  function markAuthed(){ authScreen.classList.remove('show'); if(!authResolved){ authResolved = true; authResolve(); } }
+  let unlockedAt = 0;
+  function markAuthed(){ unlockedAt = Date.now(); if(pkAbort){ try{ pkAbort.abort(); }catch(e){} pkAbort = null; } pkBusy = false; document.body.classList.remove('kg-privacy'); authScreen.classList.remove('show'); if(!authResolved){ authResolved = true; authResolve(); } }
   const pkSupported = !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.get);
   let authInfo = { passkey:false, username:'' };
   try{ authInfo.passkey = localStorage.getItem('kg_pk') === '1'; authInfo.username = localStorage.getItem('kg_user') || ''; }catch(e){}
@@ -2327,12 +2328,13 @@
   // ---- Passkeys (Face ID)
   const b64uEnc = buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const b64uDec = s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((s.length + 3) % 4)), c=>c.charCodeAt(0));
-  let pkBusy = false;
+  let pkBusy = false, pkAbort = null;
   async function passkeyLogin(auto){
     if(pkBusy || !pkSupported) return; pkBusy = true; authErr.textContent = '';
     try{
       const o = await authApi('wa_login_options');
-      const cred = await navigator.credentials.get({ publicKey:{ challenge: b64uDec(o.challenge), rpId: o.rpId, userVerification:'required', timeout:60000,
+      pkAbort = window.AbortController ? new AbortController() : null;
+      const cred = await navigator.credentials.get({ signal: pkAbort ? pkAbort.signal : undefined, publicKey:{ challenge: b64uDec(o.challenge), rpId: o.rpId, userVerification:'required', timeout:60000,
         allowCredentials: (o.allow || []).map(c=>({ type:'public-key', id: b64uDec(c.id) })) } });
       const r = cred.response;
       await authApi('wa_login', { id: cred.id, clientDataJSON: b64uEnc(r.clientDataJSON), authenticatorData: b64uEnc(r.authenticatorData), signature: b64uEnc(r.signature) });
@@ -2362,12 +2364,18 @@
   try{ const a = JSON.parse(localStorage.getItem('kg_applock') || 'null'); if(a) appLock = a; }catch(e){}
   ['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev, ()=>{ lastActive = Date.now(); }, { passive:true }));
   setInterval(()=>{ if(appLock.on && authResolved && document.visibilityState === 'visible' && Date.now() - lastActive < 120000) authApi('ping').then(st=>{ if(st.locked) authLost(); }).catch(()=>{}); }, 45000);
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'hidden'){ hiddenAt = Date.now(); if(appLock.on) document.body.classList.add('kg-privacy'); return; }
-    if(!appLock.on){ document.body.classList.remove('kg-privacy'); return; }
-    if(hiddenAt && Date.now() - hiddenAt > appLock.idle * 1000){ authLost(); }
-    else { document.body.classList.remove('kg-privacy'); }
+  const lockNow = ()=>{ try{ if(navigator.sendBeacon && navigator.sendBeacon('api/auth.php?action=lock', '')) return; }catch(e){} fetch('api/auth.php?action=lock', { method:'POST', credentials:'same-origin', keepalive:true }).catch(()=>{}); };
+  document.addEventListener('visibilitychange', async ()=>{
+    if(pkBusy || authScreen.classList.contains('show')) return;   // Face-ID-Dialog oder Sperrbildschirm offen
+    if(document.visibilityState === 'hidden'){ if(Date.now() - unlockedAt < 3000) return; hiddenAt = Date.now(); if(appLock.on && authResolved){ document.body.classList.add('kg-privacy'); if(appLock.idle === 0) lockNow(); } return; }
+    if(!appLock.on || !authResolved){ document.body.classList.remove('kg-privacy'); return; }
+    const away = hiddenAt ? Date.now() - hiddenAt : 0; hiddenAt = 0;
+    if(appLock.idle === 0 ? away > 1200 : away > appLock.idle * 1000){
+      if(appLock.idle === 0) await authApi('lock', {}).catch(()=>{});   // falls das Signal beim Verlassen nicht ankam
+      authLost();
+    } else document.body.classList.remove('kg-privacy');
   });
+  window.addEventListener('pagehide', ()=>{ if(appLock.on && appLock.idle === 0 && authResolved) lockNow(); });
   window.kgSetAppLock = a=>{ appLock = a; try{ localStorage.setItem('kg_applock', JSON.stringify(a)); }catch(e){} };
   async function authApi(action, body){
     const res = await fetch(API_BASE + 'auth.php?action=' + action, {
@@ -2385,6 +2393,8 @@
       if('passkey' in st){ authInfo.passkey = !!st.passkey; try{ localStorage.setItem('kg_pk', st.passkey ? '1' : '0'); }catch(e){} }
       if(st.applock) window.kgSetAppLock(st.applock);
       if(st.locked){ showAuth('lock'); return; }
+      let isRefresh = false; try{ isRefresh = !!sessionStorage.getItem('kg_restore_tab'); }catch(e){}
+      if(st.loggedIn && st.applock && st.applock.on && st.applock.idle === 0 && !isRefresh){ await authApi('lock', {}).catch(()=>{}); showAuth('lock'); return; }
       if(st.loggedIn){
         markAuthed();
         let just = null; try{ just = localStorage.getItem('kongrow_just_setup'); localStorage.removeItem('kongrow_just_setup'); }catch(e){}

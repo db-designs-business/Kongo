@@ -76,8 +76,9 @@ function kg_session_row(): ?array {
   return $r ? ['uid' => (int)$r['user_id'], 'seen' => (int)$r['last_seen'], 'hash' => hash('sha256', $t)] : null;
 }
 // App-Sperre (Face ID): nach einer Zeit ohne Nutzung muss neu entsperrt werden
-function kg_applock(int $uid): array { $a = kg_get($uid, 'applock', []); return ['on' => !empty($a['on']), 'idle' => max(30, (int)($a['idle'] ?? 300))]; }
-function kg_is_locked(array $row): bool { $l = kg_applock($row['uid']); return $l['on'] && (time() - $row['seen']) > $l['idle']; }
+// idle 0 = "Sofort": die App sperrt sich bei jedem Verlassen (Client meldet das per action=lock), Server-Zeitlimit dann 5 Min.
+function kg_applock(int $uid): array { $a = kg_get($uid, 'applock', []); $i = (int)($a['idle'] ?? 300); return ['on' => !empty($a['on']), 'idle' => $i === 0 || $i === 30 ? 0 : max(60, $i)]; }
+function kg_is_locked(array $row): bool { $l = kg_applock($row['uid']); return $l['on'] && ($row['seen'] === 0 || (time() - $row['seen']) > ($l['idle'] ?: 300)); }
 
 // Liefert die User-ID der aktuellen (entsperrten) Sitzung oder null
 function kg_current_user(): ?int {

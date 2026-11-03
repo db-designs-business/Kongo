@@ -55,9 +55,15 @@ if ($action === 'wa_delete') {
   kg_set($uid, 'webauthn_creds', $left ?: null);
   kg_json(['ok' => true, 'count' => count($left)]);
 }
+if ($action === 'lock') {
+  // App wurde verlassen: Sitzung sofort sperren (nur wirksam, wenn die App-Sperre an ist)
+  $r = kg_session_row();
+  if ($r) kg_db()->prepare('UPDATE sessions SET last_seen=0 WHERE token=?')->execute([$r['hash']]);
+  kg_json(['ok' => true]);
+}
 if ($action === 'applock') {
   $uid = kg_require_user();
-  $idle = (int)($in['idle'] ?? 300); if (!in_array($idle, [30, 300, 900, 3600], true)) $idle = 300;
+  $idle = (int)($in['idle'] ?? 300); if (!in_array($idle, [0, 300, 900, 3600], true)) $idle = 300;
   kg_set($uid, 'applock', ['on' => !empty($in['on']), 'idle' => $idle]);
   kg_json(['ok' => true, 'applock' => kg_applock($uid)]);
 }
