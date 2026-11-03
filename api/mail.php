@@ -16,9 +16,16 @@ function m_find(int $uid, string $id): array {
   foreach (m_accounts($uid) as $a) if ($a['id'] === $id) return $a;
   kg_json(['error' => ['message' => 'Konto nicht gefunden.']], 404);
 }
-function m_open(array $a, string $folder = 'INBOX', int $opts = 0) {
-  $mb = @imap_open('{' . $a['imap_host'] . ':' . (int)$a['imap_port'] . '/imap/ssl}' . $folder, $a['user'], $a['pass'], $opts, 1);
-  if (!$mb) { $e = imap_last_error(); imap_errors(); return [null, $e ?: 'Login fehlgeschlagen']; }
+function m_open(array &$a, string $folder = 'INBOX', int $opts = 0) {
+  // GSSAPI/NTLM abschalten: sonst versucht PHP zuerst Kerberos und meldet bei manchen Anbietern "Cannot authenticate"
+  $params = ['DISABLE_AUTHENTICATOR' => ['GSSAPI', 'NTLM']];
+  $box = '{' . $a['imap_host'] . ':' . (int)$a['imap_port'] . '/imap/ssl}' . $folder;
+  $mb = @imap_open($box, $a['user'], $a['pass'], $opts, 1, $params);
+  if (!$mb && trim($a['pass']) !== $a['pass']) {   // versehentliches Leerzeichen beim Einfügen
+    imap_errors(); $mb = @imap_open($box, $a['user'], trim($a['pass']), $opts, 1, $params);
+    if ($mb) $a['pass'] = trim($a['pass']);
+  }
+  if (!$mb) { $e = imap_last_error(); imap_errors(); imap_alerts(); return [null, $e ?: 'Login fehlgeschlagen']; }
   return [$mb, null];
 }
 function m_dec(?string $s): string {
@@ -92,7 +99,10 @@ switch ($action) {
     $a += ['id' => 'm' . bin2hex(random_bytes(5)), 'email' => $email, 'user' => trim((string)($in['user'] ?? '')) ?: $email, 'pass' => $pass,
       'label' => trim((string)($in['label'] ?? '')) ?: $email, 'preset' => $preset ?: 'custom', 'name' => trim((string)($in['name'] ?? ''))];
     [$mb, $err] = m_open($a, 'INBOX', OP_HALFOPEN);
-    if (!$mb) kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen: ' . $err . ($preset === 'gmx' ? '. Ist in den GMX-Einstellungen „POP3/IMAP Abruf“ aktiviert?' : '')]], 400);
+    if (!$mb) {
+      $hint = $preset === 'gmx' ? ' Prüfe: 1) In GMX unter Einstellungen „POP3- und IMAP-Zugriff erlauben“ an (kann ein paar Minuten dauern). 2) Ist bei GMX die Zwei-Faktor-Anmeldung aktiv, brauchst du ein anwendungsspezifisches Passwort statt deines normalen Passworts. 3) GMX schickt bei einem Login von einem neuen Server manchmal eine Sicherheitsmail, die du bestätigen musst.' : '';
+      kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen: ' . $err . '.' . $hint]], 400);
+    }
     imap_close($mb);
     $all = m_accounts($uid); $all[] = $a; kg_set($uid, 'mail_accounts', $all);
     kg_json(['ok' => true, 'account' => m_public($a)]);

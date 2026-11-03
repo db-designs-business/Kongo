@@ -59,7 +59,7 @@ function n_gmail_new(int $uid): array {
 function n_imap_new(int $uid, array $a): array {
   if (!function_exists('imap_open')) return [];
   imap_timeout(IMAP_OPENTIMEOUT, 15); imap_timeout(IMAP_READTIMEOUT, 20);
-  $mb = @imap_open('{' . $a['imap_host'] . ':' . (int)$a['imap_port'] . '/imap/ssl}INBOX', $a['user'], $a['pass'], OP_READONLY, 1);
+  $mb = @imap_open('{' . $a['imap_host'] . ':' . (int)$a['imap_port'] . '/imap/ssl}INBOX', $a['user'], $a['pass'], OP_READONLY, 1, ['DISABLE_AUTHENTICATOR' => ['GSSAPI', 'NTLM']]);
   imap_errors(); imap_alerts();
   if (!$mb) return [];
   $key = 'notify_imap_' . $a['id']; $st = kg_get($uid, $key); $last = $st['last'] ?? null;
