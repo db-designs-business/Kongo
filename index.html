@@ -2122,6 +2122,7 @@
       <textarea id="msgReply" rows="6" placeholder="Antwort schreiben ..."></textarea>
       <div class="mention-list" id="mentionList" style="display:none;"></div>
     </div>
+    <button type="button" class="aufg-link" id="msgSigLink" style="margin-top:6px;"></button>
     <div class="hint" id="msgFwdHint" style="display:none;margin:6px 0 0;">Die ursprüngliche Nachricht wird unter deinem Text angehängt. Dateianhänge werden nicht mitgeschickt.</div>
     <div class="msg-send-row">
       <span class="save-status" id="msgStatus" style="margin:0;"></span>
@@ -9065,21 +9066,27 @@
     c.querySelectorAll('[data-e]').forEach(b=>b.onclick = ()=>openMsgBoxEdit(msg.sources.find(x=>x.key === b.dataset.e)));
     c.querySelector('#mboxConn').onclick = ()=>{ closeErnModal(); openConnections(); };
   }
-  function openMsgBoxEdit(x){
+  function msgSig(src, account){ if(src === 'slack') return ''; const e = msgLabels.map[msgKey(src, account)] || {}; return (e.sig || '').trim(); }
+  function openMsgBoxEdit(x, back){
     if(!x) return;
     let color = msgColor(x.src, x.account);
+    const isMail = x.src !== 'slack';
     const draw = ()=>{
-      openErnModal(`<div class="modal-title">Postfach benennen</div><div class="modal-sub">${escapeHtml(x.account)}</div>
+      openErnModal(`<div class="modal-title">${isMail ? 'Postfach' : 'Workspace'}</div><div class="modal-sub">${escapeHtml(x.account)}</div>
         <input type="text" id="mboxName" value="${escapeHtml(msgLabel(x.src, x.account))}" placeholder="Kurzer Name" style="margin-bottom:12px;">
         <div class="mbox-colors">${MSG_COLORS.map(cl=>`<button type="button" class="mbox-color ${cl === color ? 'active' : ''}" data-c="${cl}" style="background:${cl}" aria-label="Farbe"></button>`).join('')}</div>
+        ${isMail ? `<div class="turn-title" style="margin-top:16px;">Signatur</div>
+        <textarea id="mboxSig" rows="5" placeholder="z. B.\nViele Grüße\nDominic Brecht\nBDRIVEN · bdriven-digital.com" style="min-height:110px;">${escapeHtml(msgSig(x.src, x.account))}</textarea>
+        <div class="hint" style="margin:6px 0 0;">Wird beim Antworten und Weiterleiten aus diesem Postfach automatisch unter deinen Text gesetzt.</div>` : ''}
         <button type="button" class="primary" id="mboxSave" style="width:100%;margin-top:14px;">Speichern</button>
         <div class="save-status" data-st></div>`);
       const c = ernModalCard();
-      c.querySelectorAll('.mbox-color').forEach(b=>b.onclick = ()=>{ const v = c.querySelector('#mboxName').value; color = b.dataset.c; draw(); ernModalCard().querySelector('#mboxName').value = v; });
+      c.querySelectorAll('.mbox-color').forEach(b=>b.onclick = ()=>{ const v = c.querySelector('#mboxName').value, sg = c.querySelector('#mboxSig') ? c.querySelector('#mboxSig').value : ''; color = b.dataset.c; draw(); const c2 = ernModalCard(); c2.querySelector('#mboxName').value = v; if(c2.querySelector('#mboxSig')) c2.querySelector('#mboxSig').value = sg; });
       c.querySelector('#mboxSave').onclick = async ()=>{
         const name = c.querySelector('#mboxName').value.trim();
-        msgLabels.map[x.key] = { name: name && name !== defaultShortName(x.src, x.account) ? name : '', color };
-        try{ await saveMsgLabels(); openMsgBoxPicker(); renderMessages(); }catch(e){ c.querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
+        const sig = c.querySelector('#mboxSig') ? c.querySelector('#mboxSig').value.replace(/\s+$/, '') : '';
+        msgLabels.map[x.key] = { name: name && name !== defaultShortName(x.src, x.account) ? name : '', color, sig };
+        try{ await saveMsgLabels(); if(back) back(); else { openMsgBoxPicker(); renderMessages(); } }catch(e){ c.querySelector('[data-st]').textContent = 'Speichern fehlgeschlagen.'; }
       };
     };
     draw();
@@ -9171,7 +9178,14 @@
     document.getElementById('msgFwdHint').style.display = fwd ? '' : 'none';
     const atts = d.attachments || [];
     document.getElementById('msgFwdHint').textContent = 'Die ursprüngliche Nachricht wird unter deinem Text angehängt.' + (atts.length ? ' Anhänge werden mitgeschickt: ' + atts.map(a=>a.name).join(', ') + '.' : '');
-    if(msg.composeFor !== m || msg.composeMode !== mode){ document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; if(fwd) document.getElementById('msgTo').value = ''; }
+    const sig = m.source === 'slack' ? '' : msgSig(m.source, m.account);
+    if(msg.composeFor !== m || msg.composeMode !== mode){ document.getElementById('msgReply').value = sig ? '\n\n' + sig : ''; document.getElementById('msgAiHint').value = ''; if(fwd) document.getElementById('msgTo').value = ''; }
+    const sl = document.getElementById('msgSigLink');
+    sl.style.display = m.source === 'slack' ? 'none' : '';
+    sl.textContent = sig ? '✎ Signatur bearbeiten' : '+ Signatur für dieses Postfach anlegen';
+    sl.onclick = ()=>{ const src = msg.sources.find(x=>x.src === m.source && x.account === m.account) || { src:m.source, account:m.account, key: msgKey(m.source, m.account) };
+      msgComposeOverlay.style.display = 'none';
+      openMsgBoxEdit(src, ()=>{ closeErnModal(); msg.composeFor = null; openCompose(mode); }); };
     msg.composeFor = m; msg.composeMode = mode;
     document.getElementById('msgReply').placeholder = fwd ? 'Kurze Notiz dazu (optional) ...' : (m.source === 'slack' ? 'Nachricht schreiben ...' : 'Antwort an ' + fromName(d.replyTo || d.from) + ' ...');
     document.getElementById('msgAiHint').placeholder = fwd ? 'Anweisung an die KI, z. B. „kurz erklären, worum es geht“' : 'Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“';
@@ -9241,7 +9255,10 @@
     if(btn.disabled || !msg.current || !msg.current.detail) return;
     const m = msg.current.item, d = msg.current.detail;
     const hint = document.getElementById('msgAiHint').value.trim();
-    const draft = document.getElementById('msgReply').value.trim();
+    const sigA = m.source === 'slack' ? '' : msgSig(m.source, m.account);
+    let draft = document.getElementById('msgReply').value;
+    if(sigA && draft.trimEnd().endsWith(sigA)) draft = draft.trimEnd().slice(0, -sigA.length);
+    draft = draft.trim();
     let context;
     if(m.source === 'slack') context = 'Slack-Verlauf in ' + m.subject + ' (Workspace ' + m.account + '), älteste zuerst:\n' + (d.messages || []).slice(-15).map(x=>(x.mine ? 'Ich (Dominic)' : x.user) + ': ' + x.text).join('\n');
     else context = 'E-Mail von: ' + d.from + '\nAn: ' + d.to + '\nBetreff: ' + d.subject + '\n\n' + (d.text || '').slice(0, 6000);
@@ -9261,7 +9278,9 @@ ${context}
 
 Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     btn.disabled = true; const old = btn.textContent; btn.textContent = '✨ Schreibe ...'; st.textContent = '';
-    try{ const text = await callClaudeCoach(prompt); document.getElementById('msgReply').value = text.trim(); st.textContent = 'Entwurf eingefügt. Bitte prüfen und anpassen.'; }
+    const prompt2 = sigA ? prompt.replace('Gib NUR', 'Schreibe KEINEN Gruß und KEINE Signatur am Ende, beides wird automatisch angehängt: ' + JSON.stringify(sigA.split('\n')[0]) + ' usw.\nGib NUR') : prompt;
+    const stripClosing = t=>{ if(!sigA) return t; const L = t.trimEnd().split('\n'); for(let i = Math.max(0, L.length - 4); i < L.length; i++){ if(/^\s*(viele|beste|liebe|freundliche|herzliche|schöne)\s+grüße|^\s*(mit freundlichen grüßen|lg|vg|gruß|best regards|kind regards|cheers)\b/i.test(L[i])) return L.slice(0, i).join('\n').trimEnd(); } return t; };
+    try{ const text = stripClosing((await callClaudeCoach(prompt2)).trim()); document.getElementById('msgReply').value = text.trim() + (sigA ? '\n\n' + sigA : ''); st.textContent = 'Entwurf eingefügt. Bitte prüfen und anpassen.'; }
     catch(e){ st.textContent = e.message; }
     btn.disabled = false; btn.textContent = old;
   };
@@ -9273,7 +9292,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     const fwd = msg.mode === 'forward';
     const fwdTo = document.getElementById('msgTo').value.trim();
     if(fwd && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fwdTo.split(/[,;\s]+/)[0] || '')){ st.textContent = 'Bitte eine gültige E-Mail-Adresse eintragen.'; return; }
-    if(!text && !fwd){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
+    const sigS = m.source === 'slack' ? '' : msgSig(m.source, m.account);
+    if((!text || (sigS && text === sigS)) && !fwd){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
     if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
     btn.dataset.armed = ''; btn.disabled = true; btn.textContent = 'Sende ...';
     try{
