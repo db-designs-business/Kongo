@@ -21,22 +21,31 @@ $messages = [
   'evening' => ['title' => 'Tagesabschluss 🌙', 'body' => 'Hak deine Dailys ab und mach deine Tagesreflexion.', 'url' => './?open=evening'],
   'test'    => ['title' => 'Kongrow', 'body' => 'Push funktioniert ✓', 'url' => './'],
 ];
-// Neue Slack-Nachrichten melden (Cronjob alle 5 Minuten: php push/send.php slack)
+// Neue Slack-Nachrichten und E-Mails melden (Cronjob alle 5 Minuten: php push/send.php slack)
+$prefsAll = [];
+if (in_array($type, ['slack', 'morning', 'evening'], true)) {
+  require_once __DIR__ . '/../api/notify_lib.php';
+  kg_settings_init();
+  foreach (kg_db()->query('SELECT id FROM users')->fetchAll(PDO::FETCH_COLUMN) as $u) $prefsAll[(int)$u] = n_prefs((int)$u);
+}
+if (($type === 'morning' || $type === 'evening') && $prefsAll && !array_filter($prefsAll, fn($p) => n_on($p, $type))) { echo date('c') . " $type: in den Einstellungen ausgeschaltet\n"; exit(0); }
 if ($type === 'slack') {
   require_once __DIR__ . '/../api/slack_lib.php';
-  kg_settings_init();
   $new = [];
-  foreach (kg_db()->query('SELECT id FROM users')->fetchAll(PDO::FETCH_COLUMN) as $u) {
-    try { $new = array_merge($new, s_new_messages((int)$u)); } catch (Throwable $e) { echo 'Slack-Fehler: ' . $e->getMessage() . "\n"; }
+  foreach ($prefsAll as $u => $p) {
+    try { foreach (s_new_messages($u) as $n) if (n_on($p, 'slack:' . $n['team'])) $new[] = $n + ['kind' => 'slack']; } catch (Throwable $e) { echo 'Slack-Fehler: ' . $e->getMessage() . "\n"; }
+    try { $new = array_merge($new, n_mail_new($u)); } catch (Throwable $e) { echo 'Mail-Fehler: ' . $e->getMessage() . "\n"; }
   }
-  if (!$new) { echo date('c') . " slack: nichts Neues\n"; exit(0); }
+  if (!$new) { echo date('c') . " nachrichten: nichts Neues\n"; exit(0); }
+  $line = fn($n) => $n['kind'] === 'slack' ? $n['from'] . ': ' . $n['text'] : '✉️ ' . $n['from'] . ': ' . $n['subject'];
   if (count($new) === 1) {
     $n = $new[0];
-    $messages['slack'] = ['title' => $n['from'] . ' · ' . $n['conv'], 'body' => $n['text'] ?: 'Neue Nachricht', 'url' => './?open=slack&team=' . rawurlencode($n['team']) . '&ch=' . rawurlencode($n['channel']), 'tag' => 'slack-' . $n['channel']];
+    if ($n['kind'] === 'slack') $messages['slack'] = ['title' => $n['from'] . ' · ' . $n['conv'], 'body' => $n['text'] ?: 'Neue Nachricht', 'url' => './?open=slack&team=' . rawurlencode($n['team']) . '&ch=' . rawurlencode($n['channel']), 'tag' => 'slack-' . $n['channel']];
+    else $messages['slack'] = ['title' => '✉️ ' . $n['from'] . ' · ' . $n['account'], 'body' => $n['subject'], 'url' => './?open=mail&src=' . rawurlencode($n['src']) . '&acc=' . rawurlencode($n['accountId']) . '&id=' . rawurlencode($n['id']), 'tag' => 'mail-' . $n['id']];
   } else {
-    $convs = array_unique(array_map(fn($n) => $n['conv'], $new));
-    $lines = array_map(fn($n) => $n['from'] . ': ' . $n['text'], array_slice($new, -4));
-    $messages['slack'] = ['title' => count($new) . ' neue Slack-Nachrichten' . (count($convs) === 1 ? ' · ' . reset($convs) : ''), 'body' => implode("\n", $lines), 'url' => './?open=nachrichten', 'tag' => 'slack'];
+    $ns = count(array_filter($new, fn($n) => $n['kind'] === 'slack')); $nm = count($new) - $ns;
+    $title = trim(($ns ? $ns . ' Slack' : '') . ($ns && $nm ? ' · ' : '') . ($nm ? $nm . ' E-Mail' . ($nm > 1 ? 's' : '') : '')) . ' neu';
+    $messages['slack'] = ['title' => $title, 'body' => implode("\n", array_map($line, array_slice($new, -4))), 'url' => './?open=nachrichten', 'tag' => 'nachrichten'];
   }
 }
 if (!isset($messages[$type])) { echo "Unbekannter Typ. Erlaubt: morning, evening, test, slack\n"; exit(1); }

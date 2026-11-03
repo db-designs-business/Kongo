@@ -107,6 +107,18 @@
   #settingsModalOverlay > .modal-card{ min-height:min(78vh, 720px); }
   .set-tabs{ margin:6px 0 16px; }
   .set-tabs .aufg-tab{ font-size:13px; padding-left:4px; padding-right:4px; }
+  .set-group{ margin:16px 0 6px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--forest); }
+  .set-toggle{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; min-height:52px; border-top:1px solid var(--line-soft); cursor:pointer; }
+  .set-list .set-toggle:first-child{ border-top:0; }
+  .set-toggle span{ display:flex; flex-direction:column; align-items:flex-start; text-align:left; min-width:0; flex:1; }
+  .set-toggle b{ color:var(--ink); font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .set-toggle small{ color:var(--ink-soft); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .set-toggle input{ position:absolute; opacity:0; width:1px; height:1px; }
+  .set-toggle i{ flex:0 0 51px; width:51px; height:31px; border-radius:999px; background:rgba(255,255,255,.16); position:relative; transition:background .2s; }
+  .set-toggle i::after{ content:''; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.3); transition:transform .25s cubic-bezier(.2,.8,.2,1); }
+  .set-toggle input:checked + i{ background:var(--forest); }
+  .set-toggle input:checked + i::after{ transform:translateX(20px); }
+  .set-toggle input:focus-visible + i{ outline:2px solid var(--forest); outline-offset:2px; }
   .set-list{ margin-top:12px; border:1px solid var(--line-soft); border-radius:14px; overflow:hidden; }
   .set-list > div{ display:flex; justify-content:space-between; gap:10px; padding:12px 14px; font-size:14px; border-top:1px solid var(--line-soft); }
   .set-list > div:first-child{ border-top:0; }
@@ -2207,11 +2219,8 @@
         </div>
         <div class="save-status" id="pushStatus"></div>
       </div>
-      <div class="set-list">
-        <div><span>🌅 Morgenreflexion</span><b>täglich 5:30</b></div>
-        <div><span>🌙 Tagesreflexion</span><b>täglich 20:30</b></div>
-        <div><span>💬 Neue Slack-Nachrichten</span><b>alle 5 Min. geprüft</b></div>
-      </div>
+      <div id="notifyList"><div class="loading">Lade ...</div></div>
+      <div class="hint" style="margin:10px 0 0;">E-Mails und Slack werden alle 5 Minuten geprüft. Ausgeschaltete Postfächer lösen keine Mitteilung mehr aus, in der App siehst du ihre Nachrichten weiterhin.</div>
       <div class="hint" style="margin:10px 0 0;">Auf dem iPhone kommen Mitteilungen nur, wenn Kongrow vom Home-Bildschirm geöffnet wurde und unter Einstellungen → Mitteilungen → Kongrow erlaubt ist.</div>
     </div>
     <div class="set-pane" data-pane="konto" style="display:none;">
@@ -2735,9 +2744,26 @@
     document.querySelectorAll('#setTabs .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === v));
     document.querySelectorAll('#settingsModalOverlay .set-pane').forEach(p=>p.style.display = p.dataset.pane === v ? '' : 'none');
     if(v === 'verbindungen' && window.renderConnections) window.renderConnections(window.__connNote || '');
+    if(v === 'push') renderNotifyPrefs();
     window.__connNote = '';
   }
   document.querySelectorAll('#setTabs .aufg-tab').forEach(b=>b.onclick = ()=>showSetTab(b.dataset.v));
+  // Mitteilungen pro Quelle an/aus
+  async function renderNotifyPrefs(){
+    const el = document.getElementById('notifyList');
+    let j; try{ j = await fetch('api/notify.php', { credentials:'same-origin', cache:'no-store' }).then(r=>r.json()); }catch(e){ el.innerHTML = '<div class="hint">Konnte nicht geladen werden.</div>'; return; }
+    const src = j.sources || []; const groups = [...new Set(src.map(x=>x.group))];
+    const ico = { Erinnerungen:'🔔', 'E-Mail':'✉️', Slack:'💬' };
+    const label = x=>x.src && window.kgMsgLabel ? window.kgMsgLabel(x.src, x.account) : x.name;
+    el.innerHTML = groups.map(g=>`<div class="set-group">${ico[g] || ''} ${escapeHtml(g)}</div><div class="set-list">${src.filter(x=>x.group === g).map(x=>`
+      <label class="set-toggle"><span><b>${escapeHtml(label(x))}</b>${x.sub || (x.src && label(x) !== x.name) ? `<small>${escapeHtml(x.sub || x.name)}</small>` : ''}</span>
+        <input type="checkbox" role="switch" data-key="${escapeHtml(x.key)}" ${x.on ? 'checked' : ''}><i></i></label>`).join('')}</div>`).join('')
+      + (src.some(x=>x.group === 'E-Mail') ? '' : '<div class="hint" style="margin-top:10px;">Noch keine E-Mail-Postfächer verbunden.</div>');
+    el.querySelectorAll('input[data-key]').forEach(inp=>inp.onchange = async ()=>{
+      try{ const r = await fetch('api/notify.php?action=set', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: inp.dataset.key, on: inp.checked }) }); if(!r.ok) throw 0; }
+      catch(e){ inp.checked = !inp.checked; }
+    });
+  }
   window.kgShowSetTab = showSetTab;
   function openSettingsModal(tab){
     const _it = document.getElementById('importTokenInput'); if(_it) _it.value = getAirtableToken();
@@ -8843,6 +8869,7 @@
   }
   const msgKey = (src, account)=>(src === 'slack' ? 'slack' : 'mail') + '|' + account;
   function msgLabel(src, account){ const k = msgKey(src, account); const e = msgLabels.map[k] || {}; return e.name || defaultShortName(src, account); }
+  window.kgMsgLabel = msgLabel;
   function msgColor(src, account){
     const k = msgKey(src, account); const e = msgLabels.map[k];
     if(e && e.color) return e.color;
@@ -9539,8 +9566,13 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
-      else if(open === 'nachrichten' || open === 'slack'){
+      else if(open === 'nachrichten' || open === 'slack' || open === 'mail'){
         switchTab('nachrichten');
+        if(open === 'mail'){
+          const src = params.get('src'), acc = params.get('acc'), id = params.get('id');
+          const tryMail = n=>{ const it = (msg.items || []).find(x=>x.source === src && x.id === id && (src !== 'mail' || x.accountId === acc)); if(it) openMessage(it); else if(n > 0) setTimeout(()=>tryMail(n - 1), 800); };
+          tryMail(10);
+        }
         if(open === 'slack'){
           const team = params.get('team'), ch = params.get('ch');
           const tryOpen = n=>{ const it = (msg.items || []).find(x=>x.source === 'slack' && x.team === team && x.id === ch); if(it) openMessage(it); else if(n > 0) setTimeout(()=>tryOpen(n - 1), 800); };
