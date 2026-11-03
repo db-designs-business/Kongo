@@ -9681,8 +9681,23 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   window.kgRefreshCurrent = async ()=>{
     if(curTab === 'nachrichten'){ msg.loadedAt = 0; await loadMessages(true); return; }
     if(curTab === 'kalender'){ cal.loadedKey = ''; await loadCalendar(true); return; }
-    try{ Object.keys(localStorage).filter(k=>k.startsWith(CACHE_PREFIX)).forEach(k=>localStorage.removeItem(k)); sessionStorage.setItem('kg_restore_tab', curTab); }catch(e){}
-    location.reload();
+    // ohne Neustart der App: Zwischenspeicher leeren und die Daten der Seite frisch laden
+    try{ Object.keys(localStorage).filter(k=>k.startsWith(CACHE_PREFIX)).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+    const run = fns=>Promise.allSettled(fns.map(f=>{ try{ return Promise.resolve(f()); }catch(e){ return Promise.resolve(); } }));
+    const base = [loadXP, loadNofap, loadPrioritaeten, loadAufgaben, loadZiele];
+    const perTab = {
+      home: [()=>renderHomeTermine(true), ()=>{ msg.loadedAt = 0; return loadMessages(true); }, ()=>refreshReflDone(true)],
+      aufgaben: [], ziele: [],
+      koerper: [loadKoerper],
+      fortschritt: [loadKoerper],
+      upwork: [()=>{ up.loaded = false; return upLoad(true); }],
+      routinen: [loadRoutines, loadHabits, loadRoutineLog],
+      reflexion: [loadEveningJournal, loadWeeklyJournal, ()=>refreshReflDone(true)],
+      lesen: [loadLesen], worksheets: [loadWorksheets], affirmationen: [loadAffirmationen], wutjournal: [loadWutjournal],
+      satzergaenzung: [loadSatzergaenzungHistorie], sprechuebung: [loadSprechuebungHistorie], work: [loadWorkJournal]
+    };
+    await run(base.concat(perTab[curTab] || []));
+    try{ if(curTab === 'fortschritt') renderFortschritt(); if(curTab === 'upwork') renderUpwork(); if(curTab === 'aufgaben'){ renderAufgaben(); } renderHomeAufgaben(); }catch(e){}
   };
   authReady.then(()=>{ let t = null; try{ t = sessionStorage.getItem('kg_restore_tab'); sessionStorage.removeItem('kg_restore_tab'); }catch(e){} if(t && panels[t] && t !== 'home') setTimeout(()=>switchTab(t), 300); });
   // Einmalige Hinweise auf Wischgesten
