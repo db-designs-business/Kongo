@@ -102,6 +102,15 @@
     padding:12px 14px; font-size:14.5px; font-weight:500; color:var(--ink-soft);
     cursor:pointer; border-radius:10px; min-height:44px; font-family:var(--font);
   }
+  .nav-group{ padding:12px 14px 4px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:#5C6568; font-weight:700; }
+  .nav-sep{ height:1px; background:var(--line-soft); margin:6px 8px; }
+  #settingsModalOverlay > .modal-card{ min-height:min(78vh, 720px); }
+  .set-tabs{ margin:6px 0 16px; }
+  .set-tabs .aufg-tab{ font-size:13px; padding-left:4px; padding-right:4px; }
+  .set-list{ margin-top:12px; border:1px solid var(--line-soft); border-radius:14px; overflow:hidden; }
+  .set-list > div{ display:flex; justify-content:space-between; gap:10px; padding:12px 14px; font-size:14px; border-top:1px solid var(--line-soft); }
+  .set-list > div:first-child{ border-top:0; }
+  .set-list b{ font-weight:500; color:var(--ink-soft); font-size:13px; text-align:right; }
   .nav-user{ padding:10px 14px 8px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--forest); font-weight:700; border-bottom:1px solid var(--line-soft); margin-bottom:4px; }
   .nav-menu-item:hover{ background:rgba(255,255,255,.04); color:var(--ink); }
   .nav-menu-item.active{ color:var(--forest); font-weight:700; background:var(--spark-soft); }
@@ -1264,18 +1273,15 @@
     </div>
     <div class="nav-menu" id="navMenu" style="display:none;">
       <div class="nav-user" id="navUser"></div>
-      <button type="button" class="nav-menu-item active" data-tab="home">Start</button>
-      <button type="button" class="nav-menu-item" data-tab="kalender">Kalender</button>
-      <button type="button" class="nav-menu-item" data-tab="nachrichten">Nachrichten</button>
+      <div class="nav-group">Tagesroutine</div>
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
-      <button type="button" class="nav-menu-item" data-tab="aufgaben">Aufgaben</button>
+      <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Übungen</button>
+      <div class="nav-group">Planen & Auswerten</div>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
-      <button type="button" class="nav-menu-item" data-tab="koerper">Körper</button>
       <button type="button" class="nav-menu-item" data-tab="fortschritt">Fortschritt</button>
       <button type="button" class="nav-menu-item" data-tab="upwork">Upwork</button>
-      <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Aktivitäten</button>
-      <button type="button" class="nav-menu-item" id="openConnMenuBtn">🔗 Verbindungen</button>
+      <div class="nav-sep"></div>
       <button type="button" class="nav-menu-item" id="openSettingsBtn">⚙ Einstellungen</button>
     </div>
   </div>
@@ -1343,7 +1349,7 @@
         <span class="home-link-sub">Ziele anlegen und verfolgen</span>
       </button>
       <button type="button" class="home-link" id="homeToAktivitaeten">
-        <span class="home-link-title">Aktivitäten</span>
+        <span class="home-link-title">Übungen</span>
         <span class="home-link-sub">Sprechübung, Lesen, The Work, Affirmationen, Wut-Journal, Satzergänzung, Worksheets</span>
       </button>
     </div>
@@ -1723,8 +1729,8 @@
   </div>
 
   <div id="panelAktivitaeten" style="display:none;">
-    <div class="eyebrow">Aktivitäten</div>
-    <h1>Aktivitäten</h1>
+    <div class="eyebrow">Übungen</div>
+    <h1>Übungen</h1>
     <div class="sub">Übungen und Werkzeuge für zwischendurch.</div>
     <div class="home-links">
       <button type="button" class="home-link" id="homeToSprechuebung">
@@ -1902,7 +1908,7 @@
   </button>
   <button type="button" class="bb-item bb-desk" data-tab="aktivitaeten">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
-    <span>Aktivitäten</span>
+    <span>Übungen</span>
   </button>
 </nav>
 
@@ -2086,14 +2092,6 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="connOverlay" style="display:none;">
-  <div class="modal-card" style="max-width:560px;">
-    <button class="modal-close" id="connClose" aria-label="Schließen">×</button>
-    <div class="modal-title">Verbindungen</div>
-    <div class="modal-sub">Zugangsdaten liegen verschlüsselt auf deinem Server. Nur du kommst mit deinem Login daran.</div>
-    <div id="connBody"><div class="loading">Lade ...</div></div>
-  </div>
-</div>
 
 <div class="modal-overlay" id="aufgEditOverlay" style="display:none;">
   <div class="modal-card">
@@ -2177,43 +2175,60 @@
   <div class="modal-card">
     <button class="modal-close" id="settingsModalCloseBtn" aria-label="Schließen">×</button>
     <div class="modal-title">Einstellungen</div>
-    <div class="modal-sub">Deine Daten liegen auf deinem eigenen Server (kongrow.bdriven-digital.com), geschützt durch dein Login.</div>
-    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Benutzername</div>
-    <input type="text" id="settingsUsernameInput" placeholder="z.B. Kongolongo" autocapitalize="off" autocomplete="username" style="margin-bottom:16px;">
-    <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching, nur in diesem Browser gespeichert)</div>
-    <input type="text" id="settingsAnthropicInput" placeholder="sk-ant-...">
-    <div class="push-box">
-      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔔 Erinnerungen</div>
-      <div class="hint" style="margin-bottom:10px;" id="pushInfo">Morgenreflexion um 5:30 · Tagesreflexion um 20:30</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="ghost" id="pushEnableBtn">Benachrichtigungen aktivieren</button>
-        <button type="button" class="ghost" id="pushTestBtn" style="display:none;">Test senden</button>
-      </div>
-      <div class="save-status" id="pushStatus"></div>
+    <div class="aufg-tabs set-tabs" id="setTabs">
+      <button type="button" class="aufg-tab active" data-v="allgemein">Allgemein</button>
+      <button type="button" class="aufg-tab" data-v="verbindungen">Verbindungen</button>
+      <button type="button" class="aufg-tab" data-v="push">Mitteilungen</button>
+      <button type="button" class="aufg-tab" data-v="konto">Konto</button>
     </div>
-    <div class="nav-row" style="margin-top:16px;">
-      <span></span>
-      <button class="primary" id="settingsSaveBtn">Speichern</button>
-    </div>
-    <div id="settingsStatus" class="save-status"></div>
-    <div class="push-box">
-      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔗 Verbindungen</div>
-      <div class="hint" style="margin-bottom:10px;">Google Kalender & Gmail, GMX, netcup, Slack</div>
-      <button type="button" class="ghost" id="openConnectionsBtn">Verbindungen verwalten</button>
-    </div>
-    <div class="push-box">
-      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔐 Konto</div>
-      <div class="hint" style="margin-bottom:10px;" id="accountInfo">Angemeldet</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="ghost" id="pwChangeToggle">Passwort ändern</button>
-        <button type="button" class="ghost" id="logoutBtn">Abmelden</button>
+    <div class="set-pane" data-pane="allgemein">
+      <div class="modal-sub">Deine Daten liegen auf deinem eigenen Server (kongrow.bdriven-digital.com), geschützt durch dein Login.</div>
+      <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Benutzername</div>
+      <input type="text" id="settingsUsernameInput" placeholder="z.B. Kongolongo" autocapitalize="off" autocomplete="username" style="margin-bottom:16px;">
+      <div style="font-size:13.5px; font-weight:600; margin-bottom:6px;">Anthropic API Key (für KI-Coaching, nur in diesem Browser gespeichert)</div>
+      <input type="text" id="settingsAnthropicInput" placeholder="sk-ant-...">
+      <div class="nav-row" style="margin-top:16px;">
+        <span></span>
+        <button class="primary" id="settingsSaveBtn">Speichern</button>
       </div>
-      <div id="pwChangeBox" style="display:none; margin-top:12px;">
-        <input type="password" id="pwOld" placeholder="Altes Passwort" autocomplete="current-password" style="margin-bottom:8px;">
-        <input type="password" id="pwNew" placeholder="Neues Passwort (min. 10 Zeichen)" autocomplete="new-password" style="margin-bottom:8px;">
-        <button type="button" class="primary" id="pwSaveBtn">Passwort speichern</button>
+      <div id="settingsStatus" class="save-status"></div>
+    </div>
+    <div class="set-pane" data-pane="verbindungen" style="display:none;">
+      <div class="modal-sub">Zugangsdaten liegen verschlüsselt auf deinem Server. Nur du kommst mit deinem Login daran.</div>
+      <div id="connBody"><div class="loading">Lade ...</div></div>
+    </div>
+    <div class="set-pane" data-pane="push" style="display:none;">
+      <div class="push-box" style="margin-top:4px;">
+        <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔔 Push-Mitteilungen auf diesem Gerät</div>
+        <div class="hint" style="margin-bottom:10px;" id="pushInfo">Morgenreflexion um 5:30 · Tagesreflexion um 20:30</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="ghost" id="pushEnableBtn">Benachrichtigungen aktivieren</button>
+          <button type="button" class="ghost" id="pushTestBtn" style="display:none;">Test senden</button>
+        </div>
+        <div class="save-status" id="pushStatus"></div>
       </div>
-      <div class="save-status" id="accountStatus"></div>
+      <div class="set-list">
+        <div><span>🌅 Morgenreflexion</span><b>täglich 5:30</b></div>
+        <div><span>🌙 Tagesreflexion</span><b>täglich 20:30</b></div>
+        <div><span>💬 Neue Slack-Nachrichten</span><b>alle 5 Min. geprüft</b></div>
+      </div>
+      <div class="hint" style="margin:10px 0 0;">Auf dem iPhone kommen Mitteilungen nur, wenn Kongrow vom Home-Bildschirm geöffnet wurde und unter Einstellungen → Mitteilungen → Kongrow erlaubt ist.</div>
+    </div>
+    <div class="set-pane" data-pane="konto" style="display:none;">
+      <div class="push-box" style="margin-top:4px;">
+        <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔐 Konto</div>
+        <div class="hint" style="margin-bottom:10px;" id="accountInfo">Angemeldet</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="ghost" id="pwChangeToggle">Passwort ändern</button>
+          <button type="button" class="ghost" id="logoutBtn">Abmelden</button>
+        </div>
+        <div id="pwChangeBox" style="display:none; margin-top:12px;">
+          <input type="password" id="pwOld" placeholder="Altes Passwort" autocomplete="current-password" style="margin-bottom:8px;">
+          <input type="password" id="pwNew" placeholder="Neues Passwort (min. 10 Zeichen)" autocomplete="new-password" style="margin-bottom:8px;">
+          <button type="button" class="primary" id="pwSaveBtn">Passwort speichern</button>
+        </div>
+        <div class="save-status" id="accountStatus"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2663,7 +2678,7 @@
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'back-btn';
-    back.textContent = sub ? '← Aktivitäten' : '← Start';
+    back.textContent = sub ? '← Übungen' : '← Start';
     back.onclick = ()=>{ switchTab(sub ? 'aktivitaeten' : 'home'); window.scrollTo(0,0); };
     panels[k].insertBefore(back, panels[k].firstChild);
   });
@@ -2714,8 +2729,19 @@
   const settingsAnthropicInput = document.getElementById('settingsAnthropicInput');
   const settingsStatus = document.getElementById('settingsStatus');
 
-  function openSettingsModal(){
+  let setTab = 'allgemein';
+  function showSetTab(v){
+    setTab = v;
+    document.querySelectorAll('#setTabs .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === v));
+    document.querySelectorAll('#settingsModalOverlay .set-pane').forEach(p=>p.style.display = p.dataset.pane === v ? '' : 'none');
+    if(v === 'verbindungen' && window.renderConnections) window.renderConnections(window.__connNote || '');
+    window.__connNote = '';
+  }
+  document.querySelectorAll('#setTabs .aufg-tab').forEach(b=>b.onclick = ()=>showSetTab(b.dataset.v));
+  window.kgShowSetTab = showSetTab;
+  function openSettingsModal(tab){
     const _it = document.getElementById('importTokenInput'); if(_it) _it.value = getAirtableToken();
+    showSetTab(tab || 'allgemein');
     refreshAccountInfo();
     settingsAnthropicInput.value = getAnthropicToken();
     document.getElementById('settingsUsernameInput').value = profil.username || '';
@@ -2723,6 +2749,7 @@
     settingsOverlay.style.display = 'flex';
   }
   function closeSettingsModal(){ settingsOverlay.style.display = 'none'; }
+  window.kgOpenSettings = openSettingsModal;
 
   document.getElementById('openSettingsBtn').onclick = ()=>{ navMenu.style.display = 'none'; openSettingsModal(); };
   document.getElementById('settingsModalCloseBtn').onclick = closeSettingsModal;
@@ -9111,9 +9138,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   };
 
   /* ---------- Verbindungen ---------- */
-  const connOverlay = document.getElementById('connOverlay');
-  document.getElementById('connClose').onclick = ()=>{ connOverlay.style.display = 'none'; };
-  function openConnections(note){ connOverlay.style.display = 'flex'; renderConnections(note); }
+  // Verbindungen sind ein Tab in den Einstellungen
+  function openConnections(note){ window.__connNote = note || ''; window.kgOpenSettings('verbindungen'); }
+  window.renderConnections = n=>renderConnections(n);
   window.openConnections = openConnections;
   async function renderConnections(note){
     const body = document.getElementById('connBody');
@@ -9197,7 +9224,6 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(q('[data-w-disc]')) q('[data-w-disc]').onclick = async ()=>{ const b = q('[data-w-disc]'); if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich trennen?'; return; } await kgApi('withings.php?action=disconnect', {}).catch(()=>{}); withingsStatus = null; renderConnections(); };
     body.querySelectorAll('[data-s-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('slack.php?action=disconnect', { team_id:b.dataset.sDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
   }
-  document.getElementById('openConnectionsBtn').onclick = ()=>{ document.getElementById('settingsModalOverlay').style.display = 'none'; openConnections(); };
 
   // Tabs beim Öffnen laden + Startseite
   const _switchTabOrig = switchTab;
@@ -9213,7 +9239,6 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   setInterval(()=>{ if(document.visibilityState === 'visible'){ msg.loadedAt = 0; loadMessages(); } }, 5 * 60 * 1000);
 
 
-  document.getElementById('openConnMenuBtn').onclick = ()=>{ navMenu.style.display = 'none'; openConnections(); };
 
   /* =========================================================
      FORTSCHRITT: Woche / Monat auf einen Blick
