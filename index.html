@@ -9949,11 +9949,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       o.connect(g); g.connect(comp); o.start(at); o.stop(at + dur + 0.05); restNodes.push(o);
     };
     [3, 2, 1].forEach(x=>{ if(sec > x + 0.5) tone(t0 - x, 0.1, 1760, 0.9); });   // Ticken 3, 2, 1
-    // 3 Runden à 4 schnelle Piepser (hoch, tiefer, hoch, tiefer), kurze Lücke dazwischen
-    for(let r = 0; r < 3; r++){
-      const rs = t0 + r * 0.9;
-      [2637, 2093, 2637, 2093].forEach((f, i)=>tone(rs + i * 0.15, 0.12, f, 1));
-    }
+    // 1 Runde mit 4 schnellen Piepsern (hoch, tiefer, hoch, tiefer)
+    [2637, 2093, 2637, 2093].forEach((f, i)=>tone(t0 + i * 0.15, 0.12, f, 1));
   }
   function drawRest(){
     const left = Math.max(0, Math.ceil((restEnd - Date.now()) / 1000));
