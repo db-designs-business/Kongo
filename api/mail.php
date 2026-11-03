@@ -4,7 +4,7 @@ require __DIR__ . '/lib.php';
 $uid = kg_require_user();
 $action = $_GET['action'] ?? 'accounts';
 $in = kg_input();
-imap_timeout(IMAP_OPENTIMEOUT, 15); imap_timeout(IMAP_READTIMEOUT, 20);
+imap_timeout(IMAP_OPENTIMEOUT, 10); imap_timeout(IMAP_READTIMEOUT, 15); imap_timeout(IMAP_WRITETIMEOUT, 15);
 
 const MAIL_PRESETS = [
   'gmx'    => ['imap_host' => 'imap.gmx.net', 'imap_port' => 993, 'smtp_host' => 'mail.gmx.net', 'smtp_port' => 587, 'smtp_secure' => 'tls'],
@@ -85,9 +85,9 @@ function m_attachments($st, string $num = ''): array {
 }
 // Diagnose: direkt mit dem IMAP-Server sprechen und dessen genaue Antwort zurückgeben (ohne Passwort)
 function m_diag(array $a): string {
-  $fp = @stream_socket_client('ssl://' . $a['imap_host'] . ':' . (int)$a['imap_port'], $en, $es, 15);
+  $fp = @stream_socket_client('ssl://' . $a['imap_host'] . ':' . (int)$a['imap_port'], $en, $es, 8);
   if (!$fp) return 'Server nicht erreichbar: ' . $es;
-  stream_set_timeout($fp, 15);
+  stream_set_timeout($fp, 10);
   $greet = trim((string)fgets($fp, 2048));
   $q = fn($v) => '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
   fwrite($fp, "a1 LOGIN " . $q($a['user']) . ' ' . $q($a['pass']) . "\r\n");
@@ -112,24 +112,28 @@ switch ($action) {
       'smtp_host' => trim((string)($in['smtp_host'] ?? '')), 'smtp_port' => (int)($in['smtp_port'] ?? 465), 'smtp_secure' => ($in['smtp_secure'] ?? 'ssl') === 'tls' ? 'tls' : 'ssl'];
     $a += ['id' => 'm' . bin2hex(random_bytes(5)), 'email' => $email, 'user' => trim((string)($in['user'] ?? '')) ?: $email, 'pass' => $pass,
       'label' => trim((string)($in['label'] ?? '')) ?: $email, 'preset' => $preset ?: 'custom', 'name' => trim((string)($in['name'] ?? ''))];
+    @set_time_limit(90);
+    // 1) Welche Server sind überhaupt erreichbar? (schnell, 4 Sek. pro Server, statt lange auf IMAP zu warten)
+    $cands = [$a['imap_host']];
+    if ($preset === 'netcup') { $dom = substr(strrchr($email, '@'), 1); $cands = array_merge($cands, ['a2ed0.webhosting.systems', 'a2ed0.netcup.net', 'mail.' . $dom]); }
+    $host = null; $tried = [];
+    foreach (array_unique($cands) as $h) {
+      $fp = @stream_socket_client('tcp://' . $h . ':' . (int)$a['imap_port'], $en, $es, 4);
+      if ($fp) { fclose($fp); $host = $h; break; }
+      $tried[] = $h . ' (' . ($es ?: 'keine Antwort') . ')';
+    }
+    if (!$host) kg_json(['error' => ['message' => 'Mailserver nicht erreichbar: ' . implode(', ', $tried) . '. Bitte den Posteingangsserver aus deinem Anbieter-Panel prüfen.']], 400);
+    if ($host !== $a['imap_host']) { if ($a['smtp_host'] === $a['imap_host']) $a['smtp_host'] = $host; $a['imap_host'] = $host; }
+    // 2) Direkter Login-Test: liefert sofort die genaue Antwort des Servers
+    $diag = m_diag($a);
+    if (strpos($diag, 'a1 OK') === false) {
+      $hint = $preset === 'gmx' ? ' Prüfe: 1) In GMX unter Einstellungen „POP3- und IMAP-Zugriff erlauben“ an (kann ein paar Minuten dauern). 2) Ist bei GMX die Zwei-Faktor-Anmeldung aktiv, brauchst du ein anwendungsspezifisches Passwort statt deines normalen Passworts. 3) GMX schickt bei einem Login von einem neuen Server manchmal eine Sicherheitsmail, die du bestätigen musst.'
+        : ($preset === 'netcup' ? ' Prüfe das Postfach-Passwort (in Plesk unter E-Mail → Postfach änderbar).' : '');
+      kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen (' . $host . '). ' . $diag . '.' . $hint]], 400);
+    }
+    // 3) Mit dem IMAP-Modul öffnen (wird später zum Lesen gebraucht)
     [$mb, $err] = m_open($a, 'INBOX', OP_HALFOPEN);
-    // netcup: Mailserver-Name hängt vom Paket ab. Mehrere Kandidaten probieren und den ersten funktionierenden merken.
-    if (!$mb && $preset === 'netcup') {
-      $dom = substr(strrchr($email, '@'), 1);
-      foreach (['a2ed0.webhosting.systems', 'a2ed0.netcup.net', 'mail.' . $dom, gethostname() ?: ''] as $h) {
-        if ($h === '' || $h === $a['imap_host']) continue;
-        $try = array_merge($a, ['imap_host' => $h, 'smtp_host' => $h]);
-        [$mb, $e2] = m_open($try, 'INBOX', OP_HALFOPEN);
-        if ($mb) { $a = $try; break; }
-        if (stripos($e2, 'auth') !== false) { $err = $e2; $a = $try; break; }   // Server gefunden, nur Login falsch
-      }
-    }
-    if (!$mb) {
-      $hint = $preset === 'gmx' ? ' Prüfe: 1) In GMX unter Einstellungen „POP3- und IMAP-Zugriff erlauben“ an (kann ein paar Minuten dauern). 2) Ist bei GMX die Zwei-Faktor-Anmeldung aktiv, brauchst du ein anwendungsspezifisches Passwort statt deines normalen Passworts. 3) GMX schickt bei einem Login von einem neuen Server manchmal eine Sicherheitsmail, die du bestätigen musst.' : '';
-      $diag = m_diag($a);
-      if (strpos($diag, 'a1 OK') !== false) kg_json(['error' => ['message' => 'Dein Passwort stimmt (Direkt-Login klappt), nur das IMAP-Modul des Servers scheitert. Schick Claude diese Meldung: ' . $err]], 400);
-      kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen. ' . $diag . '.' . $hint]], 400);
-    }
+    if (!$mb) kg_json(['error' => ['message' => 'Dein Passwort stimmt (Direkt-Login klappt), nur das IMAP-Modul des Servers scheitert: ' . $err]], 400);
     imap_close($mb);
     $all = m_accounts($uid); $all[] = $a; kg_set($uid, 'mail_accounts', $all);
     kg_json(['ok' => true, 'account' => m_public($a)]);
