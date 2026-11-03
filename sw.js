@@ -9,7 +9,9 @@ self.addEventListener('push', event => {
     body: data.body,
     icon: 'app-icons/kg-192.png',
     badge: 'app-icons/kg-192.png',
-    data: { url: data.url || './' }
+    data: { url: data.url || './' },
+    tag: data.tag || undefined,
+    renotify: !!data.tag
   }));
 });
 

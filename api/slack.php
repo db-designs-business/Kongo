@@ -1,6 +1,6 @@
 <?php
 // Slack: mehrere Workspaces über eine eigene Slack-App (User-Token, lesen + antworten)
-require __DIR__ . '/lib.php';
+require __DIR__ . '/slack_lib.php';
 $action = $_GET['action'] ?? 'status';
 const S_USER_SCOPES = 'channels:history,channels:read,groups:history,groups:read,im:history,im:read,mpim:history,mpim:read,users:read,chat:write';
 function s_redirect_uri(): string { return kg_base_url() . '/api/slack.php?action=callback'; }
@@ -30,38 +30,6 @@ function s_team(int $uid, string $tid): array {
   foreach (kg_get($uid, 'slack_teams', []) as $t) if ($t['team_id'] === $tid) return $t;
   kg_json(['error' => ['message' => 'Workspace nicht verbunden.']], 404);
 }
-function s_api(array $t, string $method, array $params = [], bool $post = false): array {
-  $h = ['Authorization: Bearer ' . $t['token']];
-  $r = $post ? kg_http('POST', 'https://slack.com/api/' . $method, array_merge($h, ['Content-Type: application/json; charset=utf-8']), json_encode($params, JSON_UNESCAPED_UNICODE))
-             : kg_http('GET', 'https://slack.com/api/' . $method . '?' . http_build_query($params), $h);
-  return $r['json'] ?? ['ok' => false, 'error' => 'http_' . $r['code']];
-}
-// Nutzernamen pro Workspace (Cache 1 Tag)
-function s_users(int $uid, array $t): array {
-  $key = 'slack_users_' . $t['team_id']; $c = kg_get($uid, $key);
-  if ($c && ($c['t'] ?? 0) > time() - 86400) return $c['m'];
-  $m = []; $cursor = '';
-  do {
-    $j = s_api($t, 'users.list', ['limit' => 500, 'cursor' => $cursor]);
-    foreach ($j['members'] ?? [] as $u) $m[$u['id']] = $u['profile']['display_name'] ?: ($u['real_name'] ?? $u['name'] ?? $u['id']);
-    $cursor = $j['response_metadata']['next_cursor'] ?? '';
-  } while ($cursor);
-  kg_set($uid, $key, ['t' => time(), 'm' => $m]);
-  return $m;
-}
-function s_text(string $txt, array $users): string {
-  $txt = preg_replace_callback('/<@([A-Z0-9]+)(\|[^>]*)?>/', fn($m) => '@' . ($users[$m[1]] ?? $m[1]), $txt);
-  $txt = preg_replace('/<#[A-Z0-9]+\|([^>]+)>/', '#$1', $txt);
-  $txt = preg_replace('/<(https?:[^|>]+)\|([^>]+)>/', '$2 ($1)', $txt);
-  $txt = preg_replace('/<(https?:[^>]+)>/', '$1', $txt);
-  return html_entity_decode($txt, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-}
-function s_conv_name(array $c, array $users): string {
-  if (!empty($c['is_im'])) return $users[$c['user'] ?? ''] ?? 'Direktnachricht';
-  if (!empty($c['is_mpim'])) return 'Gruppe: ' . preg_replace('/^mpdm-|-1$/', '', str_replace('--', ', ', $c['name'] ?? ''));
-  return '#' . ($c['name'] ?? $c['id']);
-}
-
 switch ($action) {
   case 'status':
     $cfg = kg_get($uid, 'slack_cfg');
@@ -138,14 +106,3 @@ switch ($action) {
     kg_json(['ok' => true]);
 }
 kg_json(['error' => ['message' => 'Unbekannte Aktion']], 400);
-
-// Gelesen-Status: beim ersten Sehen gilt ein Kanal als gelesen; danach ist alles Neuere (nicht von mir) ungelesen
-function s_apply_seen(int $uid, array $msgs): array {
-  $seen = kg_get($uid, 'slack_seen', []); $changed = false;
-  foreach ($msgs as &$m) {
-    if (!isset($seen[$m['id']])) { $seen[$m['id']] = $m['ts']; $changed = true; }
-    $m['unread'] = !$m['mine'] && (float)$m['ts'] > (float)$seen[$m['id']];
-  }
-  if ($changed) kg_set($uid, 'slack_seen', $seen);
-  return $msgs;
-}

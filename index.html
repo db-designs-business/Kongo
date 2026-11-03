@@ -946,7 +946,14 @@
   .slack-msg.mine{ align-self:flex-end; background:rgba(34,227,211,.08); border-color:rgba(34,227,211,.3); }
   .slack-meta{ font-size:11.5px; color:var(--ink-soft); margin-bottom:3px; }
   .slack-text{ font-size:14.5px; white-space:pre-wrap; overflow-wrap:anywhere; }
-  .msg-compose{ margin-top:16px; padding-top:14px; border-top:1px solid var(--line-soft); position:sticky; bottom:0; background:#07090A; }
+  #msgOverlay{ padding:0 !important; }
+  #msgOverlay > .msg-sheet{ height:100%; min-height:0; overflow:hidden; padding-bottom:0 !important; }
+  #msgDetail{ flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:16px; }
+  .msg-actions{ display:flex; gap:10px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line-soft); background:#07090A; }
+  .msg-actions:empty{ display:none; }
+  .msg-actions button{ flex:1; min-height:48px; font-size:15.5px; }
+  .msg-compose-card textarea{ min-height:150px; }
+  input[type=email]{ width:100%; font-family:var(--font); font-size:16px; color:var(--ink); background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px; }
   .msg-ai-row{ display:flex; gap:8px; margin-bottom:8px; }
   .msg-ai-row input{ flex:1; min-width:0; font-size:14px !important; }
   .msg-ai-btn{ flex-shrink:0; white-space:nowrap; }
@@ -2039,16 +2046,27 @@
       <span class="msg-sheet-src" id="msgSrc"></span>
     </div>
     <div id="msgDetail"></div>
-    <div class="msg-compose" id="msgCompose">
-      <div class="msg-ai-row">
-        <input type="text" id="msgAiHint" placeholder="Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“">
-        <button type="button" class="ghost msg-ai-btn" id="msgAiBtn">✨ KI-Entwurf</button>
-      </div>
-      <textarea id="msgReply" rows="6" placeholder="Antwort schreiben ..."></textarea>
-      <div class="msg-send-row">
-        <span class="save-status" id="msgStatus" style="margin:0;"></span>
-        <button type="button" class="primary" id="msgSend">Senden</button>
-      </div>
+    <div class="msg-actions" id="msgActions"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="msgComposeOverlay" style="display:none; z-index:55;">
+  <div class="modal-card msg-compose-card">
+    <button class="modal-close" id="msgComposeClose" aria-label="Schließen">×</button>
+    <div class="modal-title" id="msgComposeTitle">Antworten</div>
+    <div class="modal-sub" id="msgComposeSub"></div>
+    <div id="msgToRow" style="display:none;">
+      <input type="email" id="msgTo" placeholder="Weiterleiten an (E-Mail-Adresse)" autocomplete="email" style="margin-bottom:10px;">
+    </div>
+    <div class="msg-ai-row">
+      <input type="text" id="msgAiHint" placeholder="Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“">
+      <button type="button" class="ghost msg-ai-btn" id="msgAiBtn">✨ KI-Entwurf</button>
+    </div>
+    <textarea id="msgReply" rows="7" placeholder="Antwort schreiben ..."></textarea>
+    <div class="hint" id="msgFwdHint" style="display:none;margin:6px 0 0;">Die ursprüngliche Nachricht wird unter deinem Text angehängt. Dateianhänge werden nicht mitgeschickt.</div>
+    <div class="msg-send-row">
+      <span class="save-status" id="msgStatus" style="margin:0;"></span>
+      <button type="button" class="primary" id="msgSend">Senden</button>
     </div>
   </div>
 </div>
@@ -8898,13 +8916,13 @@
   document.getElementById('msgConnBtn').onclick = ()=>openConnections();
 
   const msgOverlay = document.getElementById('msgOverlay');
-  document.getElementById('msgClose').onclick = ()=>{ msgOverlay.style.display = 'none'; renderMessages(); updateMsgBadge(); };
+  document.getElementById('msgClose').onclick = ()=>{ document.getElementById('msgComposeOverlay').style.display = 'none'; msgOverlay.style.display = 'none'; renderMessages(); updateMsgBadge(); };
   function addrOnly(s){ const m = /<([^>]+)>/.exec(s || ''); return m ? m[1] : (s || '').trim(); }
   async function openMessage(m){
     msg.current = { item:m, detail:null };
     document.getElementById('msgSrc').textContent = (SRC_ICON[m.source] || '') + ' ' + msgLabel(m.source, m.account);
-    document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; document.getElementById('msgStatus').textContent = '';
     const det = document.getElementById('msgDetail');
+    const acts = document.getElementById('msgActions'); acts.innerHTML = '';
     det.innerHTML = '<div class="loading">Lade ...</div>';
     msgOverlay.style.display = 'flex';
     try{
@@ -8912,18 +8930,40 @@
         const j = await kgApi('slack.php?action=history&team=' + encodeURIComponent(m.team) + '&channel=' + encodeURIComponent(m.id));
         msg.current.detail = j;
         det.innerHTML = `<div class="msg-subject">${escapeHtml(m.subject)}</div><div class="slack-thread">${(j.messages || []).map(x=>`<div class="slack-msg ${x.mine ? 'mine' : ''}"><div class="slack-meta"><b>${escapeHtml(x.user)}</b> · ${escapeHtml(relTime(x.date))}${x.replies ? ' · ' + x.replies + ' Antworten im Thread' : ''}</div><div class="slack-text">${linkify(x.text)}</div></div>`).join('')}</div>`;
-        const th = det.querySelector('.slack-thread'); if(th) th.scrollTop = th.scrollHeight;
-        document.getElementById('msgReply').placeholder = 'Nachricht an ' + m.subject + ' ...';
+        // neueste Nachricht unten sofort sichtbar
+        det.scrollTop = det.scrollHeight; requestAnimationFrame(()=>{ det.scrollTop = det.scrollHeight; });
+        acts.innerHTML = '<button type="button" class="primary" data-act="reply">Antworten</button>';
       } else {
         const j = m.source === 'gmail' ? await kgApi('google.php?action=mail_get&id=' + encodeURIComponent(m.id)) : await kgApi('mail.php?action=get&account=' + encodeURIComponent(m.accountId) + '&id=' + encodeURIComponent(m.id));
         msg.current.detail = j;
         det.innerHTML = `<div class="msg-subject">${escapeHtml(j.subject || m.subject)}</div>
           <div class="msg-meta"><b>${escapeHtml(j.from)}</b><br>an ${escapeHtml(j.to)}${j.cc ? '<br>cc ' + escapeHtml(j.cc) : ''}<br>${escapeHtml(j.date)}</div>
           <div class="msg-body">${linkify(j.text || '')}</div>`;
-        document.getElementById('msgReply').placeholder = 'Antwort an ' + fromName(j.replyTo || j.from) + ' ...';
+        det.scrollTop = 0;
+        acts.innerHTML = '<button type="button" class="ghost" data-act="forward">↪ Weiterleiten</button><button type="button" class="primary" data-act="reply">↩ Antworten</button>';
       }
+      acts.querySelectorAll('[data-act]').forEach(b=>b.onclick = ()=>openCompose(b.dataset.act));
       if(m.unread){ m.unread = false; updateMsgBadge(); }
     }catch(e){ det.innerHTML = '<div class="msg-err">⚠️ ' + escapeHtml(e.message) + '</div>'; }
+  }
+  const msgComposeOverlay = document.getElementById('msgComposeOverlay');
+  document.getElementById('msgComposeClose').onclick = ()=>{ msgComposeOverlay.style.display = 'none'; };
+  function openCompose(mode){
+    if(!msg.current || !msg.current.detail) return;
+    const m = msg.current.item, d = msg.current.detail;
+    msg.mode = mode;
+    const fwd = mode === 'forward';
+    document.getElementById('msgComposeTitle').textContent = fwd ? 'Weiterleiten' : (m.source === 'slack' ? 'Nachricht an ' + m.subject : 'Antworten');
+    document.getElementById('msgComposeSub').textContent = m.source === 'slack' ? msgLabel(m.source, m.account) : (fwd ? 'WG: ' + (d.subject || m.subject) : 'an ' + fromName(d.replyTo || d.from) + ' · Re: ' + (d.subject || m.subject).replace(/^re:\s*/i, ''));
+    document.getElementById('msgToRow').style.display = fwd ? '' : 'none';
+    document.getElementById('msgFwdHint').style.display = fwd ? '' : 'none';
+    if(msg.composeFor !== m || msg.composeMode !== mode){ document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; if(fwd) document.getElementById('msgTo').value = ''; }
+    msg.composeFor = m; msg.composeMode = mode;
+    document.getElementById('msgReply').placeholder = fwd ? 'Kurze Notiz dazu (optional) ...' : (m.source === 'slack' ? 'Nachricht schreiben ...' : 'Antwort an ' + fromName(d.replyTo || d.from) + ' ...');
+    document.getElementById('msgAiHint').placeholder = fwd ? 'Anweisung an die KI, z. B. „kurz erklären, worum es geht“' : 'Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“';
+    document.getElementById('msgStatus').textContent = '';
+    msgComposeOverlay.style.display = 'flex';
+    setTimeout(()=>{ const f = fwd ? document.getElementById('msgTo') : document.getElementById('msgReply'); try{ f.focus({ preventScroll:true }); }catch(e){} }, 350);
   }
   document.getElementById('msgAiBtn').onclick = async ()=>{
     const btn = document.getElementById('msgAiBtn'); const st = document.getElementById('msgStatus');
@@ -8934,7 +8974,14 @@
     let context;
     if(m.source === 'slack') context = 'Slack-Verlauf in ' + m.subject + ' (Workspace ' + m.account + '), älteste zuerst:\n' + (d.messages || []).slice(-15).map(x=>(x.mine ? 'Ich (Dominic)' : x.user) + ': ' + x.text).join('\n');
     else context = 'E-Mail von: ' + d.from + '\nAn: ' + d.to + '\nBetreff: ' + d.subject + '\n\n' + (d.text || '').slice(0, 6000);
-    const prompt = `Du schreibst eine Antwort im Namen von Dominic Brecht (Inhaber der Digitalagentur BDRIVEN aus Bruchsal: Webdesign, Local SEO, Kundengewinnung für Pflegedienste, Physiotherapie & Gesundheitsbetriebe).
+    const fwdTo = msg.mode === 'forward' ? document.getElementById('msgTo').value.trim() : '';
+    const prompt = msg.mode === 'forward' ? `Du schreibst im Namen von Dominic Brecht (Inhaber der Digitalagentur BDRIVEN aus Bruchsal) eine kurze Begleitnachricht, mit der er die unten stehende E-Mail weiterleitet${fwdTo ? ' an ' + fwdTo : ''}.
+2 bis 4 Sätze, freundlich und klar: worum es geht und was der Empfänger tun soll. Mit kurzer Anrede und Gruß "Viele Grüße\nDominic". Keine erfundenen Fakten, fehlende Infos als [Platzhalter]. Keine Gedankenstriche.
+${hint ? 'Anweisung von Dominic: ' + hint + '\n' : ''}${draft ? 'Dominics Stichpunkte:\n' + draft + '\n' : ''}
+Weitergeleitete E-Mail:
+${context}
+
+Gib NUR den fertigen Text aus.` : `Du schreibst eine Antwort im Namen von Dominic Brecht (Inhaber der Digitalagentur BDRIVEN aus Bruchsal: Webdesign, Local SEO, Kundengewinnung für Pflegedienste, Physiotherapie & Gesundheitsbetriebe).
 ${m.source === 'slack' ? 'Kanal: Slack – kurz, locker-professionell, keine Grußformel, keine Signatur.' : 'Kanal: E-Mail – mit passender Anrede und Gruß, Signatur nur "Viele Grüße\nDominic" (bzw. "Beste Grüße\nDominic Brecht" wenn formell).'}
 Sprache: wie die eingehende Nachricht (meist Deutsch). Übernimm Du/Sie so, wie der Absender schreibt. Klar, freundlich, auf den Punkt, keine Floskeln, keine erfundenen Fakten, Termine oder Preise – wo etwas fehlt, setze [Platzhalter].
 ${hint ? 'Anweisung von Dominic: ' + hint + '\n' : ''}${draft ? 'Dominics Stichpunkte/Entwurf (ausformulieren und verbessern):\n' + draft + '\n' : ''}
@@ -8951,22 +8998,33 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     const btn = document.getElementById('msgSend'); const st = document.getElementById('msgStatus');
     if(btn.disabled || !msg.current) return;
     const text = document.getElementById('msgReply').value.trim();
-    if(!text){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
     const m = msg.current.item, d = msg.current.detail || {};
+    const fwd = msg.mode === 'forward';
+    const fwdTo = document.getElementById('msgTo').value.trim();
+    if(fwd && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fwdTo.split(/[,;\s]+/)[0] || '')){ st.textContent = 'Bitte eine gültige E-Mail-Adresse eintragen.'; return; }
+    if(!text && !fwd){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
     if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
     btn.dataset.armed = ''; btn.disabled = true; btn.textContent = 'Sende ...';
     try{
       if(m.source === 'slack') await kgApi('slack.php?action=send', { team:m.team, channel:m.id, text });
-      else {
+      else if(fwd){
+        const subj = /^(wg|fwd?):/i.test(d.subject || '') ? d.subject : 'WG: ' + (d.subject || m.subject);
+        const body = (text ? text + '\n\n' : '') + '---------- Weitergeleitete Nachricht ----------\nVon: ' + (d.from || '') + '\nDatum: ' + (d.date || '') + '\nBetreff: ' + (d.subject || m.subject) + '\nAn: ' + (d.to || '') + (d.cc ? '\nCc: ' + d.cc : '') + '\n\n' + (d.text || '');
+        const payload = { to: fwdTo, subject: subj, body };
+        if(m.source === 'gmail') await kgApi('google.php?action=mail_send', payload);
+        else { payload.account = m.accountId; await kgApi('mail.php?action=send', payload); }
+      } else {
         const subj = /^re:/i.test(d.subject || '') ? d.subject : 'Re: ' + (d.subject || m.subject);
         const to = d.replyTo || d.from;
         const payload = { to, subject: subj, body: text, inReplyTo: d.messageId || '', references: d.references || '' };
         if(m.source === 'gmail'){ payload.thread = d.thread; await kgApi('google.php?action=mail_send', payload); }
         else { payload.account = m.accountId; await kgApi('mail.php?action=send', payload); }
       }
-      st.textContent = 'Gesendet ✓';
-      document.getElementById('msgReply').value = '';
-      if(m.source === 'slack') openMessage(m); else setTimeout(()=>{ if(msg.current && msg.current.item === m){ msgOverlay.style.display = 'none'; renderMessages(); } }, 900);
+      st.textContent = fwd ? 'Weitergeleitet ✓' : 'Gesendet ✓';
+      document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = '';
+      setTimeout(()=>{ msgComposeOverlay.style.display = 'none'; }, 600);
+      if(m.source === 'slack') openMessage(m);
+      else if(!fwd) setTimeout(()=>{ if(msg.current && msg.current.item === m){ msgOverlay.style.display = 'none'; renderMessages(); } }, 900);
       msg.loadedAt = 0;
     }catch(e){ st.textContent = e.message; }
     btn.disabled = false; btn.textContent = 'Senden';
@@ -9376,6 +9434,14 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
+      else if(open === 'nachrichten' || open === 'slack'){
+        switchTab('nachrichten');
+        if(open === 'slack'){
+          const team = params.get('team'), ch = params.get('ch');
+          const tryOpen = n=>{ const it = (msg.items || []).find(x=>x.source === 'slack' && x.team === team && x.id === ch); if(it) openMessage(it); else if(n > 0) setTimeout(()=>tryOpen(n - 1), 800); };
+          tryOpen(10);
+        }
+      }
     }, 2800);
   })();
 
