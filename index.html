@@ -647,12 +647,22 @@
   .wo-n{ text-align:center; color:var(--ink-soft); font-weight:700; }
   .wo-check{ width:44px; height:42px; border-radius:12px; border:1.5px solid rgba(34,227,211,.5); background:transparent; color:#04110F; font-weight:800; font-size:16px; cursor:pointer; }
   .wo-row.done .wo-check{ background:var(--forest); border-color:var(--forest); box-shadow:0 0 12px var(--forest-glow); }
+  .wo-row input.wo-pre{ color:#5C6568; }
+  .wo-row input.wo-pre:focus{ color:var(--ink); }
   .wo-row.done input{ border-color:rgba(34,227,211,.4); background:rgba(34,227,211,.06); }
   .wo-ex-actions{ display:flex; justify-content:space-between; margin-top:6px; }
   .rest-bar{ position:fixed; left:0; right:0; bottom:0; z-index:90;
     display:flex; align-items:center; gap:10px; padding:12px max(16px, calc((100% - 640px) / 2 + 16px)) calc(12px + env(safe-area-inset-bottom));
     background:rgba(15,21,23,.97); border-top:1px solid rgba(34,227,211,.45); box-shadow:0 -10px 30px rgba(0,0,0,.5); }
-  #workoutOverlay{ scroll-padding-bottom:110px; }
+  #workoutOverlay{ scroll-padding-bottom:110px; scroll-padding-top:calc(64px + env(safe-area-inset-top)); }
+  html.kg-lock, html.kg-lock body{ overflow:hidden; }
+  .wo-topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin:calc(-20px - env(safe-area-inset-top)) -16px 4px; padding:calc(env(safe-area-inset-top) + 8px) 16px 8px;
+    background:rgba(7,9,10,.94); border-bottom:1px solid var(--line-soft); }
+  .wo-back, .wo-top-finish{ min-height:40px; padding:8px 14px; border-radius:12px; font-size:15px; font-weight:600; }
+  .wo-back{ background:transparent; border:0; color:var(--forest); padding-left:4px; }
+  .wo-top-finish{ background:rgba(34,227,211,.12); border:1px solid rgba(34,227,211,.4); color:var(--forest); }
+  .wo-top-time{ font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:14px; }
   .rest-bar .rest-sound{ padding:8px 10px; font-size:16px; }
   .rest-bar.done{ border-top-color:var(--forest); background:rgba(14,48,45,.97); animation:restPulse .5s ease-out 3; }
   .rest-bar.done b{ font-size:20px; white-space:nowrap; }
@@ -1899,7 +1909,11 @@
 
 <div class="modal-overlay" id="workoutOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
   <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 120px; position:relative;">
-    <button class="modal-close" id="workoutMinimize" aria-label="Minimieren" style="position:sticky; top:0; float:right; font-size:15px;">⌄</button>
+    <div class="wo-topbar">
+      <button type="button" class="wo-back" id="workoutMinimize" aria-label="Zurück, Training läuft weiter">‹ Zurück</button>
+      <span class="wo-top-time" id="woTopTime"></span>
+      <button type="button" class="wo-top-finish" id="woTopFinish">Beenden</button>
+    </div>
     <div id="workoutBody" style="margin-top:8px;"></div>
   </div>
 </div>
@@ -9804,7 +9818,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   }
   function setsFromLast(name, n){
     const last = lastSetsFor(name);
-    if(last) return last.sets.map(s=>({ kg:s.kg, wdh:s.wdh, done:false }));
+    if(last) return last.sets.map(s=>({ kg:s.kg, wdh:s.wdh, done:false, pre:true }));   // pre = Wert vom letzten Mal, grau bis bestätigt
     return [...Array(n || 3)].map(()=>({ kg:'', wdh:'', done:false }));
   }
   function startWorkout(plan){
@@ -9834,17 +9848,22 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   function openWorkout(){
     if(!activeWorkout) return;
     keepAwake(true);
-    document.getElementById('workoutOverlay').style.display = 'flex';
+    const ov = document.getElementById('workoutOverlay');
+    ov.style.display = 'flex'; ov.scrollTop = 0;
+    document.getElementById('woTopFinish').style.visibility = '';
+    document.documentElement.classList.add('kg-lock');
     renderWorkout();
+    requestAnimationFrame(()=>{ ov.scrollTop = 0; });
     clearInterval(workoutTick);
     workoutTick = setInterval(()=>{
       const el = document.getElementById('woElapsed');
       if(!el || !activeWorkout){ clearInterval(workoutTick); return; }
       const s = Math.floor((Date.now() - activeWorkout.start) / 1000);
       el.textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+      const tt = document.getElementById('woTopTime'); if(tt) tt.textContent = el.textContent;
     }, 1000);
   }
-  function closeWorkoutOverlay(){ document.getElementById('workoutOverlay').style.display = 'none'; clearInterval(workoutTick); renderKoerper(); }
+  function closeWorkoutOverlay(){ document.documentElement.classList.remove('kg-lock'); document.getElementById('workoutOverlay').style.display = 'none'; clearInterval(workoutTick); renderKoerper(); }
 
   function renderWorkout(){
     const el = document.getElementById('workoutBody');
@@ -9871,8 +9890,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
             <div class="wo-row wo-row-h"><span>Satz</span><span>kg</span><span>Wdh</span><span></span></div>
             ${u.sets.map((s,si)=>`<div class="wo-row ${s.done?'done':''}">
               <span class="wo-n">${si+1}</span>
-              <input type="number" inputmode="decimal" step="0.5" min="0" value="${s.kg}" data-ui="${ui}" data-si="${si}" data-f="kg" placeholder="kg">
-              <input type="number" inputmode="numeric" step="1" min="0" value="${s.wdh}" data-ui="${ui}" data-si="${si}" data-f="wdh" placeholder="${w.schema ? repTarget(w.schema, si) : 'Wdh'}">
+              <input type="number" inputmode="decimal" step="0.5" min="0" value="${s.kg}" data-ui="${ui}" data-si="${si}" data-f="kg" placeholder="kg" class="${s.pre && !s.done ? 'wo-pre' : ''}">
+              <input type="number" inputmode="numeric" step="1" min="0" value="${s.wdh}" data-ui="${ui}" data-si="${si}" data-f="wdh" placeholder="${w.schema ? repTarget(w.schema, si) : 'Wdh'}" class="${s.pre && !s.done ? 'wo-pre' : ''}">
               <button type="button" class="wo-check" data-ui="${ui}" data-si="${si}">${s.done ? '✓' : ''}</button>
             </div>`).join('')}
           </div>
@@ -9893,17 +9912,18 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     el.querySelectorAll('input[data-f]').forEach(inp=>inp.oninput = ()=>{
       const s = w.uebungen[+inp.dataset.ui].sets[+inp.dataset.si];
       s[inp.dataset.f] = inp.value === '' ? '' : Number(inp.value);
+      if(s.pre){ s.pre = false; inp.closest('.wo-row').querySelectorAll('input').forEach(i=>i.classList.remove('wo-pre')); }
       saveActiveWorkout();
     });
     el.querySelectorAll('.wo-check').forEach(b=>b.onclick = ()=>{
       const s = w.uebungen[+b.dataset.ui].sets[+b.dataset.si];
-      s.done = !s.done;
+      s.done = !s.done; if(s.done) s.pre = false;
       if(s.done){ vibrateDevice(); startRest(); }
       saveActiveWorkout(); renderWorkout();
     });
     el.querySelectorAll('[data-a="addset"]').forEach(b=>b.onclick = ()=>{
       const sets = w.uebungen[+b.dataset.ui].sets; const prev = sets[sets.length-1] || { kg:'', wdh:'' };
-      sets.push({ kg:prev.kg, wdh:prev.wdh, done:false }); saveActiveWorkout(); renderWorkout();
+      sets.push({ kg:prev.kg, wdh:prev.wdh, done:false, pre:true }); saveActiveWorkout(); renderWorkout();
     });
     el.querySelectorAll('[data-a="rmset"]').forEach(b=>b.onclick = ()=>{ w.uebungen[+b.dataset.ui].sets.pop(); saveActiveWorkout(); renderWorkout(); });
     el.querySelectorAll('[data-a="rmex"]').forEach(b=>{
@@ -9988,6 +10008,17 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   // Wenn die App zurück in den Vordergrund kommt: Zeit korrigieren
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible' && restTimer){ if(drawRest() <= 0) restFinished(); else if(restAudio && restAudio.state !== 'running') scheduleRestSound((restEnd - Date.now()) / 1000); } });
   document.getElementById('workoutMinimize').onclick = ()=>{ closeWorkoutOverlay(); };
+  (function(){
+    const b = document.getElementById('woTopFinish'); let armed = 0;
+    b.onclick = ()=>{
+      if(!activeWorkout){ closeWorkoutOverlay(); return; }
+      if(!armed){ armed = setTimeout(()=>{ armed = 0; b.textContent = 'Beenden'; }, 3000); b.textContent = 'Wirklich beenden?'; return; }
+      clearTimeout(armed); armed = 0; b.textContent = 'Beenden';
+      const f = document.getElementById('woFinish'); if(f) f.scrollIntoView({ behavior:'smooth', block:'center' });
+      finishWorkout().then(()=>{ if(!activeWorkout) b.style.visibility = 'hidden'; });
+    };
+    document.getElementById('workoutMinimize').addEventListener('click', ()=>{ b.style.visibility = ''; });
+  })();
 
   async function finishWorkout(){
     const btn = document.getElementById('woFinish');
