@@ -8,7 +8,7 @@ imap_timeout(IMAP_OPENTIMEOUT, 15); imap_timeout(IMAP_READTIMEOUT, 20);
 
 const MAIL_PRESETS = [
   'gmx'    => ['imap_host' => 'imap.gmx.net', 'imap_port' => 993, 'smtp_host' => 'mail.gmx.net', 'smtp_port' => 587, 'smtp_secure' => 'tls'],
-  'netcup' => ['imap_host' => 'a2ed0.netcup.net', 'imap_port' => 993, 'smtp_host' => 'a2ed0.netcup.net', 'smtp_port' => 465, 'smtp_secure' => 'ssl'],
+  'netcup' => ['imap_host' => 'a2ed0.webhosting.systems', 'imap_port' => 993, 'smtp_host' => 'a2ed0.webhosting.systems', 'smtp_port' => 465, 'smtp_secure' => 'ssl'],
 ];
 
 function m_accounts(int $uid): array { return kg_get($uid, 'mail_accounts', []); }
@@ -113,6 +113,17 @@ switch ($action) {
     $a += ['id' => 'm' . bin2hex(random_bytes(5)), 'email' => $email, 'user' => trim((string)($in['user'] ?? '')) ?: $email, 'pass' => $pass,
       'label' => trim((string)($in['label'] ?? '')) ?: $email, 'preset' => $preset ?: 'custom', 'name' => trim((string)($in['name'] ?? ''))];
     [$mb, $err] = m_open($a, 'INBOX', OP_HALFOPEN);
+    // netcup: Mailserver-Name hängt vom Paket ab. Mehrere Kandidaten probieren und den ersten funktionierenden merken.
+    if (!$mb && $preset === 'netcup') {
+      $dom = substr(strrchr($email, '@'), 1);
+      foreach (['a2ed0.netcup.net', 'mail.' . $dom, $dom, gethostname() ?: ''] as $h) {
+        if ($h === '' || $h === $a['imap_host']) continue;
+        $try = array_merge($a, ['imap_host' => $h, 'smtp_host' => $h]);
+        [$mb, $e2] = m_open($try, 'INBOX', OP_HALFOPEN);
+        if ($mb) { $a = $try; break; }
+        if (stripos($e2, 'auth') !== false) { $err = $e2; $a = $try; break; }   // Server gefunden, nur Login falsch
+      }
+    }
     if (!$mb) {
       $hint = $preset === 'gmx' ? ' Prüfe: 1) In GMX unter Einstellungen „POP3- und IMAP-Zugriff erlauben“ an (kann ein paar Minuten dauern). 2) Ist bei GMX die Zwei-Faktor-Anmeldung aktiv, brauchst du ein anwendungsspezifisches Passwort statt deines normalen Passworts. 3) GMX schickt bei einem Login von einem neuen Server manchmal eine Sicherheitsmail, die du bestätigen musst.' : '';
       $diag = m_diag($a);
