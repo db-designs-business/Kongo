@@ -83,6 +83,20 @@ function m_attachments($st, string $num = ''): array {
   }
   return $out;
 }
+// Diagnose: direkt mit dem IMAP-Server sprechen und dessen genaue Antwort zurückgeben (ohne Passwort)
+function m_diag(array $a): string {
+  $fp = @stream_socket_client('ssl://' . $a['imap_host'] . ':' . (int)$a['imap_port'], $en, $es, 15);
+  if (!$fp) return 'Server nicht erreichbar: ' . $es;
+  stream_set_timeout($fp, 15);
+  $greet = trim((string)fgets($fp, 2048));
+  $q = fn($v) => '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
+  fwrite($fp, "a1 LOGIN " . $q($a['user']) . ' ' . $q($a['pass']) . "\r\n");
+  $resp = '';
+  while (($l = fgets($fp, 2048)) !== false) { $resp .= $l; if (strpos($l, 'a1 ') === 0) break; }
+  if (strpos($resp, 'a1 OK') !== false) fwrite($fp, "a2 LOGOUT\r\n");
+  fclose($fp);
+  return 'Server: ' . mb_substr(trim(preg_replace('/\s+/', ' ', $resp)) ?: $greet, 0, 300);
+}
 function m_public(array $a): array { unset($a['pass']); return $a; }
 
 switch ($action) {
@@ -101,7 +115,9 @@ switch ($action) {
     [$mb, $err] = m_open($a, 'INBOX', OP_HALFOPEN);
     if (!$mb) {
       $hint = $preset === 'gmx' ? ' Prüfe: 1) In GMX unter Einstellungen „POP3- und IMAP-Zugriff erlauben“ an (kann ein paar Minuten dauern). 2) Ist bei GMX die Zwei-Faktor-Anmeldung aktiv, brauchst du ein anwendungsspezifisches Passwort statt deines normalen Passworts. 3) GMX schickt bei einem Login von einem neuen Server manchmal eine Sicherheitsmail, die du bestätigen musst.' : '';
-      kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen: ' . $err . '.' . $hint]], 400);
+      $diag = m_diag($a);
+      if (strpos($diag, 'a1 OK') !== false) kg_json(['error' => ['message' => 'Dein Passwort stimmt (Direkt-Login klappt), nur das IMAP-Modul des Servers scheitert. Schick Claude diese Meldung: ' . $err]], 400);
+      kg_json(['error' => ['message' => 'Anmeldung am Postfach fehlgeschlagen. ' . $diag . '.' . $hint]], 400);
     }
     imap_close($mb);
     $all = m_accounts($uid); $all[] = $a; kg_set($uid, 'mail_accounts', $all);
