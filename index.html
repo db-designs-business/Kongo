@@ -2215,13 +2215,6 @@
       </div>
       <div class="save-status" id="accountStatus"></div>
     </div>
-    <div class="push-box">
-      <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">📦 Daten aus Airtable übernehmen</div>
-      <div class="hint" style="margin-bottom:10px;">Kopiert alle bisherigen Einträge einmalig auf deinen Server. Mehrfaches Ausführen erzeugt keine Duplikate.</div>
-      <input type="text" id="importTokenInput" placeholder="Airtable-Token (pat...)" autocomplete="off" style="margin-bottom:8px;">
-      <button type="button" class="ghost" id="importBtn">Übernahme starten</button>
-      <div class="import-log" id="importLog"></div>
-    </div>
   </div>
 </div>
 
@@ -2370,7 +2363,7 @@
     }
     return { total, failed };
   }
-  document.getElementById('importBtn').onclick = async ()=>{
+  if(document.getElementById('importBtn')) document.getElementById('importBtn').onclick = async ()=>{
     const btn = document.getElementById('importBtn'); const logEl = document.getElementById('importLog');
     if(btn.disabled) return;
     const token = document.getElementById('importTokenInput').value.trim();
@@ -2722,7 +2715,7 @@
   const settingsStatus = document.getElementById('settingsStatus');
 
   function openSettingsModal(){
-    document.getElementById('importTokenInput').value = getAirtableToken();
+    const _it = document.getElementById('importTokenInput'); if(_it) _it.value = getAirtableToken();
     refreshAccountInfo();
     settingsAnthropicInput.value = getAnthropicToken();
     document.getElementById('settingsUsernameInput').value = profil.username || '';
@@ -3415,7 +3408,7 @@
   const coachingJournalEl = document.getElementById('historyContent');
 
   async function loadCoachingJournal(){
-    coachingJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    coachingJournalEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_COACHING, COACHING_BASE_ID);
       if(records.length === 0){
@@ -3794,7 +3787,7 @@
   };
 
   async function loadWorkJournal(){
-    workJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    workJournalEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_WORK);
       if(records.length === 0){
@@ -3805,7 +3798,7 @@
       entries.sort((a,b)=> new Date(b.data.date) - new Date(a.data.date));
       renderWorkJournal(entries);
     }catch(e){
-      workJournalEl.innerHTML = '<div class="empty">Einträge konnten nicht aus Airtable geladen werden.</div>';
+      workJournalEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
     }
   }
 
@@ -3870,7 +3863,7 @@
   }
 
   async function loadLibraryList(){
-    libList.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    libList.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_LIBRARY);
       if(records.length === 0){
@@ -3884,7 +3877,7 @@
       entries.sort((a,b)=> new Date(b.data.createdAt) - new Date(a.data.createdAt));
       renderLibraryList(entries);
     }catch(e){
-      libList.innerHTML = '<div class="empty">Konnte nicht aus Airtable geladen werden.</div>';
+      libList.innerHTML = '<div class="empty">Konnte nicht geladen werden.</div>';
     }
   }
 
@@ -4082,7 +4075,7 @@
   const weeklyJournalEl = document.getElementById('historyContent');
 
   async function loadWeeklyJournal(){
-    weeklyJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    weeklyJournalEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_WOCHENREFLEXION, WOCHENREFLEXION_BASE_ID);
       if(records.length === 0){
@@ -4322,7 +4315,7 @@
   document.getElementById('histCoachingBtn').onclick = ()=>selectHistoryTab('coaching');
 
   async function loadEveningJournal(){
-    eveningJournalEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    eveningJournalEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_EVENING);
       if(records.length === 0){
@@ -4333,7 +4326,7 @@
       entries.sort((a,b)=> new Date(b.data.date) - new Date(a.data.date));
       renderEveningJournal(entries);
     }catch(e){
-      eveningJournalEl.innerHTML = '<div class="empty">Einträge konnten nicht aus Airtable geladen werden.</div>';
+      eveningJournalEl.innerHTML = '<div class="empty">Einträge konnten nicht geladen werden.</div>';
     }
   }
 
@@ -5560,7 +5553,7 @@
   };
 
   async function loadWutjournal(){
-    wutjournalListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    wutjournalListEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_WUTJOURNAL, WUTJOURNAL_BASE_ID);
       if(records.length === 0){
@@ -5846,7 +5839,7 @@
   };
 
   async function loadSatzergaenzungHistorie(){
-    satzergaenzungListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    satzergaenzungListEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_SATZ_ANTWORTEN, SATZ_BASE_ID);
       if(records.length === 0){
@@ -5985,7 +5978,7 @@
 
   async function loadMorgenreflexionHistorie(){
     const listEl = document.getElementById('historyContent');
-    listEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    listEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_MORGENREFLEXION, MORGEN_BASE_ID);
       if(records.length === 0){
@@ -6212,7 +6205,7 @@
   };
 
   async function loadSprechuebungHistorie(){
-    sprechuebungListEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    sprechuebungListEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_SPRECH_SESSIONS, SPRECH_BASE_ID);
       if(records.length === 0){
@@ -6300,7 +6293,7 @@
 
   async function loadWorksheets(){
     const listContainer = document.getElementById('worksheetsListContainer');
-    listContainer.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    listContainer.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const records = await airtableList(TABLE_WORKSHEETS, WORKSHEETS_BASE_ID);
       worksheetsCache = records.map(r=>({
@@ -6431,7 +6424,7 @@
   }
 
   async function loadLesen(){
-    lesenMainEl.innerHTML = '<div class="loading">Lade aus Airtable ...</div>';
+    lesenMainEl.innerHTML = '<div class="loading">Lade ...</div>';
     try{
       const [books, entries] = await Promise.all([
         airtableList(TABLE_LESEN_BUECHER, LESEN_BASE_ID),
@@ -6469,7 +6462,7 @@
       resetLesenSession();
       renderLesenHistory();
     }catch(e){
-      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lesen-Daten konnten nicht geladen werden. Ist der Airtable-Token für die Base "Kongrow - Lesen" freigegeben?</div></div>';
+      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lesen-Daten konnten nicht geladen werden. Bitte später erneut versuchen."Kongrow - Lesen" freigegeben?</div></div>';
     }
   }
 
