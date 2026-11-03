@@ -952,7 +952,18 @@
   .msg-actions{ display:flex; gap:10px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line-soft); background:#07090A; }
   .msg-actions:empty{ display:none; }
   .msg-actions button{ flex:1; min-height:48px; font-size:15.5px; }
-  .msg-compose-card textarea{ min-height:150px; }
+  .msg-compose-card textarea{ min-height:120px; }
+  .msg-ctx{ max-height:32vh; overflow-y:auto; overscroll-behavior:contain; margin:0 0 12px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); font-size:13.5px; }
+  .msg-ctx:empty{ display:none; }
+  .msg-ctx .slack-msg{ max-width:94%; padding:6px 10px; margin-bottom:6px; }
+  .msg-ctx .slack-text{ font-size:13.5px; }
+  .msg-ctx-mail{ white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink-soft); line-height:1.45; }
+  .msg-ctx-mail b{ color:var(--ink); }
+  .msg-reply-wrap{ position:relative; }
+  .mention-list{ position:absolute; left:0; right:0; bottom:calc(100% + 4px); max-height:220px; overflow-y:auto; z-index:5; background:#121A1D; border:1px solid rgba(34,227,211,.35); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.5); padding:4px; }
+  .mention-list button{ display:flex; width:100%; align-items:center; gap:8px; text-align:left; background:transparent; border:0; color:var(--ink); padding:10px; border-radius:8px; font-size:15px; min-height:44px; }
+  .mention-list button.active, .mention-list button:hover{ background:rgba(34,227,211,.12); }
+  .mention-list small{ color:var(--ink-soft); font-size:12px; margin-left:auto; }
   input[type=email]{ width:100%; font-family:var(--font); font-size:16px; color:var(--ink); background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:12px 14px; }
   .msg-ai-row{ display:flex; gap:8px; margin-bottom:8px; }
   .msg-ai-row input{ flex:1; min-width:0; font-size:14px !important; }
@@ -2055,6 +2066,7 @@
     <button class="modal-close" id="msgComposeClose" aria-label="Schließen">×</button>
     <div class="modal-title" id="msgComposeTitle">Antworten</div>
     <div class="modal-sub" id="msgComposeSub"></div>
+    <div class="msg-ctx" id="msgCtx"></div>
     <div id="msgToRow" style="display:none;">
       <input type="email" id="msgTo" placeholder="Weiterleiten an (E-Mail-Adresse)" autocomplete="email" style="margin-bottom:10px;">
     </div>
@@ -2062,7 +2074,10 @@
       <input type="text" id="msgAiHint" placeholder="Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“">
       <button type="button" class="ghost msg-ai-btn" id="msgAiBtn">✨ KI-Entwurf</button>
     </div>
-    <textarea id="msgReply" rows="7" placeholder="Antwort schreiben ..."></textarea>
+    <div class="msg-reply-wrap">
+      <textarea id="msgReply" rows="6" placeholder="Antwort schreiben ..."></textarea>
+      <div class="mention-list" id="mentionList" style="display:none;"></div>
+    </div>
     <div class="hint" id="msgFwdHint" style="display:none;margin:6px 0 0;">Die ursprüngliche Nachricht wird unter deinem Text angehängt. Dateianhänge werden nicht mitgeschickt.</div>
     <div class="msg-send-row">
       <span class="save-status" id="msgStatus" style="margin:0;"></span>
@@ -8464,6 +8479,21 @@
   }
   if(pushSupported){
     navigator.serviceWorker.register('sw.js').then(r=>{ swReg = r; pushRefreshUI(); }).catch(()=>{});
+    authReady.then(()=>setTimeout(pushResync, 2500));
+  }
+  // Abo bei jedem Start beim Server auffrischen: geht es dort verloren (oder hat sich der Server-Schlüssel geändert), kommen sonst keine Erinnerungen an
+  async function pushResync(){
+    try{
+      if(Notification.permission !== 'granted') return;
+      swReg = swReg || await navigator.serviceWorker.ready;
+      let sub = await swReg.pushManager.getSubscription(); if(!sub) return;
+      const res = await fetch('push/vapid.php', { cache:'no-store' }); if(!res.ok) return;
+      const { publicKey } = await res.json();
+      const cur = sub.options && sub.options.applicationServerKey ? btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'') : publicKey;
+      if(cur !== publicKey){ await sub.unsubscribe(); sub = await swReg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8(publicKey) }); }
+      const r = await fetch('push/subscribe.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'subscribe', subscription: sub.toJSON() }) });
+      if(r.ok) pushStatus.textContent = '';
+    }catch(e){ console.warn('Push-Abgleich', e); }
   }
   pushEnableBtn.onclick = async ()=>{
     if(pushEnableBtn.disabled) return;
@@ -8962,8 +8992,65 @@
     document.getElementById('msgReply').placeholder = fwd ? 'Kurze Notiz dazu (optional) ...' : (m.source === 'slack' ? 'Nachricht schreiben ...' : 'Antwort an ' + fromName(d.replyTo || d.from) + ' ...');
     document.getElementById('msgAiHint').placeholder = fwd ? 'Anweisung an die KI, z. B. „kurz erklären, worum es geht“' : 'Anweisung an die KI (optional), z. B. „freundlich zusagen, Termin Do vorschlagen“';
     document.getElementById('msgStatus').textContent = '';
+    // Verlauf bzw. Original-Mail oben im Popup, damit man sich darauf beziehen kann
+    const ctx = document.getElementById('msgCtx');
+    if(m.source === 'slack') ctx.innerHTML = (d.messages || []).slice(-12).map(x=>`<div class="slack-msg ${x.mine ? 'mine' : ''}"><div class="slack-meta"><b>${escapeHtml(x.user)}</b> · ${escapeHtml(relTime(x.date))}</div><div class="slack-text">${linkify(x.text)}</div></div>`).join('');
+    else ctx.innerHTML = `<div class="msg-ctx-mail"><b>${escapeHtml(fromName(d.from))}</b> · ${escapeHtml(d.date || '')}\n\n${escapeHtml((d.text || '').slice(0, 4000))}</div>`;
+    requestAnimationFrame(()=>{ ctx.scrollTop = m.source === 'slack' ? ctx.scrollHeight : 0; });
+    document.getElementById('mentionList').style.display = 'none';
+    if(m.source === 'slack') loadMentionUsers(m);
     msgComposeOverlay.style.display = 'flex';
     setTimeout(()=>{ const f = fwd ? document.getElementById('msgTo') : document.getElementById('msgReply'); try{ f.focus({ preventScroll:true }); }catch(e){} }, 350);
+  }
+  /* ---- @-Erwähnungen in Slack ---- */
+  const mention = { users:[], key:'', picked:{} };   // picked: Name -> Slack-ID
+  async function loadMentionUsers(m){
+    const key = m.team + '/' + m.id; if(mention.key === key && mention.users.length) return;
+    mention.key = key; mention.users = []; mention.picked = {};
+    try{ const j = await kgApi('slack.php?action=users&team=' + encodeURIComponent(m.team) + '&channel=' + encodeURIComponent(m.id)); if(mention.key === key) mention.users = j.users || []; }catch(e){}
+  }
+  const replyEl = document.getElementById('msgReply'), mentionEl = document.getElementById('mentionList');
+  let mentionSel = 0, mentionMatches = [];
+  function mentionQuery(){
+    const pos = replyEl.selectionStart, before = replyEl.value.slice(0, pos);
+    const mm = /(^|\s)@([^\s@]{0,30})$/.exec(before);
+    return mm ? { q: mm[2], start: pos - mm[2].length - 1 } : null;
+  }
+  function renderMentions(){
+    const cur = msg.current && msg.current.item;
+    const mq = cur && cur.source === 'slack' && msg.mode !== 'forward' ? mentionQuery() : null;
+    if(!mq || !mention.users.length){ mentionEl.style.display = 'none'; return; }
+    const q = mq.q.toLowerCase();
+    mentionMatches = mention.users.filter(u=>!q || u.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(q)) || u.name.toLowerCase().includes(q)).slice(0, 8);
+    if(!mentionMatches.length){ mentionEl.style.display = 'none'; return; }
+    mentionSel = Math.min(mentionSel, mentionMatches.length - 1);
+    mentionEl.innerHTML = mentionMatches.map((u, i)=>`<button type="button" data-i="${i}" class="${i === mentionSel ? 'active' : ''}">@${escapeHtml(u.name)}${u.member ? '<small>im Kanal</small>' : ''}</button>`).join('');
+    mentionEl.style.display = '';
+    mentionEl.querySelectorAll('button').forEach(b=>b.onmousedown = b.ontouchstart = e=>{ e.preventDefault(); pickMention(mentionMatches[+b.dataset.i]); });
+  }
+  function pickMention(u){
+    const mq = mentionQuery(); if(!mq || !u) return;
+    const v = replyEl.value, end = replyEl.selectionStart;
+    const ins = '@' + u.name + ' ';
+    replyEl.value = v.slice(0, mq.start) + ins + v.slice(end);
+    const p = mq.start + ins.length; replyEl.setSelectionRange(p, p);
+    mention.picked[u.name] = u.id;
+    mentionEl.style.display = 'none'; replyEl.focus();
+  }
+  replyEl.addEventListener('input', ()=>{ mentionSel = 0; renderMentions(); });
+  replyEl.addEventListener('click', renderMentions);
+  replyEl.addEventListener('keydown', e=>{
+    if(mentionEl.style.display === 'none') return;
+    if(e.key === 'ArrowDown'){ e.preventDefault(); mentionSel = (mentionSel + 1) % mentionMatches.length; renderMentions(); }
+    else if(e.key === 'ArrowUp'){ e.preventDefault(); mentionSel = (mentionSel - 1 + mentionMatches.length) % mentionMatches.length; renderMentions(); }
+    else if(e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); pickMention(mentionMatches[mentionSel]); }
+    else if(e.key === 'Escape'){ mentionEl.style.display = 'none'; }
+  });
+  replyEl.addEventListener('blur', ()=>setTimeout(()=>{ mentionEl.style.display = 'none'; }, 150));
+  // "@Name" -> "<@ID>" für Slack, längste Namen zuerst
+  function slackifyMentions(text){
+    Object.keys(mention.picked).sort((a,b)=>b.length - a.length).forEach(n=>{ text = text.split('@' + n).join('<@' + mention.picked[n] + '>'); });
+    return text;
   }
   document.getElementById('msgAiBtn').onclick = async ()=>{
     const btn = document.getElementById('msgAiBtn'); const st = document.getElementById('msgStatus');
@@ -9006,7 +9093,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
     btn.dataset.armed = ''; btn.disabled = true; btn.textContent = 'Sende ...';
     try{
-      if(m.source === 'slack') await kgApi('slack.php?action=send', { team:m.team, channel:m.id, text });
+      if(m.source === 'slack') await kgApi('slack.php?action=send', { team:m.team, channel:m.id, text: slackifyMentions(text) });
       else if(fwd){
         const subj = /^(wg|fwd?):/i.test(d.subject || '') ? d.subject : 'WG: ' + (d.subject || m.subject);
         const body = (text ? text + '\n\n' : '') + '---------- Weitergeleitete Nachricht ----------\nVon: ' + (d.from || '') + '\nDatum: ' + (d.date || '') + '\nBetreff: ' + (d.subject || m.subject) + '\nAn: ' + (d.to || '') + (d.cc ? '\nCc: ' + d.cc : '') + '\n\n' + (d.text || '');

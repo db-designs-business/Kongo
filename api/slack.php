@@ -94,6 +94,19 @@ switch ($action) {
     $seen = kg_get($uid, 'slack_seen', []); if ($msgs) $seen[$ch] = end($msgs)['ts']; kg_set($uid, 'slack_seen', $seen);
     kg_json(['messages' => $msgs]);
 
+  case 'users':
+    // Für @-Erwähnungen: Mitglieder des Kanals zuerst, dann alle anderen
+    $t = s_team($uid, (string)($_GET['team'] ?? '')); $users = s_users($uid, $t);
+    $ch = (string)($_GET['channel'] ?? ''); $members = [];
+    if ($ch !== '') {
+      $j = s_api($t, 'conversations.members', ['channel' => $ch, 'limit' => 300]);
+      foreach ($j['members'] ?? [] as $id) if ($id !== $t['user_id']) $members[] = $id;
+    }
+    $out = []; $seenIds = [];
+    foreach ($members as $id) { $out[] = ['id' => $id, 'name' => s_name($uid, $t, $users, $id), 'member' => true]; $seenIds[$id] = 1; }
+    foreach ($users as $id => $name) if (!isset($seenIds[$id]) && $id !== $t['user_id'] && !preg_match('/^U[A-Z0-9]+$/', $name)) $out[] = ['id' => $id, 'name' => $name, 'member' => false];
+    kg_json(['users' => array_slice($out, 0, 500)]);
+
   case 'send':
     $t = s_team($uid, (string)($in['team'] ?? ''));
     $p = ['channel' => (string)($in['channel'] ?? ''), 'text' => (string)($in['text'] ?? '')];
