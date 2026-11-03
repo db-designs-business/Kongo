@@ -333,7 +333,7 @@
   .yesno button{ min-width:0; }
   .nav-menu{ max-width:calc(100vw - 32px); }
   /* Vollbild-Overlays: Notch und Home-Leiste berücksichtigen */
-  .modal-overlay[style*="align-items:stretch"] > div{ padding-top:calc(20px + env(safe-area-inset-top)) !important; padding-bottom:calc(40px + env(safe-area-inset-bottom)) !important; }
+  .modal-overlay.kg-full > div{ padding-top:calc(20px + env(safe-area-inset-top)) !important; padding-bottom:calc(40px + env(safe-area-inset-bottom)) !important; }
   .modal-card{
     padding-bottom:calc(18px + env(safe-area-inset-bottom));
     max-height:85vh; max-height:85dvh;
@@ -780,7 +780,7 @@
     #panelHome > :not(#prioCard):not(#homeZieleCard):not(#homeAufgabenCard):not(#homeTermineCard):not(.home-links){ grid-column:1 / -1; }
     .home-links{ grid-template-columns:repeat(3, minmax(0,1fr)); }
     /* Vollbild-Abläufe mittig statt über die ganze Breite */
-    .modal-overlay[style*="align-items:stretch"] > div{ max-width:780px; width:100%; margin-left:auto !important; margin-right:auto !important; }
+    .modal-overlay.kg-full > div{ max-width:780px; width:100%; margin-left:auto !important; margin-right:auto !important; }
     .modal-card{ max-width:520px; }
     .card:hover{ border-color:rgba(255,255,255,.1); }
   }
@@ -1109,12 +1109,12 @@
   @media (min-width:1024px){ .bottom-bar{ background:rgba(6,9,11,.72) !important; border-top:none !important; border-right:1px solid rgba(255,255,255,.06) !important; } }
   /* Popups als Material: größer = dicker */
   .modal-overlay{ background:rgba(3,5,6, calc(.78 * var(--scrim, 1))) !important; }
-  .modal-overlay:not([style*="align-items:stretch"]) > .modal-card{
+  .modal-overlay:not(.kg-full) > .modal-card{
     background:linear-gradient(180deg, rgba(20,27,31,.9), rgba(10,14,16,.94)); -webkit-backdrop-filter:blur(28px) saturate(160%); backdrop-filter:blur(28px) saturate(160%);
     border:1px solid rgba(255,255,255,.08); box-shadow:0 -12px 60px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.06); will-change:transform; }
   @media (max-width:479px){
-    .modal-overlay:not([style*="align-items:stretch"]) > .modal-card{ padding-top:26px; }
-    .modal-overlay:not([style*="align-items:stretch"]) > .modal-card::before{ content:''; position:absolute; top:8px; left:50%; width:38px; height:5px; margin-left:-19px; border-radius:99px; background:rgba(255,255,255,.22); }
+    .modal-overlay:not(.kg-full) > .modal-card{ padding-top:26px; }
+    .modal-overlay:not(.kg-full) > .modal-card::before{ content:''; position:absolute; top:8px; left:50%; width:38px; height:5px; margin-left:-19px; border-radius:99px; background:rgba(255,255,255,.22); }
   }
   /* 6. Umschalter mit gleitender Markierung */
   .kg-seg{ position:relative; }
@@ -1147,7 +1147,7 @@
     .topbar, body.kg-scrolled .topbar, .bottom-bar, .modal-overlay > .modal-card{ -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
     body.kg-scrolled .topbar{ background:#050809 !important; }
     .bottom-bar{ background:#06090B !important; }
-    .modal-overlay:not([style*="align-items:stretch"]) > .modal-card{ background:#0E1417 !important; }
+    .modal-overlay:not(.kg-full) > .modal-card{ background:#0E1417 !important; }
   }
   @media (prefers-contrast: more){
     .card, .modal-card, .aufg-tabs, .fs-tile, .badge{ border-color:rgba(255,255,255,.35) !important; }
@@ -1378,7 +1378,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="reflexionOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="reflexionOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="reflexionOverlayCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="reflexionContent" style="margin-top:36px;"></div>
@@ -1446,7 +1446,7 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="routineExecOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="routineExecOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="routineExecCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="routineExecution" style="margin-top:36px;"></div>
@@ -1476,21 +1476,21 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="affirmationenExecOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="affirmationenExecOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="affirmationenExecCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="affirmationenExecution" style="margin-top:36px;"></div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="wutjournalOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="wutjournalOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="wutjournalCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="wutjournalExecution" style="margin-top:36px;"></div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="quickGoalsOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="quickGoalsOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="quickGoalsCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="quickGoalsExecution" style="margin-top:36px;"></div>
@@ -1510,14 +1510,14 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="satzergaenzungOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="satzergaenzungOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="satzergaenzungCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="satzergaenzungExecution" style="margin-top:36px;"></div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="sprechuebungOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+  <div class="modal-overlay kg-full" id="sprechuebungOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
     <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 40px; position:relative;">
       <button class="modal-close" id="sprechuebungCloseBtn" aria-label="Schließen" style="position:sticky; top:0; float:right;">×</button>
       <div id="sprechuebungExecution" style="margin-top:36px;"></div>
@@ -1907,7 +1907,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="workoutOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
+<div class="modal-overlay kg-full" id="workoutOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto;">
   <div style="background:var(--paper); width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 16px 120px; position:relative;">
     <div class="wo-topbar">
       <button type="button" class="wo-back" id="workoutMinimize" aria-label="Zurück, Training läuft weiter">‹ Zurück</button>
@@ -2032,7 +2032,7 @@
   <div class="modal-card" id="calEventCard"></div>
 </div>
 
-<div class="modal-overlay" id="msgOverlay" style="display:none; align-items:stretch;">
+<div class="modal-overlay kg-full" id="msgOverlay" style="display:none; align-items:stretch;">
   <div class="msg-sheet">
     <div class="msg-sheet-head">
       <button type="button" class="back-btn" id="msgClose" style="margin:0;">← Nachrichten</button>
@@ -2070,7 +2070,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="ernSheet" style="display:none; align-items:stretch; z-index:60;">
+<div class="modal-overlay kg-full" id="ernSheet" style="display:none; align-items:stretch; z-index:60;">
   <div class="msg-sheet">
     <div class="msg-sheet-head"><button type="button" class="back-btn" id="ernSheetClose" style="margin:0;">← Zurück</button></div>
     <div id="ernSheetBody"></div>
@@ -10704,7 +10704,7 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
   // ---- 2. Popups: einfahren/ausfahren mit Feder, nach unten ziehen zum Schließen
   const sheets = new Map(); // overlay -> state
   function cardOf(ov){ return ov.querySelector(':scope > .modal-card'); }
-  function isFullscreen(ov){ return /align-items:\s*stretch/.test(ov.getAttribute('style') || ''); }
+  function isFullscreen(ov){ return ov.classList.contains('kg-full') || /align-items:\s*stretch/.test(ov.getAttribute('style') || ''); }
   function stateOf(ov){ let s = sheets.get(ov); if(!s){ s = { anim:null, y:0, open:false, closing:false }; sheets.set(ov, s); } return s; }
   function applyCard(ov, card, y, h){
     if(isSheetLayout()){ card.style.transform = `translate3d(0,${y}px,0)`; ov.style.setProperty('--scrim', String(Math.max(0, Math.min(1, 1 - y / Math.max(1, h))))); }
