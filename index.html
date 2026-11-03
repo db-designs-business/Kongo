@@ -743,6 +743,18 @@
   .aufg-new-btn{ flex-shrink:0; white-space:nowrap; }
   #aufgNewOverlay .aufg-new input[type=text]{ width:100%; }
   #aufgNewOverlay .aufg-new-meta{ margin:12px 0 4px; }
+
+  .aufg-head-btns{ display:flex; gap:8px; align-items:center; }
+  @media (max-width:560px){ #panelAufgaben .aufg-head{ flex-wrap:wrap; row-gap:10px; } #panelAufgaben .aufg-head-btns{ width:100%; } #panelAufgaben .aufg-head-btns > button{ flex:1; justify-content:center; } }
+  .aufg-voice-btn.on{ background:var(--forest); color:#04110F; border-color:var(--forest); }
+  .aufg-voice-btn{ min-height:44px; padding:8px 14px; display:inline-flex; align-items:center; gap:6px; }
+  .aufg-voice-btn::before{ content:''; width:14px; height:18px; background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 18'%3E%3Crect x='3' y='0' width='8' height='12' rx='4'/%3E%3Cpath d='M1 8a6 6 0 0 0 12 0' fill='none' stroke='black' stroke-width='2'/%3E%3Crect x='6' y='14' width='2' height='4'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 18'%3E%3Crect x='3' y='0' width='8' height='12' rx='4'/%3E%3Cpath d='M1 8a6 6 0 0 0 12 0' fill='none' stroke='black' stroke-width='2'/%3E%3Crect x='6' y='14' width='2' height='4'/%3E%3C/svg%3E") center/contain no-repeat; }
+  .kg-mic{ position:fixed; z-index:1300; width:46px; height:46px; border-radius:50%; border:1px solid rgba(34,227,211,.5); background:#141B1F; color:var(--forest); display:none; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(0,0,0,.5); padding:0; }
+  .kg-mic svg{ width:20px; height:20px; }
+  .kg-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
+  @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(34,227,211,.5); } 50%{ box-shadow:0 0 0 10px rgba(34,227,211,0); } }
+  .kg-mic-live{ position:fixed; z-index:1300; left:16px; right:72px; padding:8px 12px; border-radius:12px; background:rgba(20,27,31,.96); border:1px solid var(--line-soft); color:var(--ink-soft); font-size:13.5px; display:none; max-height:4.5em; overflow:hidden; }
+  .aufg-src{ display:block; width:100%; text-align:left; margin-top:12px; padding:11px 14px; border-radius:12px; background:rgba(34,227,211,.07); border:1px solid rgba(34,227,211,.3); color:var(--forest); font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .hz-cat{ padding:8px 0; border-bottom:1px solid var(--line-soft); }
   .hz-cat:last-of-type{ border-bottom:none; }
   .hz-cat-label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; margin-bottom:4px; }
@@ -990,6 +1002,9 @@
   .msg-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
   .msg-att{ font-size:13px; padding:7px 11px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink-soft); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .msg-actions button{ flex:1; min-height:48px; font-size:15.5px; }
+  .msg-actions .primary::after{ content:none !important; }
+  .msg-actions{ gap:8px; }
+  .msg-actions button{ padding-left:8px; padding-right:8px; white-space:nowrap; font-size:14.5px; }
   .msg-compose-card textarea{ min-height:120px; }
   .msg-ctx{ max-height:32vh; overflow-y:auto; overscroll-behavior:contain; margin:0 0 12px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); font-size:13.5px; }
   .msg-ctx:empty{ display:none; }
@@ -1602,7 +1617,10 @@
   <div id="panelAufgaben" style="display:none;">
     <div class="aufg-head">
       <h1>Aufgaben</h1>
-      <button type="button" class="primary aufg-new-btn" id="aufgNewOpen">+ Neue Aufgabe</button>
+      <div class="aufg-head-btns">
+        <button type="button" class="ghost aufg-voice-btn" id="aufgVoiceBtn" style="display:none;">Sprechen</button>
+        <button type="button" class="primary aufg-new-btn" id="aufgNewOpen">+ Neue Aufgabe</button>
+      </div>
     </div>
     <div id="aufgabenStatus" class="save-status"></div>
 
@@ -7506,6 +7524,7 @@
           erledigtAm: f['Erledigt am'] || '',
           zielId: f['ZielId'] || '',
           notiz: f['Notiz'] || '',
+          quelle: (()=>{ try{ return f['Quelle'] ? JSON.parse(f['Quelle']) : null; }catch(e){ return null; } })(),
           eventId: f['EventId'] || '',
           termin: f['Termin'] || '',
           createdAt: f['Erstellt am'] || ''
@@ -7791,6 +7810,7 @@
         </select>
       </div>
       ${t.termin ? `<div class="hint" style="margin:10px 0 0;">📅 Im Kalender: ${escapeHtml(new Date(t.termin).toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} Uhr</div>` : ''}
+      ${t.quelle ? `<button type="button" class="aufg-src" id="aufgEditSrc">${t.quelle.src === 'slack' ? '💬' : '✉️'} Zur Nachricht: ${escapeHtml((t.quelle.label || '').slice(0, 60))}</button>` : ''}
       <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink-soft);">Beschreibung</div>
       <textarea id="aufgEditNotiz" placeholder="Beschreibung (optional)" style="min-height:110px;margin-top:6px;">${escapeHtml(t.notiz)}</textarea>
       ${t.termin ? '' : `<div class="aufg-cal-box">
@@ -7827,6 +7847,8 @@
     const clr = host.querySelector('#aufgEditFaelligClear');
     if(clr) clr.onclick = ()=>{ host.querySelector('#aufgEditFaellig').value = ''; clr.remove(); };
     host.querySelector('#aufgEditCancel').onclick = closeAufgabeEdit;
+    const srcBtn = host.querySelector('#aufgEditSrc');
+    if(srcBtn) srcBtn.onclick = ()=>{ closeAufgabeEdit(); window.kgOpenMessageRef && window.kgOpenMessageRef(t.quelle); };
     const saveBtn = host.querySelector('#aufgEditSave');
     saveBtn.onclick = async ()=>{
       if(saveBtn.disabled) return;
@@ -7889,9 +7911,19 @@
     const addBtn = document.getElementById('aufgNewAdd');
     const overlay = document.getElementById('aufgNewOverlay');
     const newStatus = (m)=>{ document.getElementById('aufgNewStatus').textContent = m; };
-    const openNew = ()=>{
+    let newQuelle = null;
+    const openNew = (pre)=>{
       newStatus('');
-      document.getElementById('aufgNewHeute').checked = aufgabenView === 'heute';
+      pre = pre && pre.titel !== undefined ? pre : null;
+      newQuelle = pre && pre.quelle || null;
+      document.getElementById('aufgNewHeute').checked = pre && 'heute' in pre ? !!pre.heute : aufgabenView === 'heute';
+      if(pre){
+        input.value = pre.titel || ''; document.getElementById('aufgNewNotiz').value = pre.notiz || '';
+        document.getElementById('aufgNewFaellig').value = pre.faellig || '';
+        if(pre.prio && ['A','B','C'].includes(pre.prio)){ aufgabenNewPrio = pre.prio; paintNew(); }
+        if(pre.bereich && ['Business','Privat'].includes(pre.bereich)){ aufgabenNewBereich = pre.bereich; paintNew(); }
+      }
+      overlay.style.zIndex = pre ? '58' : '';
       overlay.style.display = 'flex';
       setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 60);
     };
@@ -7934,12 +7966,15 @@
         'Faellig': document.getElementById('aufgNewFaellig').value || '',
         'Heute': (heute && count < HEUTE_LIMIT) ? heute : '',
         'Notiz': (document.getElementById('aufgNewNotiz').value || '').trim(),
+        'Quelle': newQuelle ? JSON.stringify(newQuelle) : '',
         'Erstellt am': new Date().toISOString()
       };
       addBtn.disabled = true;
       try{
         const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
-        aufgabenCache.push({ id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig: fields['Faellig'], heute: fields['Heute'], erledigtAm:'', zielId:'', notiz: fields['Notiz'], createdAt: fields['Erstellt am'] });
+        aufgabenCache.push({ id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig: fields['Faellig'], heute: fields['Heute'], erledigtAm:'', zielId:'', notiz: fields['Notiz'], quelle: newQuelle, createdAt: fields['Erstellt am'] });
+        if(newQuelle) kgUndoToast('Aufgabe erstellt ✓');
+        newQuelle = null;
         document.getElementById('aufgNewNotiz').value = '';
         input.value = '';
         document.getElementById('aufgNewFaellig').value = '';
@@ -9160,7 +9195,7 @@
         det.innerHTML = `<div class="msg-subject">${escapeHtml(m.subject)}</div><div class="slack-thread">${(j.messages || []).map(x=>`<div class="slack-msg ${x.mine ? 'mine' : ''}"><div class="slack-meta"><b>${escapeHtml(x.user)}</b> · ${escapeHtml(relTime(x.date))}${x.replies ? ' · ' + x.replies + ' Antworten im Thread' : ''}</div><div class="slack-text">${linkify(x.text)}</div></div>`).join('')}</div>`;
         // neueste Nachricht unten sofort sichtbar
         det.scrollTop = det.scrollHeight; requestAnimationFrame(()=>{ det.scrollTop = det.scrollHeight; });
-        acts.innerHTML = '<button type="button" class="primary" data-act="reply">Antworten</button>';
+        acts.innerHTML = '<button type="button" class="ghost msg-task-btn" data-act="task">Als Aufgabe</button><button type="button" class="primary" data-act="reply">Antworten</button>';
       } else {
         const j = m.source === 'gmail' ? await kgApi('google.php?action=mail_get&id=' + encodeURIComponent(m.id)) : await kgApi('mail.php?action=get&account=' + encodeURIComponent(m.accountId) + '&id=' + encodeURIComponent(m.id));
         msg.current.detail = j;
@@ -9169,12 +9204,121 @@
           <div class="msg-body">${linkify(j.text || '')}</div>
           ${(j.attachments || []).length ? `<div class="msg-atts">${j.attachments.map(a=>`<span class="msg-att">📎 ${escapeHtml(a.name)}${a.size ? ' · ' + (a.size > 1048576 ? fmtMB(a.size) : Math.max(1, Math.round(a.size / 1024)) + ' KB') : ''}</span>`).join('')}</div>` : ''}`;
         det.scrollTop = 0;
-        acts.innerHTML = '<button type="button" class="ghost" data-act="forward">↪ Weiterleiten</button><button type="button" class="primary" data-act="reply">↩ Antworten</button>';
+        acts.innerHTML = '<button type="button" class="ghost msg-task-btn" data-act="task">Als Aufgabe</button><button type="button" class="ghost" data-act="forward">Weiterleiten</button><button type="button" class="primary" data-act="reply">Antworten</button>';
       }
-      acts.querySelectorAll('[data-act]').forEach(b=>b.onclick = ()=>openCompose(b.dataset.act));
+      acts.querySelectorAll('[data-act]').forEach(b=>b.onclick = ()=>b.dataset.act === 'task' ? messageToTask(b) : openCompose(b.dataset.act));
       if(m.unread){ m.unread = false; updateMsgBadge(); }
     }catch(e){ det.innerHTML = '<div class="msg-err">⚠️ ' + escapeHtml(e.message) + '</div>'; }
   }
+  /* ---------- Spracheingabe (Diktat) ---------- */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const voice = { rec:null, on:false, target:null, base:'', final:'', onEnd:null };
+  function voiceStart(target, onEnd){
+    if(!SR) return false;
+    voiceStop(true);
+    const r = new SR(); r.lang = 'de-DE'; r.continuous = true; r.interimResults = true;
+    voice.rec = r; voice.on = true; voice.target = target; voice.onEnd = onEnd || null; voice.final = '';
+    voice.base = target ? target.value : '';
+    const caret = target && typeof target.selectionStart === 'number' ? target.selectionStart : (voice.base.length);
+    const before = voice.base.slice(0, caret), after = voice.base.slice(caret);
+    r.onresult = ev=>{
+      if(voice.rec !== r) return;
+      let interim = '';
+      for(let i = ev.resultIndex; i < ev.results.length; i++){ const t = ev.results[i][0].transcript; if(ev.results[i].isFinal) voice.final += t; else interim += t; }
+      const spoken = (voice.final + interim).trim();
+      if(target){ const sep = before && !/\s$/.test(before) && spoken ? ' ' : ''; target.value = before + sep + spoken + after; target.dispatchEvent(new Event('input', { bubbles:true })); }
+      micLive(spoken);
+    };
+    r.onerror = e=>{ if(voice.rec !== r) return; if(e.error === 'not-allowed') kgUndoToast('Mikrofon nicht erlaubt. iPhone: Einstellungen → Safari → Mikrofon.'); };
+    r.onend = ()=>{ if(voice.rec !== r) return; const was = voice.on; voice.on = false; micPaint(); micLive(''); if(was && voice.onEnd) voice.onEnd(voice.final.trim()); voice.onEnd = null; };
+    try{ r.start(); }catch(e){ voice.on = false; return false; }
+    micPaint();
+    return true;
+  }
+  function voiceStop(silent){ if(voice.rec){ if(silent) voice.onEnd = null; try{ voice.rec.stop(); }catch(e){} } }
+  // Schwebender Mikrofon-Knopf an jedem Textfeld
+  const micBtn = document.createElement('button'); micBtn.type = 'button'; micBtn.className = 'kg-mic'; micBtn.setAttribute('aria-label', 'Diktieren');
+  micBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+  const micLiveEl = document.createElement('div'); micLiveEl.className = 'kg-mic-live';
+  if(SR){ document.body.appendChild(micBtn); document.body.appendChild(micLiveEl); }
+  let micField = null;
+  const micOk = el=>el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'search'))) && !el.closest('.auth-screen') && !el.readOnly;
+  function micPlace(){
+    if(!micField){ micBtn.style.display = 'none'; return; }
+    const vv = window.visualViewport; const r = micField.getBoundingClientRect();
+    const vh = vv ? vv.height + vv.offsetTop : innerHeight;
+    let top = Math.min(r.bottom - 52, vh - 58); top = Math.max(top, (vv ? vv.offsetTop : 0) + 8);
+    micBtn.style.top = top + 'px'; micBtn.style.left = Math.min(r.right - 52, innerWidth - 58) + 'px'; micBtn.style.display = 'flex';
+    micLiveEl.style.top = Math.max(8, top - 4) + 'px';
+  }
+  function micPaint(){ micBtn.classList.toggle('on', voice.on); }
+  function micLive(t){ micLiveEl.textContent = t; micLiveEl.style.display = voice.on && t && micField && micField.tagName === 'INPUT' ? 'block' : 'none'; }
+  if(SR){
+    document.addEventListener('focusin', e=>{ if(micOk(e.target)){ micField = e.target; micPlace(); } });
+    document.addEventListener('focusout', e=>{ setTimeout(()=>{ if(document.activeElement !== micField && !voice.on){ micField = null; micPlace(); } }, 120); });
+    ['scroll','resize'].forEach(ev=>(window.visualViewport || window).addEventListener(ev, ()=>{ if(micField) micPlace(); }));
+    window.addEventListener('scroll', ()=>{ if(micField) micPlace(); }, { passive:true, capture:true });
+    const toggle = e=>{ e.preventDefault(); if(voice.on){ voiceStop(); return; } if(micField){ micField.focus(); voiceStart(micField); } };
+    micBtn.addEventListener('mousedown', toggle); micBtn.addEventListener('touchstart', toggle, { passive:false });
+  }
+  // Aufgabe per Sprache: sprechen -> KI macht daraus Titel, Details, Fälligkeit
+  const voiceBtn = document.getElementById('aufgVoiceBtn');
+  if(SR) voiceBtn.style.display = '';
+  voiceBtn.onclick = ()=>{
+    if(voice.on && voice.onEnd){ voiceStop(); return; }
+    voiceBtn.textContent = 'Fertig'; voiceBtn.classList.add('on');
+    const ok = voiceStart(null, async text=>{
+      voiceBtn.textContent = 'Sprechen'; voiceBtn.classList.remove('on');
+      if(!text) return;
+      let pre = { titel: text.slice(0, 120), notiz: text.length > 120 ? text : '' };
+      if(getAnthropicToken()){
+        kgUndoToast('Formuliere Aufgabe …', null, 2500);
+        try{
+          const out = await callClaudeCoach(`Dominic hat eine Aufgabe diktiert. Heute ist ${todayStr()} (${['So','Mo','Di','Mi','Do','Fr','Sa'][new Date().getDay()]}). Mach daraus EINE Aufgabe.
+Antworte NUR mit JSON: {"titel": kurz mit Verb, max 70 Zeichen, "notiz": Details aus dem Diktat (oder ""), "faellig": "YYYY-MM-DD" wenn ein Tag genannt wird (morgen, Freitag, 12.11.) sonst "", "heute": true wenn heute gemeint ist, "prio": "A" wenn dringend sonst "B", "bereich": "Business" oder "Privat"}. Keine Gedankenstriche.
+Diktat: ${text}`);
+          const j = JSON.parse((out.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+          pre = { titel: j.titel || pre.titel, notiz: j.notiz || '', faellig: /^\d{4}-\d{2}-\d{2}$/.test(j.faellig || '') ? j.faellig : '', heute: !!j.heute, prio: j.prio, bereich: j.bereich };
+        }catch(e){}
+      }
+      window.__openAufgNew(pre);
+    });
+    if(!ok){ voiceBtn.textContent = 'Sprechen'; voiceBtn.classList.remove('on'); }
+    else kgUndoToast('Sprich jetzt. Tippe auf „Fertig“, wenn du fertig bist.', null, 4000);
+  };
+
+  // Nachricht -> Aufgabe (KI formuliert, du prüfst im Popup)
+  async function messageToTask(btn){
+    if(!msg.current || !msg.current.detail || btn.disabled) return;
+    const m = msg.current.item, d = msg.current.detail;
+    const isSlack = m.source === 'slack';
+    const label = isSlack ? m.subject + ' · ' + msgLabel(m.source, m.account) : fromName(d.from) + ': ' + (d.subject || m.subject);
+    const quelle = { src:m.source, account:m.account, accountId:m.accountId || '', id:m.id, team:m.team || '', label };
+    const ctx = isSlack ? (d.messages || []).slice(-8).map(x=>(x.mine ? 'Ich' : x.user) + ': ' + x.text).join('\n') : 'Von: ' + d.from + '\nBetreff: ' + d.subject + '\n\n' + (d.text || '').slice(0, 4000);
+    let pre = { titel: isSlack ? (m.snippet || '').slice(0, 80) : (d.subject || m.subject), notiz: '', quelle, bereich:'Business' };
+    if(getAnthropicToken()){
+      btn.disabled = true; const old = btn.innerHTML; btn.innerHTML = '…';
+      try{
+        const out = await callClaudeCoach(`Mach aus dieser ${isSlack ? 'Slack-Unterhaltung' : 'E-Mail'} EINE konkrete Aufgabe für Dominic (Inhaber der Agentur BDRIVEN). Heute ist ${todayStr()} (${['So','Mo','Di','Mi','Do','Fr','Sa'][new Date().getDay()]}).
+Antworte NUR mit JSON: {"titel": kurz, mit Verb, max 70 Zeichen, "notiz": 1 bis 3 Sätze mit den wichtigen Details (Namen, Zahlen, Fristen), "faellig": "YYYY-MM-DD" nur wenn eine Frist genannt wird sonst "", "prio": "A" bei dringend/Kunde wartet, sonst "B", "bereich": "Business" oder "Privat"}. Keine Gedankenstriche.
+${isSlack ? 'Slack ' + m.subject : 'E-Mail'}:
+${ctx}`);
+        const j = JSON.parse((out.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+        pre = Object.assign(pre, { titel: j.titel || pre.titel, notiz: j.notiz || '', faellig: /^\d{4}-\d{2}-\d{2}$/.test(j.faellig || '') ? j.faellig : '', prio: j.prio, bereich: j.bereich || 'Business' });
+      }catch(e){}
+      btn.disabled = false; btn.innerHTML = old;
+    }
+    window.__openAufgNew(pre);
+  }
+  window.kgOpenMessageRef = q=>{
+    if(!q) return;
+    switchTab('nachrichten');
+    const find = ()=> (msg.items || []).find(x=>x.source === q.src && x.id === q.id && (q.src !== 'mail' || x.accountId === q.accountId) && (q.src !== 'slack' || x.team === q.team));
+    const it = find();
+    if(it) return openMessage(it);
+    // nicht mehr in der Liste: direkt laden
+    openMessage({ source:q.src, account:q.account, accountId:q.accountId, id:q.id, team:q.team, subject:(q.label || '').split(' · ')[0], unread:false });
+  };
   const msgComposeOverlay = document.getElementById('msgComposeOverlay');
   document.getElementById('msgComposeClose').onclick = ()=>{ msgComposeOverlay.style.display = 'none'; };
   function openCompose(mode){
