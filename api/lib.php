@@ -29,6 +29,8 @@ function kg_db(): PDO {
   $pdo->exec('CREATE TABLE IF NOT EXISTS login_fails (ip TEXT NOT NULL, ts INTEGER NOT NULL)');
   $pdo->exec('CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, base TEXT NOT NULL, tbl TEXT NOT NULL, fields TEXT NOT NULL, created TEXT NOT NULL)');
   $pdo->exec('CREATE INDEX IF NOT EXISTS rec_tbl ON records(user_id, base, tbl)');
+  $cols = array_column($pdo->query('PRAGMA table_info(sessions)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+  if (!in_array('last_seen', $cols, true)) $pdo->exec('ALTER TABLE sessions ADD COLUMN last_seen INTEGER NOT NULL DEFAULT 0');
   return $pdo;
 }
 
@@ -56,24 +58,38 @@ function kg_set_cookie(string $value, int $expires): void {
 function kg_start_session(int $userId): void {
   $token = bin2hex(random_bytes(32));
   $exp = time() + KG_SESSION_DAYS * 86400;
-  kg_db()->prepare('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)')->execute([hash('sha256', $token), $userId, $exp]);
+  // alte Sitzung dieses Geräts ersetzen (z. B. beim Entsperren)
+  $old = $_COOKIE[KG_COOKIE] ?? '';
+  if (is_string($old) && preg_match('/^[a-f0-9]{64}$/', $old)) kg_db()->prepare('DELETE FROM sessions WHERE token=?')->execute([hash('sha256', $old)]);
+  kg_db()->prepare('INSERT INTO sessions(token,user_id,expires,last_seen) VALUES(?,?,?,?)')->execute([hash('sha256', $token), $userId, $exp, time()]);
   kg_db()->prepare('DELETE FROM sessions WHERE expires < ?')->execute([time()]);
   kg_set_cookie($token, $exp);
 }
 
-// Liefert die User-ID der aktuellen Sitzung oder null
-function kg_current_user(): ?int {
+// Sitzung ohne Sperr-Prüfung: [user_id, last_seen] oder null
+function kg_session_row(): ?array {
   $t = $_COOKIE[KG_COOKIE] ?? '';
   if (!is_string($t) || !preg_match('/^[a-f0-9]{64}$/', $t)) return null;
-  $st = kg_db()->prepare('SELECT user_id FROM sessions WHERE token=? AND expires>?');
+  $st = kg_db()->prepare('SELECT user_id, last_seen FROM sessions WHERE token=? AND expires>?');
   $st->execute([hash('sha256', $t), time()]);
-  $id = $st->fetchColumn();
-  return $id === false ? null : (int)$id;
+  $r = $st->fetch(PDO::FETCH_ASSOC);
+  return $r ? ['uid' => (int)$r['user_id'], 'seen' => (int)$r['last_seen'], 'hash' => hash('sha256', $t)] : null;
+}
+// App-Sperre (Face ID): nach einer Zeit ohne Nutzung muss neu entsperrt werden
+function kg_applock(int $uid): array { $a = kg_get($uid, 'applock', []); return ['on' => !empty($a['on']), 'idle' => max(30, (int)($a['idle'] ?? 300))]; }
+function kg_is_locked(array $row): bool { $l = kg_applock($row['uid']); return $l['on'] && (time() - $row['seen']) > $l['idle']; }
+
+// Liefert die User-ID der aktuellen (entsperrten) Sitzung oder null
+function kg_current_user(): ?int {
+  $r = kg_session_row();
+  if (!$r || kg_is_locked($r)) return null;
+  if (time() - $r['seen'] > 20) kg_db()->prepare('UPDATE sessions SET last_seen=? WHERE token=?')->execute([time(), $r['hash']]);
+  return $r['uid'];
 }
 
 function kg_require_user(): int {
   $u = kg_current_user();
-  if ($u === null) kg_json(['error' => ['type' => 'AUTH', 'message' => 'Nicht angemeldet']], 401);
+  if ($u === null) { $r = kg_session_row(); kg_json(['error' => ['type' => $r ? 'LOCKED' : 'AUTH', 'message' => $r ? 'Gesperrt' : 'Nicht angemeldet']], 401); }
   kg_backup_lazy();
   return $u;
 }

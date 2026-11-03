@@ -119,6 +119,10 @@
   .set-toggle input:checked + i{ background:var(--forest); }
   .set-toggle input:checked + i::after{ transform:translateX(20px); }
   .set-toggle input:focus-visible + i{ outline:2px solid var(--forest); outline-offset:2px; }
+  .set-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; min-height:48px; border-top:1px solid var(--line-soft); font-size:14.5px; }
+  .set-row small{ color:var(--ink-soft); font-size:12px; margin-left:4px; }
+  .set-row select{ width:auto; min-width:130px; }
+  #faceIdList .set-row{ padding:8px 0; border-top:0; }
   .set-list{ margin-top:12px; border:1px solid var(--line-soft); border-radius:14px; overflow:hidden; }
   .set-list > div{ display:flex; justify-content:space-between; gap:10px; padding:12px 14px; font-size:14px; border-top:1px solid var(--line-soft); }
   .set-list > div:first-child{ border-top:0; }
@@ -727,6 +731,11 @@
   .auth-card .auth-sub{ text-align:center; color:var(--ink-soft); font-size:14px; margin-bottom:22px; }
   .auth-card label{ display:block; font-size:13px; font-weight:600; margin:12px 0 6px; }
   .auth-card button.primary{ width:100%; margin-top:18px; }
+  .auth-card .auth-pk{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px; min-height:54px; font-size:16.5px; }
+  .auth-card .auth-pk svg{ width:24px; height:24px; }
+  .auth-card .auth-pk::after{ content:none !important; }
+  .auth-alt{ display:block; margin:16px auto 0; background:none; border:0; color:var(--forest); font-weight:600; font-size:14.5px; padding:10px; }
+  body.kg-privacy > *:not(.auth-screen):not(script){ filter:blur(20px); }
   .auth-err{ color:var(--danger); font-size:13.5px; min-height:20px; margin-top:10px; text-align:center; }
   .import-log{ font-size:12.5px; color:var(--ink-soft); max-height:180px; overflow-y:auto; margin-top:10px; white-space:pre-line; }
   .aufg-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
@@ -1249,6 +1258,11 @@
     </svg>
     <div class="auth-logo">KONGROW</div>
     <div class="auth-sub" id="authSub">Anmelden</div>
+    <div id="authPkWrap" style="display:none;">
+      <button type="button" class="primary auth-pk" id="authPasskey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 3H5a2 2 0 0 0-2 2v2M17 3h2a2 2 0 0 1 2 2v2M7 21H5a2 2 0 0 1-2-2v-2M17 21h2a2 2 0 0 0 2-2v-2M9 9v1.5M15 9v1.5M12 9v4.5h-1M9.5 16.5c1.5 1 3.5 1 5 0"/></svg><span id="authPasskeyLabel">Mit Face ID entsperren</span></button>
+      <button type="button" class="auth-alt" id="authUsePw">Mit Passwort</button>
+    </div>
+    <div id="authPwWrap">
     <div id="authSetupFields" style="display:none;">
       <label for="authCode">Einrichtungscode</label>
       <input type="text" id="authCode" autocapitalize="characters" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX">
@@ -1262,6 +1276,7 @@
       <input type="password" id="authPass2" autocomplete="new-password">
     </div>
     <button type="submit" class="primary" id="authSubmit">Anmelden</button>
+    </div>
     <div class="auth-err" id="authErr"></div>
   </form>
 </div>
@@ -2235,7 +2250,18 @@
       <div class="hint" style="margin:10px 0 0;">Auf dem iPhone kommen Mitteilungen nur, wenn Kongrow vom Home-Bildschirm geöffnet wurde und unter Einstellungen → Mitteilungen → Kongrow erlaubt ist.</div>
     </div>
     <div class="set-pane" data-pane="konto" style="display:none;">
-      <div class="push-box" style="margin-top:4px;">
+      <div class="push-box" style="margin-top:4px;" id="faceIdBox">
+        <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🙂 Face ID & App-Sperre</div>
+        <div class="hint" style="margin-bottom:10px;" id="faceIdInfo">Lade ...</div>
+        <div id="faceIdList"></div>
+        <button type="button" class="ghost" id="faceIdAdd" style="margin-top:6px;">Face ID auf diesem Gerät einrichten</button>
+        <div class="set-list" id="appLockRow" style="display:none; margin-top:12px;">
+          <label class="set-toggle"><span><b>App mit Face ID sperren</b><small>Beim Öffnen Face ID, sonst Passwort</small></span><input type="checkbox" role="switch" id="appLockOn"><i></i></label>
+          <div class="set-row"><span>Sperren nach</span><select id="appLockIdle"><option value="30">Sofort</option><option value="300">5 Minuten</option><option value="900">15 Minuten</option><option value="3600">1 Stunde</option></select></div>
+        </div>
+        <div class="save-status" id="faceIdStatus"></div>
+      </div>
+      <div class="push-box" style="margin-top:12px;">
         <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔐 Konto</div>
         <div class="hint" style="margin-bottom:10px;" id="accountInfo">Angemeldet</div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -2268,22 +2294,80 @@
   const authErr = document.getElementById('authErr');
 
   function markAuthed(){ authScreen.classList.remove('show'); if(!authResolved){ authResolved = true; authResolve(); } }
+  const pkSupported = !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.get);
+  let authInfo = { passkey:false, username:'' };
+  try{ authInfo.passkey = localStorage.getItem('kg_pk') === '1'; authInfo.username = localStorage.getItem('kg_user') || ''; }catch(e){}
   function showAuth(mode){
     authMode = mode;
-    const setup = mode === 'setup';
+    const setup = mode === 'setup', lock = mode === 'lock';
+    const pk = !setup && pkSupported && authInfo.passkey;
     document.getElementById('authSetupFields').style.display = setup ? 'block' : 'none';
     document.getElementById('authPass2Wrap').style.display = setup ? 'block' : 'none';
-    document.getElementById('authSub').textContent = setup ? 'Konto einrichten (nur einmalig möglich)' : 'Anmelden';
-    document.getElementById('authSubmit').textContent = setup ? 'Konto anlegen' : 'Anmelden';
+    document.getElementById('authSub').textContent = setup ? 'Konto einrichten (nur einmalig möglich)' : lock ? 'Gesperrt' + (authInfo.username ? ' · ' + authInfo.username : '') : 'Anmelden';
+    document.getElementById('authSubmit').textContent = setup ? 'Konto anlegen' : lock ? 'Entsperren' : 'Anmelden';
     document.getElementById('authPass').setAttribute('autocomplete', setup ? 'new-password' : 'current-password');
+    document.getElementById('authPasskeyLabel').textContent = lock ? 'Mit Face ID entsperren' : 'Mit Face ID anmelden';
+    document.getElementById('authPkWrap').style.display = pk ? '' : 'none';
+    document.getElementById('authPwWrap').style.display = pk ? 'none' : '';
+    if(lock && authInfo.username) document.getElementById('authUser').value = authInfo.username;
     authErr.textContent = '';
     authScreen.classList.add('show');
-    setTimeout(()=>{ try{ document.getElementById(setup ? 'authCode' : 'authUser').focus(); }catch(e){} }, 50);
+    document.body.classList.remove('kg-privacy');
+    if(pk) setTimeout(()=>passkeyLogin(true), 250);   // Face ID direkt anbieten (iOS fragt ggf. erst nach dem Tippen)
+    else setTimeout(()=>{ try{ document.getElementById(setup ? 'authCode' : (lock && authInfo.username ? 'authPass' : 'authUser')).focus(); }catch(e){} }, 50);
   }
-  function authLost(){
+  async function authLost(){
     if(authResolved){ authResolved = false; authReady = new Promise(r=>{ authResolve = r; }); }
-    showAuth('login');
+    if(authScreen.classList.contains('show')) return;
+    let mode = 'login';
+    try{ const st = await authApi('status'); if(st.loggedIn){ markAuthed(); return; } if(st.locked) mode = 'lock'; if(st.username) authInfo.username = st.username; authInfo.passkey = !!st.passkey; }catch(e){}
+    showAuth(mode);
   }
+  // ---- Passkeys (Face ID)
+  const b64uEnc = buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const b64uDec = s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((s.length + 3) % 4)), c=>c.charCodeAt(0));
+  let pkBusy = false;
+  async function passkeyLogin(auto){
+    if(pkBusy || !pkSupported) return; pkBusy = true; authErr.textContent = '';
+    try{
+      const o = await authApi('wa_login_options');
+      const cred = await navigator.credentials.get({ publicKey:{ challenge: b64uDec(o.challenge), rpId: o.rpId, userVerification:'required', timeout:60000,
+        allowCredentials: (o.allow || []).map(c=>({ type:'public-key', id: b64uDec(c.id) })) } });
+      const r = cred.response;
+      await authApi('wa_login', { id: cred.id, clientDataJSON: b64uEnc(r.clientDataJSON), authenticatorData: b64uEnc(r.authenticatorData), signature: b64uEnc(r.signature) });
+      document.getElementById('authPass').value = '';
+      lastActive = Date.now();
+      markAuthed();
+    }catch(e){
+      if(!auto || (e.name !== 'NotAllowedError' && e.name !== 'AbortError')) authErr.textContent = e.name === 'NotAllowedError' ? 'Face ID abgebrochen. Tippe auf den Button oder nimm dein Passwort.' : (e.message || 'Face ID hat nicht geklappt.');
+    }
+    pkBusy = false;
+  }
+  async function passkeyRegister(){
+    const o = await authApi('wa_register_options');
+    const cred = await navigator.credentials.create({ publicKey:{ challenge: b64uDec(o.challenge), rp:{ id:o.rpId, name:'Kongrow' },
+      user:{ id: b64uDec(o.userId), name:o.userName, displayName:o.userName }, pubKeyCredParams:[{ type:'public-key', alg:-7 }],
+      authenticatorSelection:{ authenticatorAttachment:'platform', residentKey:'preferred', userVerification:'required' }, attestation:'none', timeout:60000,
+      excludeCredentials:(o.exclude || []).map(c=>({ type:'public-key', id: b64uDec(c.id) })) } });
+    const name = /iPhone/.test(navigator.userAgent) ? 'iPhone' : /iPad/.test(navigator.userAgent) ? 'iPad' : /Mac/.test(navigator.userAgent) ? 'Mac' : /Android/.test(navigator.userAgent) ? 'Android' : 'Gerät';
+    await authApi('wa_register', { clientDataJSON: b64uEnc(cred.response.clientDataJSON), attestationObject: b64uEnc(cred.response.attestationObject), name });
+    authInfo.passkey = true; try{ localStorage.setItem('kg_pk', '1'); }catch(e){}
+  }
+  window.kgPasskeyRegister = passkeyRegister;
+  document.getElementById('authPasskey').onclick = ()=>passkeyLogin(false);
+  document.getElementById('authUsePw').onclick = ()=>{ document.getElementById('authPkWrap').style.display = 'none'; document.getElementById('authPwWrap').style.display = ''; setTimeout(()=>document.getElementById(authInfo.username ? 'authPass' : 'authUser').focus(), 50); };
+  // ---- App-Sperre: Aktivität mitteilen, beim Zurückkommen prüfen, im App-Umschalter verbergen
+  let lastActive = Date.now(), hiddenAt = 0, appLock = { on:false, idle:300 };
+  try{ const a = JSON.parse(localStorage.getItem('kg_applock') || 'null'); if(a) appLock = a; }catch(e){}
+  ['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev, ()=>{ lastActive = Date.now(); }, { passive:true }));
+  setInterval(()=>{ if(appLock.on && authResolved && document.visibilityState === 'visible' && Date.now() - lastActive < 120000) authApi('ping').then(st=>{ if(st.locked) authLost(); }).catch(()=>{}); }, 45000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'hidden'){ hiddenAt = Date.now(); if(appLock.on) document.body.classList.add('kg-privacy'); return; }
+    if(!appLock.on){ document.body.classList.remove('kg-privacy'); return; }
+    if(hiddenAt && Date.now() - hiddenAt > appLock.idle * 1000){ authLost(); }
+    else { document.body.classList.remove('kg-privacy'); }
+  });
+  window.kgSetAppLock = a=>{ appLock = a; try{ localStorage.setItem('kg_applock', JSON.stringify(a)); }catch(e){} };
   async function authApi(action, body){
     const res = await fetch(API_BASE + 'auth.php?action=' + action, {
       method: body ? 'POST' : 'GET', credentials:'same-origin',
@@ -2296,6 +2380,10 @@
   (async ()=>{
     try{
       const st = await authApi('status');
+      if(st.username){ authInfo.username = st.username; try{ localStorage.setItem('kg_user', st.username); }catch(e){} }
+      if('passkey' in st){ authInfo.passkey = !!st.passkey; try{ localStorage.setItem('kg_pk', st.passkey ? '1' : '0'); }catch(e){} }
+      if(st.applock) window.kgSetAppLock(st.applock);
+      if(st.locked){ showAuth('lock'); return; }
       if(st.loggedIn){
         markAuthed();
         let just = null; try{ just = localStorage.getItem('kongrow_just_setup'); localStorage.removeItem('kongrow_just_setup'); }catch(e){}
@@ -2325,6 +2413,8 @@
       }
       await authApi('login', { username, password });
       document.getElementById('authPass').value = '';
+      try{ localStorage.setItem('kg_user', username); }catch(e){} authInfo.username = username;
+      lastActive = Date.now();
       markAuthed();
     }catch(e){ authErr.textContent = e.message; }
     btn.disabled = false;
@@ -2756,9 +2846,43 @@
     document.querySelectorAll('#settingsModalOverlay .set-pane').forEach(p=>p.style.display = p.dataset.pane === v ? '' : 'none');
     if(v === 'verbindungen' && window.renderConnections) window.renderConnections(window.__connNote || '');
     if(v === 'push') renderNotifyPrefs();
+    if(v === 'konto') renderFaceId();
     window.__connNote = '';
   }
   document.querySelectorAll('#setTabs .aufg-tab').forEach(b=>b.onclick = ()=>showSetTab(b.dataset.v));
+  // Face ID / Passkeys + App-Sperre
+  async function renderFaceId(){
+    const info = document.getElementById('faceIdInfo'), list = document.getElementById('faceIdList'), st = document.getElementById('faceIdStatus');
+    const add = document.getElementById('faceIdAdd'), row = document.getElementById('appLockRow');
+    if(!(window.PublicKeyCredential && navigator.credentials)){ info.textContent = 'Dieser Browser unterstützt kein Face ID für Web-Apps.'; add.style.display = 'none'; return; }
+    let j; try{ j = await fetch('api/auth.php?action=wa_list', { credentials:'same-origin', cache:'no-store' }).then(r=>r.json()); }catch(e){ info.textContent = 'Konnte nicht geladen werden.'; return; }
+    const pks = j.passkeys || [];
+    info.textContent = pks.length ? 'Eingerichtet. Du kannst dich mit Face ID anmelden und die App damit sperren.' : 'Einmal einrichten, danach kommst du mit Face ID in die App. Dein Passwort funktioniert weiterhin.';
+    list.innerHTML = pks.map(p=>`<div class="set-row"><span>✓ ${escapeHtml(p.name)} <small>seit ${new Date(p.created).toLocaleDateString('de-DE')}</small></span><button type="button" class="aufg-link" data-pkdel="${escapeHtml(p.id)}">Entfernen</button></div>`).join('');
+    add.textContent = pks.length ? '+ Weiteres Gerät einrichten' : 'Face ID auf diesem Gerät einrichten';
+    row.style.display = pks.length ? '' : 'none';
+    const lock = j.applock || { on:false, idle:300 };
+    document.getElementById('appLockOn').checked = !!lock.on; document.getElementById('appLockIdle').value = String(lock.idle);
+    window.kgSetAppLock && window.kgSetAppLock(lock);
+    try{ localStorage.setItem('kg_pk', pks.length ? '1' : '0'); }catch(e){}
+    list.querySelectorAll('[data-pkdel]').forEach(b=>b.onclick = async ()=>{
+      await fetch('api/auth.php?action=wa_delete', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id:b.dataset.pkdel }) });
+      if(pks.length === 1) await saveLock(false);
+      renderFaceId();
+    });
+    add.onclick = async ()=>{
+      st.textContent = '';
+      try{ await window.kgPasskeyRegister(); st.textContent = 'Face ID eingerichtet ✓'; if(!pks.length) await saveLock(true); renderFaceId(); }
+      catch(e){ st.textContent = e.name === 'NotAllowedError' ? 'Abgebrochen.' : e.name === 'InvalidStateError' ? 'Auf diesem Gerät ist Face ID schon eingerichtet.' : (e.message || 'Einrichten fehlgeschlagen.'); }
+    };
+    async function saveLock(on){
+      const idle = +document.getElementById('appLockIdle').value || 300;
+      const r = await fetch('api/auth.php?action=applock', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ on, idle }) }).then(r=>r.json()).catch(()=>null);
+      if(r && r.applock) window.kgSetAppLock && window.kgSetAppLock(r.applock);
+    }
+    document.getElementById('appLockOn').onchange = e=>saveLock(e.target.checked);
+    document.getElementById('appLockIdle').onchange = ()=>saveLock(document.getElementById('appLockOn').checked);
+  }
   // Mitteilungen pro Quelle an/aus
   async function renderNotifyPrefs(){
     const el = document.getElementById('notifyList');
