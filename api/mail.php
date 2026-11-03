@@ -63,6 +63,19 @@ function m_smtp(array $a, string $from, array $rcpts, string $data): ?string {
   } catch (Exception $e) { fclose($fp); return 'SMTP: ' . $e->getMessage(); }
   fclose($fp); return null;
 }
+// Anhänge einer Mail finden (Teilnummer, Name, Typ, Kodierung)
+function m_attachments($st, string $num = ''): array {
+  $out = [];
+  if (!empty($st->parts)) { foreach ($st->parts as $i => $p) $out = array_merge($out, m_attachments($p, $num === '' ? (string)($i + 1) : $num . '.' . ($i + 1))); return $out; }
+  $name = '';
+  foreach (array_merge($st->dparameters ?? [], $st->parameters ?? []) as $p) if (in_array(strtolower($p->attribute), ['filename', 'name'], true)) { $name = m_dec($p->value); break; }
+  $disp = strtolower($st->disposition ?? '');
+  if ($name !== '' && ($disp === 'attachment' || ($st->type ?? 0) !== 0)) {
+    $types = ['text', 'multipart', 'message', 'application', 'audio', 'image', 'video', 'model', 'other'];
+    $out[] = ['num' => $num === '' ? '1' : $num, 'name' => $name, 'size' => (int)($st->bytes ?? 0), 'enc' => (int)($st->encoding ?? 0), 'mime' => ($types[$st->type ?? 8] ?? 'application') . '/' . strtolower($st->subtype ?? 'octet-stream')];
+  }
+  return $out;
+}
 function m_public(array $a): array { unset($a['pass']); return $a; }
 
 switch ($action) {
@@ -113,13 +126,40 @@ switch ($action) {
     $st = imap_fetchstructure($mb, $u, FT_UID);
     $plain = ''; $html = '';
     if ($st) m_part_text($mb, $u, $st, '', $plain, $html);
+    $attList = $st ? array_map(fn($x) => ['name' => $x['name'], 'size' => $x['size'], 'mime' => $x['mime']], m_attachments($st)) : [];
     imap_setflag_full($mb, (string)$u, '\\Seen', ST_UID);
     imap_close($mb);
     preg_match('/^References:\s*(.+(?:\r?\n[ \t].+)*)/mi', $hdrRaw, $rm);
     $addr = function ($list) { $o = []; foreach ((array)$list as $x) { if (empty($x->mailbox)) continue; $o[] = (isset($x->personal) ? m_dec($x->personal) . ' ' : '') . '<' . $x->mailbox . '@' . ($x->host ?? '') . '>'; } return implode(', ', $o); };
     kg_json(['id' => (string)$u, 'from' => $addr($h->from ?? []), 'to' => $addr($h->to ?? []), 'cc' => $addr($h->cc ?? []), 'replyTo' => $addr($h->reply_to ?? []),
       'subject' => m_dec($h->subject ?? ''), 'date' => $h->date ?? '', 'messageId' => $h->message_id ?? '', 'references' => trim(preg_replace('/\s+/', ' ', $rm[1] ?? '')),
-      'text' => $plain !== '' ? trim($plain) : kg_html_to_text($html)]);
+      'attachments' => $attList, 'text' => $plain !== '' ? trim($plain) : kg_html_to_text($html)]);
+
+  case 'forward':
+    // Weiterleiten inkl. Anhängen
+    $a = m_find($uid, (string)($in['account'] ?? '')); $u = (int)($in['id'] ?? 0);
+    $to = trim((string)($in['to'] ?? '')); $subject = (string)($in['subject'] ?? ''); $body = (string)($in['body'] ?? '');
+    preg_match_all('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $to, $mm); $rcpts = array_unique($mm[0]);
+    if (!$rcpts || !$u) kg_json(['error' => ['message' => 'Empfänger fehlt.']], 400);
+    [$mb, $err] = m_open($a);
+    if (!$mb) kg_json(['error' => ['message' => $err]], 502);
+    $st = imap_fetchstructure($mb, $u, FT_UID);
+    $atts = []; $total = 0; $skipped = [];
+    foreach ($st ? m_attachments($st) : [] as $x) {
+      if ($total + $x['size'] > 20 * 1024 * 1024) { $skipped[] = $x['name']; continue; }
+      $d = imap_fetchbody($mb, $u, $x['num'], FT_UID | FT_PEEK);
+      if ($x['enc'] == 3) $d = base64_decode($d); elseif ($x['enc'] == 4) $d = quoted_printable_decode($d);
+      $atts[] = ['name' => $x['name'], 'mime' => $x['mime'], 'data' => $d]; $total += strlen($d);
+    }
+    if ($skipped) $body .= "\n\n(Nicht mitgeschickt, zu groß: " . implode(', ', $skipped) . ')';
+    $from = $a['email']; $fromHdr = $a['name'] ? (mb_encode_mimeheader($a['name'], 'UTF-8', 'B') . ' <' . $from . '>') : $from;
+    $domain = substr(strrchr($from, '@'), 1);
+    $data = kg_mime_mixed(['Date: ' . date('r'), 'From: ' . $fromHdr, 'To: ' . $to, 'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8', 'B'), 'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $domain . '>'], $body, $atts);
+    $e2 = m_smtp($a, $from, $rcpts, $data);
+    if ($e2) { imap_close($mb); kg_json(['error' => ['message' => $e2]], 502); }
+    $sent = m_sent_folder($mb, $a); if ($sent) @imap_append($mb, '{' . $a['imap_host'] . ':' . (int)$a['imap_port'] . '/imap/ssl}' . $sent, $data . "\r\n", '\\Seen');
+    imap_close($mb);
+    kg_json(['ok' => true, 'attachments' => count($atts), 'skipped' => $skipped]);
 
   case 'send':
     $a = m_find($uid, (string)($in['account'] ?? ''));

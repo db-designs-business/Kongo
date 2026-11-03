@@ -9,7 +9,7 @@ function n_on(array $prefs, string $key, bool $default = true): bool { return ar
 function n_sources(int $uid): array {
   $p = n_prefs($uid); $out = [];
   $out[] = ['key' => 'morning', 'group' => 'Erinnerungen', 'name' => 'Morgenreflexion', 'sub' => 'täglich 5:30', 'on' => n_on($p, 'morning')];
-  $out[] = ['key' => 'evening', 'group' => 'Erinnerungen', 'name' => 'Tagesreflexion', 'sub' => 'täglich 20:30', 'on' => n_on($p, 'evening')];
+  $out[] = ['key' => 'evening', 'group' => 'Erinnerungen', 'name' => 'Abendreflexion', 'sub' => 'täglich 20:30', 'on' => n_on($p, 'evening')];
   $tok = kg_get($uid, 'google_tok');
   if (!empty($tok['refresh'])) $out[] = ['key' => 'gmail', 'group' => 'E-Mail', 'src' => 'gmail', 'account' => $tok['email'] ?? 'Google', 'name' => $tok['email'] ?? 'Gmail', 'on' => n_on($p, 'gmail')];
   foreach (kg_get($uid, 'mail_accounts', []) as $a) $out[] = ['key' => 'mail:' . $a['id'], 'group' => 'E-Mail', 'src' => 'mail', 'account' => $a['label'], 'name' => $a['email'], 'on' => n_on($p, 'mail:' . $a['id'])];

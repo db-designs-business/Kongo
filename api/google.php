@@ -179,9 +179,10 @@ switch ($action) {
     $id = preg_replace('/[^A-Za-z0-9]/', '', (string)($_GET['id'] ?? ''));
     $m = g_api($uid, 'GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '?format=full');
     $h = []; foreach ($m['payload']['headers'] ?? [] as $x) $h[strtolower($x['name'])] = $x['value'];
-    $plain = ''; $html = '';
-    $walk = function ($p) use (&$walk, &$plain, &$html) {
+    $plain = ''; $html = ''; $atts = [];
+    $walk = function ($p) use (&$walk, &$plain, &$html, &$atts) {
       $mt = $p['mimeType'] ?? '';
+      if (($p['filename'] ?? '') !== '' && (!empty($p['body']['attachmentId']) || !empty($p['body']['data']))) { $atts[] = ['name' => $p['filename'], 'size' => (int)($p['body']['size'] ?? 0), 'mime' => $mt]; return; }
       if (!empty($p['body']['data'])) {
         if ($mt === 'text/plain' && $plain === '') $plain = b64url_dec($p['body']['data']);
         if ($mt === 'text/html' && $html === '') $html = b64url_dec($p['body']['data']);
@@ -191,7 +192,32 @@ switch ($action) {
     $walk($m['payload'] ?? []);
     if (in_array('UNREAD', $m['labelIds'] ?? [], true)) g_api($uid, 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '/modify', ['removeLabelIds' => ['UNREAD']]);
     kg_json(['id' => $id, 'thread' => $m['threadId'] ?? '', 'from' => $h['from'] ?? '', 'to' => $h['to'] ?? '', 'cc' => $h['cc'] ?? '', 'subject' => $h['subject'] ?? '', 'date' => $h['date'] ?? '',
-      'messageId' => $h['message-id'] ?? '', 'references' => $h['references'] ?? '', 'replyTo' => $h['reply-to'] ?? '', 'text' => $plain !== '' ? $plain : kg_html_to_text($html)]);
+      'messageId' => $h['message-id'] ?? '', 'references' => $h['references'] ?? '', 'replyTo' => $h['reply-to'] ?? '', 'attachments' => $atts, 'text' => $plain !== '' ? $plain : kg_html_to_text($html)]);
+
+  case 'mail_forward':
+    // Weiterleiten inkl. Anhängen der Originalmail
+    $tok = kg_get($uid, 'google_tok');
+    $id = preg_replace('/[^A-Za-z0-9]/', '', (string)($in['id'] ?? ''));
+    $to = trim((string)($in['to'] ?? '')); $subject = (string)($in['subject'] ?? ''); $body = (string)($in['body'] ?? '');
+    if (!$to || !$id) kg_json(['error' => ['message' => 'Empfänger fehlt.']], 400);
+    $m = g_api($uid, 'GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '?format=full');
+    $atts = []; $total = 0; $skipped = [];
+    $walk = function ($p) use (&$walk, &$atts, &$total, &$skipped, $uid, $id) {
+      if (($p['filename'] ?? '') !== '') {
+        $size = (int)($p['body']['size'] ?? 0);
+        if ($total + $size > 20 * 1024 * 1024) { $skipped[] = $p['filename']; return; }
+        $data = !empty($p['body']['data']) ? b64url_dec($p['body']['data']) : '';
+        if ($data === '' && !empty($p['body']['attachmentId'])) { $a = g_api($uid, 'GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '/attachments/' . $p['body']['attachmentId']); $data = b64url_dec($a['data'] ?? ''); }
+        if ($data !== '') { $atts[] = ['name' => $p['filename'], 'mime' => $p['mimeType'] ?? '', 'data' => $data]; $total += strlen($data); }
+        return;
+      }
+      foreach ($p['parts'] ?? [] as $c) $walk($c);
+    };
+    $walk($m['payload'] ?? []);
+    if ($skipped) $body .= "\n\n(Nicht mitgeschickt, zu groß: " . implode(', ', $skipped) . ')';
+    $raw = kg_mime_mixed(['From: ' . ($tok['email'] ?? ''), 'To: ' . $to, 'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8', 'B')], $body, $atts);
+    g_api($uid, 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', ['raw' => rtrim(strtr(base64_encode($raw), '+/', '-_'), '=')]);
+    kg_json(['ok' => true, 'attachments' => count($atts), 'skipped' => $skipped]);
 
   case 'sheet_info':
     $sh = kg_get($uid, 'upwork_sheet');

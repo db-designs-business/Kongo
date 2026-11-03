@@ -190,3 +190,21 @@ function kg_backup_lazy(): void {
   $marker = kg_data_dir() . '/backups/kongrow-' . date('Y-m-d') . '.sqlite';
   if (!file_exists($marker)) { try { kg_backup(); } catch (Throwable $e) {} }
 }
+
+/* ---------- E-Mail mit Anhängen (MIME multipart/mixed) ---------- */
+function kg_mime_mixed(array $headers, string $text, array $atts): string {
+  if (!$atts) {
+    $headers[] = 'MIME-Version: 1.0'; $headers[] = 'Content-Type: text/plain; charset=UTF-8'; $headers[] = 'Content-Transfer-Encoding: base64';
+    return implode("\r\n", $headers) . "\r\n\r\n" . rtrim(chunk_split(base64_encode($text)));
+  }
+  $b = 'kg_' . bin2hex(random_bytes(10));
+  $headers[] = 'MIME-Version: 1.0'; $headers[] = 'Content-Type: multipart/mixed; boundary="' . $b . '"';
+  $out = implode("\r\n", $headers) . "\r\n\r\n--" . $b . "\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . rtrim(chunk_split(base64_encode($text))) . "\r\n";
+  foreach ($atts as $a) {
+    $n = mb_encode_mimeheader($a['name'], 'UTF-8', 'B');
+    $mime = preg_match('#^[\w.+-]+/[\w.+-]+$#', $a['mime'] ?? '') ? $a['mime'] : 'application/octet-stream';
+    $out .= '--' . $b . "\r\nContent-Type: " . $mime . '; name="' . $n . "\"\r\nContent-Disposition: attachment; filename=\"" . $n . "\"\r\nContent-Transfer-Encoding: base64\r\n\r\n" . rtrim(chunk_split(base64_encode($a['data']))) . "\r\n";
+  }
+  return $out . '--' . $b . "--\r\n";
+}
+

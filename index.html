@@ -249,7 +249,7 @@
 
   /* ---------- Modals ---------- */
   .modal-overlay{
-    position:fixed;inset:0; background:rgba(3,5,6,.82); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    position:fixed;inset:0; background:rgba(3,5,6,.84);
     display:flex;align-items:flex-end;justify-content:center; z-index:50;padding:0;
   }
   @media (min-width:480px){ .modal-overlay{ align-items:center; padding:20px; } }
@@ -684,6 +684,12 @@
   .wo-back{ background:transparent; border:0; color:var(--forest); padding-left:4px; }
   .wo-top-finish{ background:rgba(34,227,211,.12); border:1px solid rgba(34,227,211,.4); color:var(--forest); }
   .wo-top-time{ font-variant-numeric:tabular-nums; color:var(--ink-soft); font-size:14px; }
+  .kg-ptr{ transition:opacity .15s; position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 56px); z-index:60; width:38px; height:38px; margin-left:0; border-radius:50%; background:#141B1F; border:1px solid rgba(34,227,211,.35);
+    color:var(--ink-soft); display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(0,0,0,.5); pointer-events:none; opacity:0; will-change:transform; }
+  .kg-ptr svg{ width:20px; height:20px; }
+  .kg-ptr.ready{ color:var(--forest); border-color:var(--forest); }
+  .kg-ptr.spin svg{ animation:kgSpin .7s linear infinite; color:var(--forest); }
+  @keyframes kgSpin{ to{ transform:rotate(360deg); } }
   .rest-bar .rest-sound{ padding:8px 10px; font-size:16px; }
   .rest-bar.done{ border-top-color:var(--forest); background:rgba(14,48,45,.97); animation:restPulse .5s ease-out 3; }
   .rest-bar.done b{ font-size:20px; white-space:nowrap; }
@@ -972,6 +978,8 @@
   #msgDetail{ flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:16px; }
   .msg-actions{ display:flex; gap:10px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line-soft); background:#07090A; }
   .msg-actions:empty{ display:none; }
+  .msg-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .msg-att{ font-size:13px; padding:7px 11px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink-soft); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .msg-actions button{ flex:1; min-height:48px; font-size:15.5px; }
   .msg-compose-card textarea{ min-height:120px; }
   .msg-ctx{ max-height:32vh; overflow-y:auto; overscroll-behavior:contain; margin:0 0 12px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); font-size:13.5px; }
@@ -1147,9 +1155,9 @@
     border-top:1px solid rgba(255,255,255,.07) !important; box-shadow:0 -1px 0 rgba(0,0,0,.4); }
   @media (min-width:1024px){ .bottom-bar{ background:rgba(6,9,11,.72) !important; border-top:none !important; border-right:1px solid rgba(255,255,255,.06) !important; } }
   /* Popups als Material: größer = dicker */
-  .modal-overlay{ background:rgba(3,5,6, calc(.78 * var(--scrim, 1))) !important; }
+  .modal-overlay{ background:rgba(3,5,6, calc(.84 * var(--scrim, 1))) !important; }
   .modal-overlay:not(.kg-full) > .modal-card{
-    background:linear-gradient(180deg, rgba(20,27,31,.9), rgba(10,14,16,.94)); -webkit-backdrop-filter:blur(28px) saturate(160%); backdrop-filter:blur(28px) saturate(160%);
+    background:linear-gradient(180deg, #141B1F, #0B0F11);
     border:1px solid rgba(255,255,255,.08); box-shadow:0 -12px 60px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.06); will-change:transform; }
   @media (max-width:479px){
     .modal-overlay:not(.kg-full) > .modal-card{ padding-top:26px; }
@@ -1197,7 +1205,10 @@
   @keyframes kgLeave{ 0%{ opacity:1; max-height:120px; } 45%{ opacity:.55; transform:translateX(0); max-height:120px; } 100%{ opacity:0; transform:translateX(40px); max-height:0; padding-top:0; padding-bottom:0; border-width:0; } }
   .kg-undo{ position:fixed; left:50%; bottom:calc(var(--bb-h) + 18px + env(safe-area-inset-bottom)); transform:translate(-50%, 20px); opacity:0; z-index:1150;
     display:flex; align-items:center; gap:14px; padding:10px 10px 10px 18px; border-radius:999px; font-size:14px; font-weight:600; color:var(--ink);
-    background:rgba(20,27,31,.94); border:1px solid rgba(255,255,255,.1); box-shadow:0 10px 30px rgba(0,0,0,.5); transition:opacity .2s ease, transform .25s cubic-bezier(.2,.9,.3,1); white-space:nowrap; }
+    background:rgba(20,27,31,.94); border:1px solid rgba(255,255,255,.1); box-shadow:0 10px 30px rgba(0,0,0,.5); transition:opacity .2s ease, transform .25s cubic-bezier(.2,.9,.3,1); width:max-content; max-width:calc(100vw - 32px); }
+  .kg-undo span{ line-height:1.35; }
+  .kg-undo button{ flex-shrink:0; white-space:nowrap; }
+  .kg-undo:not(:has(button)){ border-radius:18px; padding:12px 18px; }
   .kg-undo.show{ opacity:1; transform:translate(-50%, 0); }
   .kg-undo button{ background:rgba(34,227,211,.14); border:1px solid rgba(34,227,211,.45); color:var(--forest); font-weight:800; font-size:13.5px; padding:7px 14px; border-radius:999px; cursor:pointer; }
   @media (min-width:1024px){ .kg-undo{ left:calc(50% + var(--side-w) / 2); bottom:28px; } }
@@ -1353,7 +1364,7 @@
         <span class="home-link-sub">Heute · Als Nächstes · Alle, nach Priorität</span>
       </button>
       <button type="button" class="home-link" id="homeToKoerper">
-        <span class="home-link-title">Körper</span>
+        <span class="home-link-title">Body</span>
         <span class="home-link-sub">Training loggen, Ernährung & Gewicht</span>
       </button>
       <button type="button" class="home-link" id="homeToZiele">
@@ -1389,7 +1400,7 @@
     <div class="card">
       <div class="step-label">Zeitraum wählen</div>
       <div class="reflex-grid">
-        <button class="ghost" id="reflTagBtn">Tagesreflexion</button>
+        <button class="ghost" id="reflTagBtn">Abendreflexion</button>
         <button class="ghost" id="reflWocheBtn">Wochenreflexion</button>
         <button class="ghost" id="reflMonatBtn">Monatsreflexion</button>
         <button class="ghost" id="reflQuartalBtn">Quartalsreflexion</button>
@@ -1404,7 +1415,7 @@
       <div id="historyPanel" style="display:none;">
         <div class="reflex-grid" style="margin-bottom:14px;">
           <button class="ghost hist-tab-btn" data-hist="morgen" id="histMorgenBtn">Morgenreflexion</button>
-          <button class="ghost hist-tab-btn" data-hist="tag" id="histTagBtn">Tagesreflexion</button>
+          <button class="ghost hist-tab-btn" data-hist="tag" id="histTagBtn">Abendreflexion</button>
           <button class="ghost hist-tab-btn" data-hist="woche" id="histWocheBtn">Wochenreflexion</button>
           <button class="ghost hist-tab-btn" data-hist="coaching" id="histCoachingBtn">Coaching-Berichte</button>
         </div>
@@ -1561,8 +1572,8 @@
   </div>
 
   <div id="panelKoerper" style="display:none;">
-    <div class="eyebrow">Körper</div>
-    <h1>Körper</h1>
+    <div class="eyebrow">Body</div>
+    <h1>Body</h1>
     <div class="sub">Training, Ernährung, Rezepte und Gewicht an einem Ort.</div>
     <div class="aufg-tabs">
       <button type="button" class="aufg-tab k-tab active" data-v="training">Training</button>
@@ -1886,9 +1897,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
     <span>Kalender</span>
   </button>
-  <button type="button" class="bb-item bb-center active" data-tab="home" aria-label="Start">
+  <button type="button" class="bb-item bb-center active" data-tab="home" aria-label="Heute">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>
-    <span>Start</span>
+    <span>Heute</span>
   </button>
   <button type="button" class="bb-item" data-tab="nachrichten">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z"/></svg>
@@ -1931,7 +1942,7 @@
     <div class="quick-grid">
       <button type="button" class="quick-btn" data-q="task"><span>✅</span>Neue Aufgabe</button>
       <button type="button" class="quick-btn" data-q="morning"><span>🌅</span>Morgenreflexion</button>
-      <button type="button" class="quick-btn" data-q="evening"><span>🌙</span>Tagesreflexion</button>
+      <button type="button" class="quick-btn" data-q="evening"><span>🌙</span>Abendreflexion</button>
       <button type="button" class="quick-btn" data-q="training"><span>🏋️</span>Training starten</button>
       <button type="button" class="quick-btn" data-q="weight"><span>⚖️</span>Gewicht eintragen</button>
       <button type="button" class="quick-btn" data-q="routine"><span>🔁</span>Routine starten</button>
@@ -2212,7 +2223,7 @@
     <div class="set-pane" data-pane="push" style="display:none;">
       <div class="push-box" style="margin-top:4px;">
         <div style="font-size:13.5px; font-weight:600; margin-bottom:4px;">🔔 Push-Mitteilungen auf diesem Gerät</div>
-        <div class="hint" style="margin-bottom:10px;" id="pushInfo">Morgenreflexion um 5:30 · Tagesreflexion um 20:30</div>
+        <div class="hint" style="margin-bottom:10px;" id="pushInfo">Morgenreflexion um 5:30 · Abendreflexion um 20:30</div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="ghost" id="pushEnableBtn">Benachrichtigungen aktivieren</button>
           <button type="button" class="ghost" id="pushTestBtn" style="display:none;">Test senden</button>
@@ -2687,7 +2698,7 @@
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'back-btn';
-    back.textContent = sub ? '← Übungen' : '← Start';
+    back.textContent = sub ? '← Übungen' : '← Heute';
     back.onclick = ()=>{ switchTab(sub ? 'aktivitaeten' : 'home'); window.scrollTo(0,0); };
     panels[k].insertBefore(back, panels[k].firstChild);
   });
@@ -4233,7 +4244,7 @@
 
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">Tagesreflexion · Frage ${idx} von ${total} · ${escapeHtml(periodLabel('Tag', getPeriodKey('Tag', getReflectionDate())))}</div>
+        <div class="step-label">Abendreflexion · Frage ${idx} von ${total} · ${escapeHtml(periodLabel('Tag', getPeriodKey('Tag', getReflectionDate())))}</div>
         ${bodyHtml}
         <div class="nav-row">
           <button class="ghost" id="eveningBackBtn" ${eveningStepIndex===0?'disabled':''}>Zurück</button>
@@ -5359,16 +5370,12 @@
     btn.disabled = false;
   };
   document.getElementById('zielPopupDelete').onclick = async ()=>{
-    const del = document.getElementById('zielPopupDelete');
-    if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
-    if(del.disabled) return; del.disabled = true;
-    try{
-      await airtableDelete(TABLE_ZIELE, zielPopup.id, ZIELE_BASE_ID);
-      zieleCache = zieleCache.filter(x=>x.id !== zielPopup.id);
-      zielOverlay.style.display = 'none';
-      zielAfterChange();
-    }catch(e){ document.getElementById('zielPopupStatus').textContent = 'Löschen fehlgeschlagen.'; }
-    del.disabled = false;
+    const id = zielPopup.id, idx = zieleCache.findIndex(x=>x.id === id), z = zieleCache[idx];
+    if(idx < 0) return;
+    zielOverlay.style.display = 'none';
+    kgDeferDelete('Ziel gelöscht', ()=>{ zieleCache.splice(idx, 1); zielAfterChange(); },
+      ()=>{ zieleCache.splice(Math.min(idx, zieleCache.length), 0, z); zielAfterChange(); },
+      ()=>airtableDelete(TABLE_ZIELE, id, ZIELE_BASE_ID));
   };
 
   const quickGoalsOverlay = document.getElementById('quickGoalsOverlay');
@@ -6631,20 +6638,14 @@
       }
     };
     const delBtn = formEl.querySelector('#lesenEditDelete');
-    let armed = false;
-    delBtn.onclick = async ()=>{
-      if(delBtn.disabled) return;
-      if(!armed){ armed = true; delBtn.textContent = 'Wirklich löschen? Nochmal tippen'; return; }
-      delBtn.disabled = true; delBtn.textContent = 'Lösche ...';
-      try{
-        await airtableDelete(TABLE_LESEN_BUECHER, b.id, LESEN_BASE_ID);
-        lesenBooks = lesenBooks.filter(x=>x.id !== b.id);
-        const next = lesenBooks.find(x=>!x.fertig) || lesenBooks[0];
-        formEl.innerHTML = '';
-        selectLesenBook(next ? next.id : '');
-      }catch(e){
-        delBtn.textContent = 'Fehler, erneut versuchen'; delBtn.disabled = false; armed = false;
-      }
+    delBtn.onclick = ()=>{
+      const idx = lesenBooks.findIndex(x=>x.id === b.id); if(idx < 0) return;
+      kgDeferDelete('Buch gelöscht', ()=>{
+          lesenBooks.splice(idx, 1);
+          const next = lesenBooks.find(x=>!x.fertig) || lesenBooks[0];
+          formEl.innerHTML = ''; selectLesenBook(next ? next.id : '');
+        }, ()=>{ lesenBooks.splice(Math.min(idx, lesenBooks.length), 0, b); selectLesenBook(b.id); },
+        ()=>airtableDelete(TABLE_LESEN_BUECHER, b.id, LESEN_BASE_ID));
     };
   }
 
@@ -7505,6 +7506,13 @@
     return close;
   }
   window.kgUndoToast = kgUndoToast;
+  // Löschen mit Rückgängig: sofort aus der Ansicht, endgültig erst nach 5 Sek.
+  function kgDeferDelete(label, remove, restore, commit){
+    remove();
+    let undone = false;
+    const timer = setTimeout(async ()=>{ if(undone) return; try{ await commit(); }catch(e){ restore(); kgUndoToast('Löschen fehlgeschlagen.'); } }, 5200);
+    kgUndoToast(label, ()=>{ undone = true; clearTimeout(timer); restore(); });
+  }
   // Aufgabe löschen: sofort weg, endgültig nach 5 Sek., bis dahin rückgängig machbar
   function deleteAufgabeWithUndo(id){
     const idx = aufgabenCache.findIndex(x=>x.id === id); if(idx < 0) return;
@@ -8520,7 +8528,7 @@
       const sub = await swReg.pushManager.getSubscription();
       pushEnableBtn.textContent = sub ? 'Benachrichtigungen deaktivieren' : 'Benachrichtigungen aktivieren';
       pushTestBtn.style.display = sub ? '' : 'none';
-      if(sub) pushInfo.textContent = '✓ Aktiv · Morgenreflexion 5:30 · Tagesreflexion 20:30';
+      if(sub) pushInfo.textContent = '✓ Aktiv · Morgenreflexion 5:30 · Abendreflexion 20:30';
     }catch(e){}
   }
   if(pushSupported){
@@ -8551,7 +8559,7 @@
       if(existing){
         await fetch('push/subscribe.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'unsubscribe', subscription: existing.toJSON() }) }).catch(()=>{});
         await existing.unsubscribe();
-        pushInfo.textContent = 'Morgenreflexion um 5:30 · Tagesreflexion um 20:30';
+        pushInfo.textContent = 'Morgenreflexion um 5:30 · Abendreflexion um 20:30';
         pushStatus.textContent = 'Deaktiviert.';
       } else {
         const perm = await Notification.requestPermission();
@@ -8740,11 +8748,12 @@
     calEventCard.querySelector('[data-x]').onclick = closeEventOverlay;
     const ed = calEventCard.querySelector('[data-edit]'); if(ed) ed.onclick = ()=>openEventForm(e);
     const del = calEventCard.querySelector('[data-del]');
-    if(del) del.onclick = async ()=>{
-      if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
-      del.disabled = true;
-      try{ await kgApi('google.php?action=event_delete', { calendarId:e.calendarId, id:e.id }); closeEventOverlay(); cal.loadedKey = ''; loadCalendar(true); renderHomeTermine(true); }
-      catch(err){ calEventCard.querySelector('[data-st]').textContent = err.message; del.disabled = false; }
+    if(del) del.onclick = ()=>{
+      closeEventOverlay();
+      const idx = cal.events.indexOf(e);
+      kgDeferDelete('Termin gelöscht', ()=>{ if(idx >= 0) cal.events.splice(idx, 1); renderCalendar(); },
+        ()=>{ if(idx >= 0) cal.events.splice(Math.min(idx, cal.events.length), 0, e); renderCalendar(); },
+        async ()=>{ await kgApi('google.php?action=event_delete', { calendarId:e.calendarId, id:e.id }); cal.loadedKey = ''; loadCalendar(true); renderHomeTermine(true); });
     };
     calEventOverlay.style.display = 'flex';
   }
@@ -8994,6 +9003,7 @@
 
   const msgOverlay = document.getElementById('msgOverlay');
   document.getElementById('msgClose').onclick = ()=>{ document.getElementById('msgComposeOverlay').style.display = 'none'; msgOverlay.style.display = 'none'; renderMessages(); updateMsgBadge(); };
+  function fmtMB(b){ return (Math.round(b / 104857.6) / 10).toLocaleString('de-DE') + ' MB'; }
   function addrOnly(s){ const m = /<([^>]+)>/.exec(s || ''); return m ? m[1] : (s || '').trim(); }
   async function openMessage(m){
     msg.current = { item:m, detail:null };
@@ -9015,7 +9025,8 @@
         msg.current.detail = j;
         det.innerHTML = `<div class="msg-subject">${escapeHtml(j.subject || m.subject)}</div>
           <div class="msg-meta"><b>${escapeHtml(j.from)}</b><br>an ${escapeHtml(j.to)}${j.cc ? '<br>cc ' + escapeHtml(j.cc) : ''}<br>${escapeHtml(j.date)}</div>
-          <div class="msg-body">${linkify(j.text || '')}</div>`;
+          <div class="msg-body">${linkify(j.text || '')}</div>
+          ${(j.attachments || []).length ? `<div class="msg-atts">${j.attachments.map(a=>`<span class="msg-att">📎 ${escapeHtml(a.name)}${a.size ? ' · ' + (a.size > 1048576 ? fmtMB(a.size) : Math.max(1, Math.round(a.size / 1024)) + ' KB') : ''}</span>`).join('')}</div>` : ''}`;
         det.scrollTop = 0;
         acts.innerHTML = '<button type="button" class="ghost" data-act="forward">↪ Weiterleiten</button><button type="button" class="primary" data-act="reply">↩ Antworten</button>';
       }
@@ -9034,6 +9045,8 @@
     document.getElementById('msgComposeSub').textContent = m.source === 'slack' ? msgLabel(m.source, m.account) : (fwd ? 'WG: ' + (d.subject || m.subject) : 'an ' + fromName(d.replyTo || d.from) + ' · Re: ' + (d.subject || m.subject).replace(/^re:\s*/i, ''));
     document.getElementById('msgToRow').style.display = fwd ? '' : 'none';
     document.getElementById('msgFwdHint').style.display = fwd ? '' : 'none';
+    const atts = d.attachments || [];
+    document.getElementById('msgFwdHint').textContent = 'Die ursprüngliche Nachricht wird unter deinem Text angehängt.' + (atts.length ? ' Anhänge werden mitgeschickt: ' + atts.map(a=>a.name).join(', ') + '.' : '');
     if(msg.composeFor !== m || msg.composeMode !== mode){ document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; if(fwd) document.getElementById('msgTo').value = ''; }
     msg.composeFor = m; msg.composeMode = mode;
     document.getElementById('msgReply').placeholder = fwd ? 'Kurze Notiz dazu (optional) ...' : (m.source === 'slack' ? 'Nachricht schreiben ...' : 'Antwort an ' + fromName(d.replyTo || d.from) + ' ...');
@@ -9144,9 +9157,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       else if(fwd){
         const subj = /^(wg|fwd?):/i.test(d.subject || '') ? d.subject : 'WG: ' + (d.subject || m.subject);
         const body = (text ? text + '\n\n' : '') + '---------- Weitergeleitete Nachricht ----------\nVon: ' + (d.from || '') + '\nDatum: ' + (d.date || '') + '\nBetreff: ' + (d.subject || m.subject) + '\nAn: ' + (d.to || '') + (d.cc ? '\nCc: ' + d.cc : '') + '\n\n' + (d.text || '');
-        const payload = { to: fwdTo, subject: subj, body };
-        if(m.source === 'gmail') await kgApi('google.php?action=mail_send', payload);
-        else { payload.account = m.accountId; await kgApi('mail.php?action=send', payload); }
+        const payload = { to: fwdTo, subject: subj, body, id: d.id || m.id };
+        if(m.source === 'gmail') await kgApi('google.php?action=mail_forward', payload);
+        else { payload.account = m.accountId; await kgApi('mail.php?action=forward', payload); }
       } else {
         const subj = /^re:/i.test(d.subject || '') ? d.subject : 'Re: ' + (d.subject || m.subject);
         const to = d.replyTo || d.from;
@@ -9261,7 +9274,29 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(key === 'home') renderHomeTermine();
     if(key === 'fortschritt') renderFortschritt();
     if(key === 'upwork') renderUpwork();
+    curTab = key; try{ sessionStorage.setItem('kg_tab', key); }catch(e){}
+    showSwipeHints(key);
   };
+  let curTab = 'home';
+  // Nach unten ziehen zum Aktualisieren: Nachrichten und Kalender direkt, alles andere über ein frisches Neuladen (ohne Zwischenspeicher)
+  window.kgRefreshCurrent = async ()=>{
+    if(curTab === 'nachrichten'){ msg.loadedAt = 0; await loadMessages(true); return; }
+    if(curTab === 'kalender'){ cal.loadedKey = ''; await loadCalendar(true); return; }
+    try{ Object.keys(localStorage).filter(k=>k.startsWith(CACHE_PREFIX)).forEach(k=>localStorage.removeItem(k)); sessionStorage.setItem('kg_restore_tab', curTab); }catch(e){}
+    location.reload();
+  };
+  authReady.then(()=>{ let t = null; try{ t = sessionStorage.getItem('kg_restore_tab'); sessionStorage.removeItem('kg_restore_tab'); }catch(e){} if(t && panels[t] && t !== 'home') setTimeout(()=>switchTab(t), 300); });
+  // Einmalige Hinweise auf Wischgesten
+  function hintOnce(key, text){ try{ if(localStorage.getItem('kg_hint_' + key)) return false; localStorage.setItem('kg_hint_' + key, '1'); }catch(e){ return false; } setTimeout(()=>kgUndoToast(text, null, 6500), 700); return true; }
+  function showSwipeHints(key){
+    if(key === 'aufgaben' && aufgabenCache.some(t=>!t.erledigt)){
+      if(hintOnce('swipe_aufg', 'Tipp: Aufgabe nach rechts wischen = erledigt, nach links = löschen')){
+        setTimeout(()=>{ const row = document.querySelector('#aufgabenList .aufg-item, #aufgabenList [data-id]'); if(row && window.kgSpring){ window.kgSpring({ from:0, to:0, velocity:-500, damping:0.5, response:0.5, onUpdate:x=>{ row.style.transform = `translate3d(${x}px,0,0)`; }, onDone:()=>{ row.style.transform = ''; } }); } }, 900);
+      }
+    }
+    if(key === 'kalender') hintOnce('swipe_cal', 'Tipp: Im Kalender nach links oder rechts wischen zum Blättern');
+    if(key === 'nachrichten') hintOnce('pull_refresh', 'Tipp: Oben nach unten ziehen, um neu zu laden. Das geht auf jeder Seite.');
+  }
   authReady.then(()=>{ setTimeout(()=>{ renderHomeTermine(true); loadMessages(); withingsSync(); }, 1500); });
   setInterval(()=>{ if(document.visibilityState === 'visible'){ msg.loadedAt = 0; loadMessages(); } }, 5 * 60 * 1000);
 
@@ -9769,14 +9804,12 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
         </div>`).join('');
       hist.querySelectorAll('.entry-head').forEach(h=>h.onclick = ()=>document.getElementById('kh-' + cssSafe(h.dataset.key)).classList.toggle('open'));
       hist.querySelectorAll('.entry-delete').forEach(btn=>{
-        let armed = false;
-        btn.onclick = async ev=>{
+        btn.onclick = ev=>{
           ev.stopPropagation();
-          if(btn.disabled) return;
-          if(!armed){ armed = true; btn.textContent = 'Wirklich löschen?'; return; }
-          btn.disabled = true;
-          try{ await airtableDelete(TABLE_TRAININGS, btn.dataset.key, ROUTINEN_BASE_ID); trainingsCache = trainingsCache.filter(x=>x.id !== btn.dataset.key); revokeXP('training:' + btn.dataset.key); renderTrainingView(); }
-          catch(e){ btn.disabled = false; btn.textContent = 'Fehler, erneut'; armed = false; }
+          const id = btn.dataset.key, idx = trainingsCache.findIndex(x=>x.id === id), t = trainingsCache[idx]; if(idx < 0) return;
+          kgDeferDelete('Training gelöscht', ()=>{ trainingsCache.splice(idx, 1); renderTrainingView(); },
+            ()=>{ trainingsCache.splice(Math.min(idx, trainingsCache.length), 0, t); renderTrainingView(); },
+            async ()=>{ await airtableDelete(TABLE_TRAININGS, id, ROUTINEN_BASE_ID); revokeXP('training:' + id); });
         };
       });
     }
@@ -9959,13 +9992,11 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
         body.querySelector('#kPlanNew').onclick = ()=>{ editing = { name:'', uebungen:[] }; draw(); };
         body.querySelectorAll('[data-a="edit"]').forEach(b=>b.onclick = ()=>{ const p = plaeneCache.find(x=>x.id === b.dataset.id); editing = { id:p.id, name:p.name, uebungen:p.uebungen.slice() }; draw(); });
         body.querySelectorAll('[data-a="del"]').forEach(b=>{
-          let armed = false;
-          b.onclick = async ()=>{
-            if(b.disabled) return;
-            if(!armed){ armed = true; b.textContent = 'Sicher?'; return; }
-            b.disabled = true;
-            try{ await airtableDelete(TABLE_PLAENE, b.dataset.id, ROUTINEN_BASE_ID); plaeneCache = plaeneCache.filter(x=>x.id !== b.dataset.id); draw(); renderKoerper(); }
-            catch(e){ b.disabled = false; }
+          b.onclick = ()=>{
+            const id = b.dataset.id, idx = plaeneCache.findIndex(x=>x.id === id), pl = plaeneCache[idx]; if(idx < 0) return;
+            kgDeferDelete('Plan gelöscht', ()=>{ plaeneCache.splice(idx, 1); draw(); renderKoerper(); },
+              ()=>{ plaeneCache.splice(Math.min(idx, plaeneCache.length), 0, pl); draw(); renderKoerper(); },
+              ()=>airtableDelete(TABLE_PLAENE, id, ROUTINEN_BASE_ID));
           };
         });
         return;
@@ -10130,13 +10161,20 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     });
     el.querySelectorAll('[data-a="rmset"]').forEach(b=>b.onclick = ()=>{ w.uebungen[+b.dataset.ui].sets.pop(); saveActiveWorkout(); renderWorkout(); });
     el.querySelectorAll('[data-a="rmex"]').forEach(b=>{
-      let armed = false;
-      b.onclick = ()=>{ if(!armed){ armed = true; b.textContent = '?'; b.style.color = 'var(--danger)'; return; } w.uebungen.splice(+b.dataset.ui, 1); saveActiveWorkout(); renderWorkout(); };
+      b.onclick = ()=>{
+        const i = +b.dataset.ui, u = w.uebungen[i];
+        w.uebungen.splice(i, 1); saveActiveWorkout(); renderWorkout();
+        kgUndoToast(u.name + ' entfernt', ()=>{ if(activeWorkout === w){ w.uebungen.splice(Math.min(i, w.uebungen.length), 0, u); saveActiveWorkout(); renderWorkout(); } });
+      };
     });
     el.querySelector('#woAddEx').onclick = ()=>openExercisePicker(list=>{ list.forEach(n=>w.uebungen.push({ name:n, sets: setsFromLast(n) })); saveActiveWorkout(); renderWorkout(); }, false);
     el.querySelector('#woNotiz').oninput = e=>{ w.notiz = e.target.value; saveActiveWorkout(); };
     const disc = el.querySelector('#woDiscard'); let dArmed = false;
-    disc.onclick = ()=>{ if(!dArmed){ dArmed = true; disc.textContent = 'Wirklich verwerfen?'; return; } activeWorkout = null; saveActiveWorkout(); stopRest(); keepAwake(false); closeWorkoutOverlay(); };
+    disc.onclick = ()=>{
+      const keep = activeWorkout;
+      activeWorkout = null; saveActiveWorkout(); stopRest(); keepAwake(false); closeWorkoutOverlay();
+      kgUndoToast('Training verworfen', ()=>{ activeWorkout = keep; saveActiveWorkout(); openWorkout(); });
+    };
     el.querySelector('#woFinish').onclick = finishWorkout;
     const wt = el.querySelector('#woTips'); if(wt) wt.onclick = openTrainingTips;
   }
@@ -10609,8 +10647,11 @@ ${text.slice(0, 15000)}`;
       const cancel = S.querySelector('#peCancel'); if(cancel) cancel.onclick = ()=>{ ernPlaene.length ? openPlanManager2() : closeErnSheet(); };
       const del = S.querySelector('#peDel');
       if(del) del.onclick = async ()=>{
-        if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
-        try{ await airtableDelete(TABLE_ERN_PLAENE, p.id, ROUTINEN_BASE_ID); ernPlaene = ernPlaene.filter(x=>x.id !== p.id); openPlanManager2(); renderErnaehrungView(); }catch(e){ S.querySelector('#peSt').textContent = 'Löschen fehlgeschlagen.'; }
+        const idx = ernPlaene.findIndex(x=>x.id === p.id), orig = ernPlaene[idx];
+        if(idx >= 0){ kgDeferDelete('Ernährungsplan gelöscht', ()=>{ ernPlaene.splice(idx, 1); openPlanManager2(); renderErnaehrungView(); },
+          ()=>{ ernPlaene.splice(Math.min(idx, ernPlaene.length), 0, orig); openPlanManager2(); renderErnaehrungView(); },
+          ()=>airtableDelete(TABLE_ERN_PLAENE, p.id, ROUTINEN_BASE_ID)); return; }
+        try{ openPlanManager2(); }catch(e){ S.querySelector('#peSt').textContent = 'Löschen fehlgeschlagen.'; }
       };
       S.querySelector('#peSave').onclick = async ()=>{
         sync();
@@ -10728,8 +10769,12 @@ ${text.slice(0, 15000)}`;
     c.querySelector('#rdEdit').onclick = ()=>openRezeptEditor(r);
     const del = c.querySelector('#rdDel');
     del.onclick = async ()=>{
-      if(!del.dataset.armed){ del.dataset.armed = '1'; del.textContent = 'Wirklich löschen?'; return; }
-      try{ await airtableDelete(TABLE_REZEPTE, r.id, ROUTINEN_BASE_ID); rezepteCache = rezepteCache.filter(x=>x.id !== r.id); closeErnModal(); renderKoerper(); }catch(e){ c.querySelector('[data-st]').textContent = 'Löschen fehlgeschlagen.'; }
+      const idx = rezepteCache.findIndex(x=>x.id === r.id);
+      closeErnModal();
+      if(idx >= 0){ kgDeferDelete('Rezept gelöscht', ()=>{ rezepteCache.splice(idx, 1); renderKoerper(); },
+        ()=>{ rezepteCache.splice(Math.min(idx, rezepteCache.length), 0, r); renderKoerper(); },
+        ()=>airtableDelete(TABLE_REZEPTE, r.id, ROUTINEN_BASE_ID)); return; }
+      try{ renderKoerper(); }catch(e){ c.querySelector('[data-st]').textContent = 'Löschen fehlgeschlagen.'; }
     };
   }
   function openRezeptEditor(r){
@@ -10879,13 +10924,15 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
     if(reduceMotion()){ onUpdate && onUpdate(to); onDone && onDone(); return { stop(){}, get value(){ return to; } }; }
     const k = Math.pow(2 * Math.PI / response, 2), c = 4 * Math.PI * damping / response;
     let x = from, v = velocity, last = performance.now(), raf = 0, stopped = false;
+    // Ruheschwelle relativ zur Strecke: bei 0..1-Federn (Deckkraft, Fortschritt) sonst sichtbarer Sprung am Ende
+    const eps = Math.max(0.0005, Math.min(0.4, Math.abs(to - from) * 0.004));
     const step = now=>{
       if(stopped) return;
       let dt = Math.min(0.064, (now - last) / 1000); last = now;
       const n = Math.ceil(dt / 0.004); const h = dt / n;
       for(let i = 0; i < n; i++){ const a = -k * (x - to) - c * v; v += a * h; x += v * h; }
       onUpdate && onUpdate(x);
-      if(Math.abs(x - to) < 0.4 && Math.abs(v) < 4){ onUpdate && onUpdate(to); onDone && onDone(); return; }
+      if(Math.abs(x - to) < eps && Math.abs(v) < eps * 10){ onUpdate && onUpdate(to); onDone && onDone(); return; }
       raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
@@ -10919,7 +10966,7 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
     const h = card.offsetHeight || 400;
     const from = s.closing ? s.y : (isSheetLayout() ? h : 40);
     s.closing = false; s.open = true; ov.classList.remove('kg-closing');
-    s.anim = spring({ from, to:0, velocity: s.vel || 0, damping:1, response:0.38, onUpdate:y=>{ s.y = y; applyCard(ov, card, y, h); }, onDone:()=>{ card.style.transform = ''; card.style.opacity = ''; ov.style.removeProperty('--scrim'); } });
+    s.anim = spring({ from, to:0, velocity: s.vel || 0, damping:1, response:0.3, onUpdate:y=>{ s.y = y; applyCard(ov, card, y, h); }, onDone:()=>{ card.style.transform = ''; card.style.opacity = ''; ov.style.removeProperty('--scrim'); } });
     s.vel = 0;
   }
   function selfSet(ov, val){ stateOf(ov).self = val; ov.style.display = val; }
@@ -10930,7 +10977,7 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
     s.closing = true; ov.classList.add('kg-closing');
     const h = card.offsetHeight || 400;
     selfSet(ov, 'inline-flex');   // bleibt sichtbar, bis die Feder unten ist (inline-flex = flex bei fixed)
-    s.anim = spring({ from: s.y, to: isSheetLayout() ? h + 30 : 40, velocity: s.vel || 0, damping:1, response:0.32,
+    s.anim = spring({ from: s.y, to: isSheetLayout() ? h + 30 : 40, velocity: s.vel || 0, damping:1, response:0.24,
       onUpdate:y=>{ s.y = y; applyCard(ov, card, y, h); if(isSheetLayout() ? y >= h : y >= 38) finish(); },
       onDone:()=>finish() });
     function finish(){ if(!s.closing) return; if(s.anim) s.anim.stop(); s.closing = false; s.open = false; ov.classList.remove('kg-closing'); selfSet(ov, 'none'); card.style.transform = ''; card.style.opacity = ''; ov.style.removeProperty('--scrim'); s.y = 0; }
@@ -11100,10 +11147,42 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
     el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
   }
 
+  // ---- Nach unten ziehen zum Aktualisieren (in der Home-Bildschirm-App gibt es keinen Neuladen-Knopf)
+  (function(){
+    const ind = document.createElement('div'); ind.className = 'kg-ptr'; ind.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>';
+    document.body.appendChild(ind);
+    const TH = 72; let st = null, busy = false;
+    const set = (y, p)=>{ ind.style.transform = `translate3d(-50%,${y}px,0) rotate(${p * 270}deg)`; ind.style.opacity = String(Math.min(1, p * 1.4)); ind.classList.toggle('ready', p >= 1); };
+    document.addEventListener('touchstart', e=>{
+      if(busy || e.touches.length !== 1 || window.scrollY > 0 || document.body.classList.contains('modal-open')) return;
+      if(e.target.closest('input, textarea, select, .tg-scroll, .modal-overlay, #navMenu')) return;
+      st = { y0:e.touches[0].clientY, x0:e.touches[0].clientX, on:false, d:0 };
+    }, { passive:true });
+    document.addEventListener('touchmove', e=>{
+      if(!st) return;
+      const dy = e.touches[0].clientY - st.y0, dx = e.touches[0].clientX - st.x0;
+      if(!st.on){ if(Math.abs(dx) > 12 && Math.abs(dx) > dy){ st = null; return; } if(dy < 8) { if(dy < -4) st = null; return; } st.on = true; }
+      if(window.scrollY > 0){ st = null; set(-60, 0); return; }
+      st.d = Math.max(0, dy - 8);
+      const y = rubberband(st.d, 300, 0.7);
+      set(y - 40, Math.min(1, st.d / TH));
+    }, { passive:true });
+    const end = async ()=>{
+      if(!st) return; const ok = st.on && st.d >= TH; st = null;
+      if(!ok){ set(-60, 0); return; }
+      busy = true; ind.classList.add('spin'); ind.style.transform = 'translate3d(-50%,24px,0)'; ind.style.opacity = '1';
+      try{ if(navigator.vibrate) navigator.vibrate(10); }catch(_){}
+      try{ if(window.kgRefreshCurrent) await window.kgRefreshCurrent(); }catch(_){}
+      ind.classList.remove('spin'); busy = false; set(-60, 0);
+    };
+    document.addEventListener('touchend', end); document.addEventListener('touchcancel', ()=>{ st = null; set(-60, 0); });
+    set(-60, 0);
+  })();
+
   // ---- Seitenwechsel: kurzes Einblenden
   function panelIn(p){
     if(reduceMotion() || !p) return;
-    spring({ from:1, to:0, damping:1, response:0.3, onUpdate:t=>{ p.style.opacity = String(1 - t * 0.9); p.style.transform = `translate3d(0,${t * 10}px,0)`; }, onDone:()=>{ p.style.opacity = ''; p.style.transform = ''; } });
+    spring({ from:1, to:0, damping:1, response:0.18, onUpdate:t=>{ p.style.opacity = String(1 - t * 0.5); p.style.transform = `translate3d(0,${t * 6}px,0)`; }, onDone:()=>{ p.style.opacity = ''; p.style.transform = ''; } });
   }
 
   function init(){

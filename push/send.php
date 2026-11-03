@@ -18,7 +18,7 @@ if (PHP_SAPI !== 'cli') {               // Aufruf über den Browser nur mit Gehe
 }
 $messages = [
   'morning' => ['title' => 'Guten Morgen 🌅', 'body' => 'Zeit für deine Morgenreflexion. Starte bewusst in den Tag.', 'url' => './?open=morning'],
-  'evening' => ['title' => 'Tagesabschluss 🌙', 'body' => 'Hak deine Dailys ab und mach deine Tagesreflexion.', 'url' => './?open=evening'],
+  'evening' => ['title' => 'Abendreflexion 🌙', 'body' => 'Hak deine Dailys ab und mach deine Abendreflexion.', 'url' => './?open=evening'],
   'test'    => ['title' => 'Kongrow', 'body' => 'Push funktioniert ✓', 'url' => './'],
 ];
 // Neue Slack-Nachrichten und E-Mails melden (Cronjob alle 5 Minuten: php push/send.php slack)
