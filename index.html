@@ -754,6 +754,24 @@
   .kg-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
   @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(34,227,211,.5); } 50%{ box-shadow:0 0 0 10px rgba(34,227,211,0); } }
   .kg-mic-live{ position:fixed; z-index:1300; left:16px; right:72px; padding:8px 12px; border-radius:12px; background:rgba(20,27,31,.96); border:1px solid var(--line-soft); color:var(--ink-soft); font-size:13.5px; display:none; max-height:4.5em; overflow:hidden; }
+  .lesen-mode-top{ display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-bottom:12px; }
+  .lesen-timer{ font-size:34px; font-weight:800; color:var(--forest); font-variant-numeric:tabular-nums; line-height:1.1; }
+  .lesen-today{ font-size:13px; color:var(--ink-soft); text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .lesen-start{ min-height:40px; padding:8px 14px; font-size:14px; }
+  .lesen-quick{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .lesen-quick button{ min-height:56px; font-size:15px; }
+  .lesen-quick .primary::after{ content:none !important; }
+  .lesen-quick button.on{ animation:micPulse 1.2s ease-in-out infinite; }
+  .lesen-quick:has(> :only-child){ grid-template-columns:1fr; }
+  .lesen-page-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; font-size:14px; color:var(--ink-soft); }
+  .lesen-page-row input{ width:120px !important; text-align:center; }
+  .lesen-snip{ margin-top:8px; padding:9px 12px; border-radius:10px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); font-size:14px; line-height:1.45; }
+  .lesen-snip.q{ border-left:3px solid var(--forest); }
+  .lesen-snip small{ color:var(--ink-soft); }
+  .home-lesen-min{ font-size:13px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+  .home-lesen-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .home-lesen-row b{ display:block; font-size:15px; } .home-lesen-row small{ color:var(--ink-soft); font-size:12.5px; }
+  .home-lesen-row .primary{ flex-shrink:0; min-height:44px; padding:8px 16px; }
   .aufg-src{ display:block; width:100%; text-align:left; margin-top:12px; padding:11px 14px; border-radius:12px; background:rgba(34,227,211,.07); border:1px solid rgba(34,227,211,.3); color:var(--forest); font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .hz-cat{ padding:8px 0; border-bottom:1px solid var(--line-soft); }
   .hz-cat:last-of-type{ border-bottom:none; }
@@ -1394,6 +1412,8 @@
       </div>
       <div id="homeTermineList"><div class="loading">Lade ...</div></div>
     </div>
+
+    <div class="card" id="homeLesenCard" style="display:none;"></div>
 
     <div class="card" id="homeZieleCard">
       <div class="home-aufg-head">
@@ -6681,6 +6701,52 @@
   let lesenSessionStart = null;
   let lesenChapter = '';
   let lesenSessionNotes = [];
+  let lesenReadStart = null;   // Start der laufenden Lesezeit (ms)
+  try{ const v = +localStorage.getItem('kongrow_lesen_start'); if(v && Date.now() - v < 6 * 3600000) lesenReadStart = v; }catch(e){}
+  const LESEN_ZIEL_MIN = 60;
+  function lesenMinutesToday(){ const t = todayStr(); return lesenEntries.filter(e=>e.typ === 'Lesezeit' && (e.createdAt || '').slice(0, 10) === t).reduce((s, e)=>s + (parseInt(e.text, 10) || 0), 0) + (lesenReadStart ? Math.floor((Date.now() - lesenReadStart) / 60000) : 0); }
+  function renderHomeLesen(){
+    const el = document.getElementById('homeLesenCard'); if(!el) return;
+    const bk = lesenBooks.find(b=>b.id === lesenBookId) || lesenBooks.find(b=>!b.fertig);
+    if(!bk){ el.style.display = 'none'; return; }
+    const min = lesenMinutesToday(), pct = Math.min(100, Math.round(min / LESEN_ZIEL_MIN * 100));
+    el.style.display = '';
+    el.innerHTML = `<div class="home-aufg-head"><div class="step-label" style="margin:0;">Lesen · Heute</div><span class="home-lesen-min">${min} / ${LESEN_ZIEL_MIN} Min</span></div>
+      <div class="up-bar" style="margin:10px 0 12px;"><i style="width:${pct}%"></i></div>
+      <div class="home-lesen-row"><div><b>${escapeHtml(bk.titel)}</b><small>${bk.aktuelleSeite ? 'Weiter bei Position/Seite ' + bk.aktuelleSeite : 'Noch nicht begonnen'}</small></div>
+      <button type="button" class="primary" id="homeLesenGo">${lesenReadStart ? 'Weiterlesen' : 'Lesen starten'}</button></div>`;
+    el.querySelector('#homeLesenGo').onclick = ()=>{ if(bk.id !== lesenBookId){ lesenBookId = bk.id; } lesenStartTimer(); switchTab('lesen'); lesenPhase = 'notes'; renderLesenMain(); window.scrollTo(0, 0); };
+  }
+  async function lesenLogTime(){
+    if(!lesenReadStart) return 0;
+    const min = Math.round((Date.now() - lesenReadStart) / 60000);
+    lesenReadStart = null; try{ localStorage.removeItem('kongrow_lesen_start'); }catch(e){}
+    if(typeof keepAwake === 'function') keepAwake(!!activeWorkout);
+    if(min < 1) return 0;
+    const fields = { 'Titel': 'Lesezeit ' + min + ' Min', 'BuchId': lesenBookId, 'Typ': 'Lesezeit', 'Text': String(min), 'Erstellt am': new Date().toISOString() };
+    try{ const id = await airtableCreate(TABLE_LESEN_EINTRAEGE, fields, LESEN_BASE_ID); lesenEntries.push({ id, bookId: lesenBookId, typ:'Lesezeit', kapitel:'', seite:'', text:String(min), wichtig:false, createdAt: fields['Erstellt am'] }); }catch(e){}
+    renderHomeLesen();
+    return min;
+  }
+  // Kindle-Markierung bzw. Notiz direkt speichern (ohne Formular)
+  async function lesenQuickSave(typ, text, seite){
+    const fields = { 'Titel': text.slice(0, 60), 'BuchId': lesenBookId, 'Typ': typ, 'Kapitel': (lesenChapter || '').trim(), 'Seite': seite || '', 'Text': text, 'Wichtig': false, 'Erstellt am': new Date().toISOString() };
+    const id = await airtableCreate(TABLE_LESEN_EINTRAEGE, fields, LESEN_BASE_ID);
+    const entry = { id, bookId: lesenBookId, typ, kapitel: fields['Kapitel'], seite: fields['Seite'], text, wichtig:false, createdAt: fields['Erstellt am'] };
+    lesenEntries.push(entry); lesenSessionNotes.unshift(entry);
+    const pageNum = parseInt(seite, 10); const bk = lesenBooks.find(x=>x.id === lesenBookId);
+    if(bk && pageNum > (bk.aktuelleSeite || 0)){ bk.aktuelleSeite = pageNum; renderLesenBookInfo(); airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': pageNum } }) }, LESEN_BASE_ID).catch(()=>{}); }
+    renderLesenSessionNotes(); renderLesenHistory();
+    return entry;
+  }
+  // Kindle kopiert Text gern mit Quellenangabe ("Autor. Titel (German Edition) (S. 42). Kindle-Version.") -> Text + Seite/Position trennen
+  function kindleParse(raw){
+    let t = (raw || '').replace(/\r/g, '').trim(); let pos = '';
+    const m = /\n*\s*[^\n]*\((?:S\.|Seite|Pos\.|Position|Location|p\.)\s*([\d.,]+)[^)]*\)[^\n]*Kindle[^\n]*$/i.exec(t) || /\n+[^\n]*Kindle-(?:Version|Edition)[^\n]*$/i.exec(t);
+    if(m){ pos = (m[1] || '').replace(/[.,]/g, ''); t = t.slice(0, m.index).trim(); }
+    t = t.replace(/^["„“]+|["“”]+$/g, '').trim();
+    return { text:t, pos };
+  }
 
   const lesenMainEl = document.getElementById('lesenMain');
   const lesenHistoryEl = document.getElementById('lesenHistory');
@@ -6728,8 +6794,9 @@
       renderLesenSelect();
       resetLesenSession();
       renderLesenHistory();
+      renderHomeLesen();
     }catch(e){
-      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lesen-Daten konnten nicht geladen werden. Bitte später erneut versuchen."Kongrow - Lesen" freigegeben?</div></div>';
+      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lesen-Daten konnten nicht geladen werden. Bitte später erneut versuchen.</div></div>';
     }
   }
 
@@ -6994,7 +7061,7 @@
 
   /* ----- Phase 1: Abfrage ----- */
   function lesenRecallMaterial(){
-    const prev = lesenBookEntries(lesenBookId).filter(e=>e.typ === 'Notiz' || e.typ === 'Zusammenfassung');
+    const prev = lesenBookEntries(lesenBookId).filter(e=>e.typ === 'Notiz' || e.typ === 'Zitat' || e.typ === 'Zusammenfassung');
     const lastSummary = prev.find(e=>e.typ === 'Zusammenfassung');
     const notes = prev.filter(e=>e.typ === 'Notiz').slice(0, 15).reverse();
     let mat = '';
@@ -7080,10 +7147,28 @@
   }
 
   /* ----- Phase 2: Notizen ----- */
+  function lesenStartTimer(){
+    if(!lesenReadStart){ lesenReadStart = Date.now(); try{ localStorage.setItem('kongrow_lesen_start', String(lesenReadStart)); }catch(e){} }
+    if(typeof keepAwake === 'function') keepAwake(true);
+  }
   function renderLesenNotes(){
+    const SRok = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     lesenMainEl.innerHTML = `
+      <div class="card lesen-mode">
+        <div class="lesen-mode-top"><div><div class="step-label" style="margin:0;">Lese-Modus</div><div class="lesen-timer" id="lesenTimer">0:00</div></div>
+          <div class="lesen-today"><span id="lesenToday"></span><button type="button" class="ghost lesen-start" id="lesenStartBtn">Lesezeit starten</button></div></div>
+        <div class="lesen-quick">
+          ${SRok ? '<button type="button" class="primary" id="lesenVoice">Gedanke sprechen</button>' : ''}
+          <button type="button" class="ghost" id="lesenPaste">Markierung einfügen</button>
+        </div>
+        <div class="hint" id="lesenQuickHint" style="margin:8px 0 0;">${SRok ? 'Antippen, sprechen, nochmal antippen. Wird mit Seite gespeichert.' : ''} In Kindle Text markieren → Kopieren → hier „Markierung einfügen“.</div>
+        <div class="lesen-page-row"><span>Position / Seite</span><input type="text" id="lesenCurPage" inputmode="numeric" placeholder="z. B. 1234"></div>
+        <div class="save-status" id="lesenQuickStatus"></div>
+        <div id="lesenSessionNotesTop"></div>
+        <button type="button" class="aufg-link" id="lesenKindleImport" style="margin-top:8px;">Kindle-Notizbuch importieren</button>
+      </div>
       <div class="card">
-        <div class="step-label">2 · Beim Lesen</div>
+        <div class="step-label">Notiz tippen</div>
         <div class="turn-title">Kapitel</div>
         <input type="text" id="lesenChapterInput" placeholder="z.B. Kapitel 3: Gewohnheiten" value="${escapeHtml(lesenChapter)}" style="margin-bottom:12px;">
         <div class="turn-title">Notiz</div>
@@ -7095,8 +7180,40 @@
         <button class="primary" id="lesenSaveNote" style="margin-top:14px;width:100%;">Notiz speichern</button>
         <div id="lesenNoteStatus" class="save-status"></div>
         <div id="lesenSessionNotes"></div>
-        <button class="ghost" id="lesenToSummary" style="margin-top:16px;width:100%;">Kapitel beenden → Zusammenfassung</button>
+        <button class="ghost" id="lesenToSummary" style="margin-top:16px;width:100%;">Lesen beenden → Zusammenfassung</button>
       </div>`;
+    // Timer
+    const tEl = lesenMainEl.querySelector('#lesenTimer'), todayEl = lesenMainEl.querySelector('#lesenToday');
+    const startBtn = lesenMainEl.querySelector('#lesenStartBtn');
+    startBtn.onclick = ()=>{ lesenStartTimer(); clearInterval(lesenTick); lesenTick = setInterval(tick, 1000); tick(); };
+    const tick = ()=>{ startBtn.style.display = lesenReadStart ? 'none' : ''; tEl.style.opacity = lesenReadStart ? '' : '.35'; if(!lesenReadStart){ todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' / ' + LESEN_ZIEL_MIN + ' Min'; return; } if(!document.body.contains(tEl)){ clearInterval(lesenTick); return; } const sec = Math.floor((Date.now() - lesenReadStart) / 1000); tEl.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' / ' + LESEN_ZIEL_MIN + ' Min'; };
+    clearInterval(lesenTick); lesenTick = setInterval(tick, 1000); tick();
+    const bkNow = lesenBooks.find(x=>x.id === lesenBookId);
+    const curPage = lesenMainEl.querySelector('#lesenCurPage'); if(bkNow && bkNow.aktuelleSeite) curPage.value = bkNow.aktuelleSeite;
+    const qst = lesenMainEl.querySelector('#lesenQuickStatus');
+    const vBtn = lesenMainEl.querySelector('#lesenVoice');
+    if(vBtn) vBtn.onclick = ()=>{
+      if(voice.on && voice.onEnd){ voiceStop(); return; }
+      if(!lesenReadStart) startBtn.click();
+      vBtn.textContent = 'Fertig'; vBtn.classList.add('on'); qst.textContent = 'Ich höre zu …';
+      const ok = voiceStart(null, async text=>{
+        vBtn.textContent = 'Gedanke sprechen'; vBtn.classList.remove('on');
+        if(!text){ qst.textContent = 'Nichts verstanden. Nochmal versuchen?'; return; }
+        try{ await lesenQuickSave('Notiz', text.charAt(0).toUpperCase() + text.slice(1), curPage.value.trim()); qst.textContent = 'Gedanke gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
+      });
+      if(!ok){ vBtn.textContent = 'Gedanke sprechen'; vBtn.classList.remove('on'); qst.textContent = 'Spracheingabe nicht verfügbar.'; }
+    };
+    lesenMainEl.querySelector('#lesenPaste').onclick = async ()=>{
+      if(!lesenReadStart) startBtn.click();
+      let raw = '';
+      try{ raw = await navigator.clipboard.readText(); }catch(e){}
+      if(!raw){ raw = prompt('Markierung hier einfügen:') || ''; }
+      if(!raw.trim()){ qst.textContent = 'Zwischenablage ist leer. In Kindle erst Text markieren und „Kopieren“ tippen.'; return; }
+      const k = kindleParse(raw);
+      try{ await lesenQuickSave('Zitat', k.text, k.pos || curPage.value.trim()); if(k.pos) curPage.value = k.pos; qst.textContent = 'Markierung gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
+    };
+    curPage.onchange = ()=>{ const n = parseInt(curPage.value, 10); const bk = lesenBooks.find(x=>x.id === lesenBookId); if(bk && n > 0){ bk.aktuelleSeite = n; renderLesenBookInfo(); airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': n } }) }, LESEN_BASE_ID).catch(()=>{}); renderHomeLesen(); } };
+    lesenMainEl.querySelector('#lesenKindleImport').onclick = openKindleImport;
     const chapterEl = lesenMainEl.querySelector('#lesenChapterInput');
     chapterEl.oninput = ()=>{ lesenChapter = chapterEl.value; };
     renderLesenSessionNotes();
@@ -7137,10 +7254,44 @@
       }
       saveBtn.disabled = false;
     };
-    lesenMainEl.querySelector('#lesenToSummary').onclick = ()=>{ lesenPhase = 'summary'; renderLesenMain(); };
+    lesenMainEl.querySelector('#lesenToSummary').onclick = async ()=>{ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); lesenPhase = 'summary'; renderLesenMain(); };
+  }
+  let lesenTick = null;
+  // Kindle-Notizbuch: in der Kindle-App Notizbuch → Teilen/Exportieren → Text kopieren und hier einfügen
+  function openKindleImport(){
+    openErnModal(`<div class="modal-title">Kindle-Notizbuch importieren</div>
+      <div class="modal-sub">In der Kindle-App: Buch öffnen → Notizbuch → Teilen bzw. Exportieren → Text kopieren. Dann hier einfügen. Doppelte Markierungen werden übersprungen.</div>
+      <textarea id="kiText" rows="9" placeholder="Hier einfügen …" style="min-height:200px;"></textarea>
+      <button type="button" class="primary" id="kiGo" style="width:100%;margin-top:12px;">Markierungen übernehmen</button>
+      <div class="save-status" data-st></div>`);
+    const c = ernModalCard();
+    c.querySelector('#kiGo').onclick = async ()=>{
+      const raw = c.querySelector('#kiText').value; const st = c.querySelector('[data-st]');
+      if(!raw.trim()){ st.textContent = 'Bitte zuerst den Text einfügen.'; return; }
+      // Blöcke: Zeilen mit "Markierung/Highlight ... Position/Seite N" leiten einen Eintrag ein
+      const lines = raw.replace(/\r/g, '').split('\n').map(x=>x.trim());
+      const items = []; let cur = null;
+      lines.forEach(l=>{
+        const hm = /(markierung|highlight|notiz|note)[^\n]*?(?:position|location|seite|page|pos\.|s\.)\s*([\d.,]+)/i.exec(l);
+        if(hm){ if(cur && cur.text.trim()) items.push(cur); cur = { typ: /notiz|note/i.test(hm[1]) ? 'Notiz' : 'Zitat', pos: hm[2].replace(/[.,]/g, ''), text:'' }; return; }
+        if(!l){ return; }
+        if(cur) cur.text += (cur.text ? ' ' : '') + l; else items.push({ typ:'Zitat', pos:'', text:l });
+      });
+      if(cur && cur.text.trim()) items.push(cur);
+      const known = new Set(lesenBookEntries(lesenBookId).map(e=>(e.text || '').slice(0, 80)));
+      const neu = items.filter(x=>x.text.length > 3 && !known.has(x.text.slice(0, 80))).slice(0, 300);
+      if(!neu.length){ st.textContent = items.length ? 'Alles schon importiert.' : 'Keine Markierungen erkannt.'; return; }
+      st.textContent = 'Übernehme ' + neu.length + ' …';
+      let ok = 0;
+      for(const x of neu){ try{ await lesenQuickSave(x.typ, x.text, x.pos); ok++; }catch(e){} }
+      st.textContent = ok + ' Markierungen übernommen ✓';
+      setTimeout(closeErnModal, 1200);
+    };
   }
 
   function renderLesenSessionNotes(){
+    const top = lesenMainEl.querySelector('#lesenSessionNotesTop');
+    if(top) top.innerHTML = lesenSessionNotes.slice(0, 6).map(n=>`<div class="lesen-snip ${n.typ === 'Zitat' ? 'q' : ''}">${n.typ === 'Zitat' ? '❝ ' : '💭 '}${escapeHtml(n.text.length > 160 ? n.text.slice(0, 160) + '…' : n.text)}${n.seite ? ' <small>· ' + escapeHtml(String(n.seite)) + '</small>' : ''}</div>`).join('');
     const el = lesenMainEl.querySelector('#lesenSessionNotes');
     if(!el) return;
     if(!lesenSessionNotes.length){ el.innerHTML = ''; return; }
@@ -7154,6 +7305,7 @@
       <div class="card">
         <div class="step-label">3 · Kapitel-Ende</div>
         <div class="question" style="font-size:19px;">${escapeHtml(lesenChapter || 'Zusammenfassung')}</div>
+        ${lesenSessionNotes.length ? '<button type="button" class="ghost" id="lesenAiSum" style="width:100%;margin-top:10px;">✨ Aus meinen Notizen vorschlagen</button>' : ''}
         <div class="turn-title" style="margin-top:12px;">Zusammenfassung in eigenen Worten</div>
         <textarea id="lesenSummaryInput" placeholder="Worum ging es in diesem Kapitel?" style="min-height:150px;"></textarea>
         <div class="turn-title" style="margin-top:12px;">Was nehme ich mit / setze ich um? (optional)</div>
@@ -7165,6 +7317,22 @@
         <div id="lesenSummaryStatus" class="save-status"></div>
       </div>`;
     lesenMainEl.querySelector('#lesenBackNotes').onclick = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
+    const aiSum = lesenMainEl.querySelector('#lesenAiSum');
+    if(aiSum) aiSum.onclick = async ()=>{
+      if(aiSum.disabled) return; aiSum.disabled = true; aiSum.textContent = '✨ Fasse zusammen …';
+      const bk = lesenBooks.find(x=>x.id === lesenBookId) || {};
+      try{
+        const out = await callClaudeCoach(`Dominic liest „${bk.titel || ''}“${bk.autor ? ' von ' + bk.autor : ''}. Hier seine Notizen (💭 eigene Gedanken, ❝ markierte Stellen) aus der heutigen Lesesitzung:
+${lesenSessionNotes.slice().reverse().map(n=>(n.typ === 'Zitat' ? '❝ ' : '💭 ') + n.text).join('\n')}
+Schreibe in Dominics Worten (Ich-Form, locker, klar) eine kurze Zusammenfassung (3 bis 6 Sätze) des Gelesenen und eine konkrete Sache, die er umsetzen kann. Keine Gedankenstriche, nichts erfinden.
+Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
+        const j = JSON.parse((out.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+        if(j.zusammenfassung) lesenMainEl.querySelector('#lesenSummaryInput').value = j.zusammenfassung;
+        if(j.umsetzen) lesenMainEl.querySelector('#lesenTakeawayInput').value = j.umsetzen;
+        aiSum.textContent = 'Vorschlag eingefügt. Bitte anpassen.';
+      }catch(e){ aiSum.textContent = 'Hat nicht geklappt: ' + e.message; }
+      aiSum.disabled = false;
+    };
     const saveBtn = lesenMainEl.querySelector('#lesenSaveSummary');
     const statusEl = lesenMainEl.querySelector('#lesenSummaryStatus');
     saveBtn.onclick = async ()=>{
@@ -7182,8 +7350,12 @@
         const id = await airtableCreate(TABLE_LESEN_EINTRAEGE, fields, LESEN_BASE_ID);
         lesenEntries.push({ id, bookId: lesenBookId, typ:'Zusammenfassung', kapitel: fields['Kapitel'], seite:'', text, wichtig:false, createdAt: fields['Erstellt am'] });
         renderLesenHistory();
-        lesenMainEl.innerHTML = `<div class="card"><div class="step-label">Fertig</div><div class="question" style="font-size:19px;">Kapitel gespeichert.</div><div class="hint">Beim nächsten Mal fragt dich die KI genau danach ab.</div><button class="primary" id="lesenNextChapter" style="width:100%;margin-top:12px;">Nächstes Kapitel beginnen</button></div>`;
+        lesenMainEl.innerHTML = `<div class="card"><div class="step-label">Fertig</div><div class="question" style="font-size:19px;">Gespeichert.</div><div class="hint">Beim nächsten Mal fragt dich die KI genau danach ab.</div>
+          ${take ? `<button class="ghost" id="lesenTakeTask" style="width:100%;margin-top:12px;">„${escapeHtml(take.length > 50 ? take.slice(0, 50) + '…' : take)}“ als Aufgabe</button>` : ''}
+          <button class="primary" id="lesenNextChapter" style="width:100%;margin-top:12px;">Weiterlesen</button></div>`;
         lesenMainEl.querySelector('#lesenNextChapter').onclick = ()=>{ lesenChapter = ''; lesenSessionNotes = []; lesenPhase = 'notes'; renderLesenMain(); };
+        const tt = lesenMainEl.querySelector('#lesenTakeTask');
+        if(tt) tt.onclick = ()=>{ const bk = lesenBooks.find(x=>x.id === lesenBookId) || {}; window.__openAufgNew({ titel: take.slice(0, 90), notiz: 'Aus dem Buch „' + (bk.titel || '') + '“', bereich:'Privat', heute:false }); };
       }catch(e){
         showSaveFailure(statusEl, ()=>saveBtn.click(), text);
         saveBtn.disabled = false;
@@ -7199,7 +7371,7 @@
   };
 
   function renderLesenHistory(){
-    const list = lesenBookId ? lesenBookEntries(lesenBookId).filter(e=>e.typ !== 'Abfrage') : [];
+    const list = lesenBookId ? lesenBookEntries(lesenBookId).filter(e=>e.typ !== 'Abfrage' && e.typ !== 'Lesezeit') : [];
     if(!list.length){ lesenHistoryEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
     lesenHistoryEl.innerHTML = list.map(e=>`
       <div class="entry">
@@ -9796,7 +9968,8 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     _switchTabOrig(key);
     if(key === 'kalender') loadCalendar();
     if(key === 'nachrichten') loadMessages();
-    if(key === 'home') renderHomeTermine();
+    if(key === 'home'){ renderHomeTermine(); renderHomeLesen(); }
+    if(typeof keepAwake === 'function'){ if(key === 'lesen' && lesenReadStart) keepAwake(true); else if(!activeWorkout) keepAwake(false); }
     if(key === 'fortschritt') renderFortschritt();
     if(key === 'upwork') renderUpwork();
     curTab = key; try{ sessionStorage.setItem('kg_tab', key); }catch(e){}
