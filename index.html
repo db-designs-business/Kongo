@@ -7477,7 +7477,30 @@ Diktat: ${text}`);
       try{ await lesenQuickSave('Zitat', k.text, k.pos || bk.aktuelleSeite || ''); qst.textContent = 'Markierung gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
     };
     lesenMainEl.querySelector('#lesenKindleImport').onclick = openKindleImport;
-    lesenMainEl.querySelector('#lesenToSummary').onclick = async ()=>{ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); lesenPhase = 'summary'; renderLesenMain(); renderLesenHero(); };
+    lesenMainEl.querySelector('#lesenToSummary').onclick = ()=>{
+      const bk = lesenBooks.find(x=>x.id === lesenBookId) || {};
+      const go = async ()=>{ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); lesenPhase = 'summary'; renderLesenMain(); renderLesenHero(); };
+      openErnModal(`<div class="modal-title">Auf welcher Seite bist du?</div>
+        <div class="modal-sub">${bk.aktuelleSeite ? 'Zuletzt: Seite ' + bk.aktuelleSeite : 'Noch keine Seite eingetragen'}${bk.seiten ? ' von ' + bk.seiten : ''}</div>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="lpSeite" value="${bk.aktuelleSeite || ''}" style="font-size:28px;text-align:center;font-weight:800;padding:14px;">
+        <div style="display:flex;gap:8px;margin-top:10px;">${[5, 10, 20].map(n=>`<button type="button" class="ghost" data-add="${n}" style="flex:1;">+${n}</button>`).join('')}</div>
+        <button type="button" class="primary" id="lpOk" style="width:100%;margin-top:14px;">Speichern & beenden</button>
+        <button type="button" class="aufg-link" id="lpSkip" style="display:block;margin:12px auto 0;">Seite nicht ändern</button>`);
+      const c = ernModalCard(), inp = c.querySelector('#lpSeite');
+      setTimeout(()=>{ inp.focus(); inp.select(); }, 200);
+      c.querySelectorAll('[data-add]').forEach(x=>{ x.onclick = ()=>{ inp.value = (parseInt(inp.value, 10) || bk.aktuelleSeite || 0) + +x.dataset.add; }; });
+      c.querySelector('#lpSkip').onclick = ()=>{ closeErnModal(); go(); };
+      c.querySelector('#lpOk').onclick = ()=>{
+        const n = parseInt(inp.value, 10);
+        if(n > 0 && bk.id && n !== bk.aktuelleSeite){
+          if(bk.seiten && n > bk.seiten){ inp.style.borderColor = '#e66'; c.querySelector('.modal-sub').textContent = 'Das Buch hat nur ' + bk.seiten + ' Seiten.'; return; }
+          bk.aktuelleSeite = n;
+          airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': n } }) }, LESEN_BASE_ID).catch(()=>{});
+          renderLesenSelect(); renderHomeLesen();
+        }
+        closeErnModal(); go();
+      };
+    };
   }
   let lesenTick = null;
   // Kindle-Notizbuch: in der Kindle-App Notizbuch → Teilen/Exportieren → Text kopieren und hier einfügen
@@ -9785,7 +9808,7 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
   const micLiveEl = document.createElement('div'); micLiveEl.className = 'kg-mic-live';
   if(SR){ document.body.appendChild(micBtn); document.body.appendChild(micLiveEl); }
   let micField = null;
-  const micOk = el=>el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text')) && !el.closest('.auth-screen') && !el.readOnly;
+  const micOk = el=>el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text' && el.inputMode !== 'numeric' && el.inputMode !== 'decimal')) && !el.closest('.auth-screen') && !el.readOnly;
   function micPlace(){
     if(!micField){ micBtn.style.display = 'none'; return; }
     const vv = window.visualViewport; const r = micField.getBoundingClientRect();
