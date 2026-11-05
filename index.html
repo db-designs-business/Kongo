@@ -801,6 +801,39 @@
   .lesen-sbar i{ display:block; height:100%; width:calc(var(--p, 0) * 1%); background:var(--forest); border-radius:99px; transition:width .9s linear; }
   .lesen-timer-s{ font-size:13px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
   .lesen-timer-s b{ color:var(--ink); font-size:20px; }
+
+  /* Sprachsteuerung */
+  .kg-ask{ position:fixed; inset:0; z-index:95; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; justify-content:center; opacity:0; transition:opacity .2s; }
+  .kg-ask.show{ opacity:1; }
+  .kg-ask-card{ width:100%; max-width:560px; max-height:88vh; overflow-y:auto; background:#0E1417; border:1px solid var(--line); border-bottom:none; border-radius:26px 26px 0 0; padding:16px 20px calc(20px + env(safe-area-inset-bottom)); transform:translateY(30px); transition:transform .25s cubic-bezier(.2,.9,.3,1); box-sizing:border-box; }
+  .kg-ask.show .kg-ask-card{ transform:none; }
+  .kg-ask-head{ display:flex; align-items:center; justify-content:space-between; }
+  .kg-ask-x{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); font-size:20px; padding:0; }
+  .kg-ask-mic{ display:flex; align-items:center; justify-content:center; width:96px; height:96px; margin:14px auto 8px; border-radius:50%; border:1px solid rgba(34,227,211,.5); background:radial-gradient(circle at 50% 40%, rgba(34,227,211,.25), rgba(34,227,211,.05)); color:var(--forest); padding:0; }
+  .kg-ask-mic svg{ width:42px; height:42px; }
+  .kg-ask-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
+  .kg-ask-state{ text-align:center; color:var(--ink-soft); font-size:14px; min-height:18px; }
+  .kg-ask-live{ text-align:center; font-size:17px; line-height:1.4; margin:10px 0 4px; color:var(--ink); }
+  .kg-ask-live:empty{ display:none; }
+  .kg-ask-say{ background:rgba(34,227,211,.08); border:1px solid rgba(34,227,211,.25); border-radius:16px; padding:12px 14px; margin-top:12px; font-size:15px; line-height:1.45; }
+  .kg-ask-say p{ margin:0 0 6px; } .kg-ask-say p:last-child{ margin:0; }
+  .kg-ask-say.err, .kg-ask-say .err{ color:#ff9b8a; }
+  .kg-ask-say.err{ background:rgba(255,120,100,.08); border-color:rgba(255,120,100,.3); }
+  .kg-ask-acts{ margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+  .kg-ask-act{ display:flex; gap:10px; align-items:flex-start; padding:12px; border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.03); cursor:pointer; }
+  .kg-ask-act input{ width:20px !important; height:20px; margin:2px 0 0; flex-shrink:0; accent-color:var(--forest); }
+  .kg-ask-act .ic{ font-size:18px; line-height:1.2; }
+  .kg-ask-act .tx{ flex:1; min-width:0; } .kg-ask-act b{ display:block; font-size:15px; } .kg-ask-act small{ display:block; color:var(--ink-soft); font-size:13px; margin-top:2px; }
+  .kg-ask-type{ display:flex; gap:8px; margin-top:16px; }
+  .kg-ask-type input{ flex:1; min-width:0; border-radius:99px !important; padding:12px 16px !important; }
+  .kg-ask-type button{ width:46px; height:46px; min-height:46px; border-radius:50%; padding:0; font-size:20px; flex-shrink:0; }
+  .kg-ask-type .primary::after{ content:none !important; }
+  .kg-ask-ex{ font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:12px; line-height:1.45; }
+  .kg-ask-dots{ display:flex; justify-content:center; gap:6px; margin:16px 0; }
+  .kg-ask-dots i{ width:8px; height:8px; border-radius:50%; background:var(--forest); animation:kgDot 1s infinite ease-in-out; }
+  .kg-ask-dots i:nth-child(2){ animation-delay:.15s; } .kg-ask-dots i:nth-child(3){ animation-delay:.3s; }
+  @keyframes kgDot{ 0%,100%{ opacity:.25; transform:translateY(0); } 50%{ opacity:1; transform:translateY(-4px); } }
+  .bb-center{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
   .lesen-mic{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%; min-height:150px; margin:14px 0 6px; border-radius:22px; border:1px solid rgba(34,227,211,.45); background:radial-gradient(circle at 50% 40%, rgba(34,227,211,.18), rgba(34,227,211,.04)); color:var(--forest); font-size:16px; font-weight:700; }
   .lesen-mic svg{ width:46px; height:46px; }
   .lesen-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
@@ -10335,6 +10368,245 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   /* =========================================================
      UPWORK: KPIs eintragen, Funnel auswerten, Google Sheet abgleichen
      ========================================================= */
+  /* =========================================================
+     SPRACHSTEUERUNG ("Kongrow, …"): Home-Button gedrückt halten oder Strg/⌘+K
+     Sprache → KI macht daraus Aktionen → Vorschau → Ausführen (mit Rückgängig)
+     ========================================================= */
+  (function(){
+    const ov = document.createElement('div'); ov.id = 'kgAsk'; ov.className = 'kg-ask'; ov.style.display = 'none';
+    ov.innerHTML = `<div class="kg-ask-card" role="dialog" aria-label="Sprachsteuerung">
+        <div class="kg-ask-head"><div class="step-label" style="margin:0;">Sprachsteuerung</div><button type="button" class="kg-ask-x" aria-label="Schließen">×</button></div>
+        <button type="button" class="kg-ask-mic" aria-label="Sprechen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <div class="kg-ask-state">Tippen und sprechen</div>
+        <div class="kg-ask-live"></div>
+        <div class="kg-ask-out"></div>
+        <div class="kg-ask-type"><input type="text" placeholder="… oder hier tippen" enterkeyhint="send"><button type="button" class="primary" aria-label="Senden">↑</button></div>
+        <div class="kg-ask-ex">z. B. „Trag mir ‚Angebot IBU schreiben‘ für Freitag 10 Uhr ein, auch in den Kalender“ · „Was steht heute an?“ · „Hak ‚Steuer‘ ab“</div>
+      </div>`;
+    document.body.appendChild(ov);
+    const card = ov.querySelector('.kg-ask-card'), micB = ov.querySelector('.kg-ask-mic'), stEl = ov.querySelector('.kg-ask-state'),
+      liveEl = ov.querySelector('.kg-ask-live'), outEl = ov.querySelector('.kg-ask-out'), tIn = ov.querySelector('.kg-ask-type input'), tBtn = ov.querySelector('.kg-ask-type button');
+    const SRC = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = { on:false, r:null, done:'', cur:'' };
+    let busy = false, history = [];   // kurze Unterhaltung für Rückfragen
+    const recText = ()=>(rec.done + ' ' + rec.cur).replace(/\s+/g, ' ').trim();
+    const segJoin = list=>{ let out = ''; list.forEach(t=>{ t = t.trim(); if(!t) return; const o = out.trim();
+      if(o && t.toLowerCase().startsWith(o.toLowerCase())) out = t; else if(o && o.toLowerCase().endsWith(t.toLowerCase())) return; else out = o ? o + ' ' + t : t; }); return out; };
+    function recStart(){
+      const r = new SRC(); r.lang = 'de-DE'; r.continuous = true; r.interimResults = true; rec.r = r;
+      r.onresult = ev=>{ if(rec.r !== r) return; const segs = []; for(let i = 0; i < ev.results.length; i++) segs.push(ev.results[i][0].transcript); rec.cur = segJoin(segs); liveEl.textContent = recText(); };
+      r.onerror = e=>{ if(rec.r !== r) return; if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){ rec.on = false; stEl.textContent = 'Mikrofon nicht erlaubt. iPhone: Einstellungen → Safari → Mikrofon.'; } };
+      r.onend = ()=>{ if(rec.r !== r) return; rec.done = recText(); rec.cur = ''; if(rec.on){ try{ recStart(); }catch(e){ recFinish(); } } else recFinish(); };
+      r.start();
+    }
+    function recFinish(){ rec.r = null; micB.classList.remove('on'); const t = recText(); rec.done = ''; rec.cur = ''; if(t) run(t); else stEl.textContent = 'Nichts verstanden. Nochmal tippen.'; }
+    function listen(){
+      if(busy) return;
+      if(!SRC){ stEl.textContent = 'Spracheingabe nicht verfügbar. Einfach unten tippen.'; tIn.focus(); return; }
+      if(rec.on){ rec.on = false; stEl.textContent = 'Verstehe …'; const r = rec.r; if(r){ try{ r.stop(); }catch(e){} setTimeout(()=>{ if(rec.r === r){ rec.done = recText(); rec.cur = ''; recFinish(); } }, 1500); } return; }
+      if(typeof voice !== 'undefined' && voice.on) voiceStop(true);
+      rec.on = true; rec.done = ''; rec.cur = ''; liveEl.textContent = ''; outEl.innerHTML = '';
+      micB.classList.add('on'); stEl.textContent = 'Ich höre zu … tippen, wenn du fertig bist';
+      try{ recStart(); }catch(e){ rec.on = false; micB.classList.remove('on'); stEl.textContent = 'Spracheingabe nicht verfügbar.'; }
+    }
+    function open(autoListen){
+      ov.style.display = 'flex'; requestAnimationFrame(()=>ov.classList.add('show'));
+      outEl.innerHTML = ''; liveEl.textContent = ''; stEl.textContent = 'Tippen und sprechen'; history = [];
+      if(autoListen) listen();
+    }
+    function close(){ rec.on = false; if(rec.r){ const r = rec.r; rec.r = null; try{ r.abort ? r.abort() : r.stop(); }catch(e){} } micB.classList.remove('on'); ov.classList.remove('show'); setTimeout(()=>{ ov.style.display = 'none'; }, 200); }
+    window.kgAskOpen = open;
+    micB.onclick = listen;
+    ov.querySelector('.kg-ask-x').onclick = close;
+    ov.addEventListener('click', e=>{ if(e.target === ov) close(); });
+    const sendTyped = ()=>{ const t = tIn.value.trim(); if(!t || busy) return; tIn.value = ''; tIn.blur(); liveEl.textContent = t; run(t); };
+    tBtn.onclick = sendTyped; tIn.onkeydown = e=>{ if(e.key === 'Enter') sendTyped(); };
+    document.addEventListener('keydown', e=>{
+      if((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')){ e.preventDefault(); ov.style.display === 'none' ? open(true) : close(); }
+      else if(e.key === 'Escape' && ov.style.display !== 'none') close();
+    });
+    // Home-Button gedrückt halten
+    const home = document.querySelector('.bb-item.bb-center');
+    if(home){
+      let tmr = null, fired = false;
+      const startP = ()=>{ fired = false; clearTimeout(tmr); tmr = setTimeout(()=>{ fired = true; try{ if(navigator.vibrate) navigator.vibrate(30); }catch(e){} open(true); }, 450); };
+      const endP = ()=>clearTimeout(tmr);
+      home.addEventListener('touchstart', startP, { passive:true }); home.addEventListener('touchend', endP); home.addEventListener('touchmove', endP, { passive:true }); home.addEventListener('touchcancel', endP);
+      home.addEventListener('mousedown', startP); home.addEventListener('mouseup', endP); home.addEventListener('mouseleave', endP);
+      home.addEventListener('contextmenu', e=>e.preventDefault());
+      home.addEventListener('click', e=>{ if(fired){ e.stopImmediatePropagation(); e.preventDefault(); fired = false; } }, true);
+    }
+
+    /* ---------- Kontext + KI ---------- */
+    const WD = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    async function context(){
+      const now = new Date();
+      const open = aufgabenCache.filter(t=>!t.erledigtAm).slice(0, 80).map(t=>`- id=${t.id} | ${t.titel} | Prio ${t.prio} | ${t.bereich}${t.faellig ? ' | fällig ' + t.faellig : ''}${aufgabeIsHeute(t) ? ' | HEUTE' : ''}${t.termin ? ' | Termin ' + t.termin : ''}`).join('\n');
+      let evs = '';
+      try{
+        const st = cal.status || await loadGoogleStatus();
+        if(st && st.connected){
+          const from = new Date(); from.setHours(0,0,0,0); const to = addDays(from, 8);
+          const list = (await kgApi('google.php?action=events&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()))).events || [];
+          evs = list.slice(0, 60).map(e=>`- ${e.allDay ? e.start + ' ganztags' : e.start.replace('T', ' ').slice(0, 16) + '–' + String(e.end).slice(11, 16)} | ${e.title}`).join('\n') || '(keine)';
+        } else evs = '(Google-Kalender nicht verbunden)';
+      }catch(e){ evs = '(Kalender nicht erreichbar)'; }
+      const bk = (typeof lesenBooks !== 'undefined') ? lesenBooks.find(b=>b.id === lesenBookId) : null;
+      return `Jetzt: ${WD[now.getDay()]}, ${dayStr(now)} ${pad2(now.getHours())}:${pad2(now.getMinutes())} (Europe/Berlin).
+Offene Aufgaben:
+${open || '(keine)'}
+Termine nächste 7 Tage:
+${evs}
+Aktuelles Buch: ${bk ? bk.titel + (bk.aktuelleSeite ? ', Seite ' + bk.aktuelleSeite : '') : '(keins)'}`;
+    }
+    const PROMPT = `Du bist die Sprachsteuerung von Dominics App „Kongrow“. Er spricht frei, du machst daraus Aktionen. Antworte NUR mit JSON:
+{"antwort":"1 bis 2 kurze Sätze auf Deutsch, du-Form, was du tust oder die Antwort auf seine Frage","aktionen":[ ... ]}
+Mögliche Aktionen (nur diese, Datum immer YYYY-MM-DD, Zeit HH:MM, relativ zu "Jetzt" rechnen: "morgen", "Freitag" = nächster Freitag, "nächste Woche" = Montag):
+{"typ":"aufgabe","titel":"…","notiz":"","prio":"A|B|C","bereich":"Business|Privat","faellig":"","heute":false,"termin":null}
+  Wenn er sagt "auch in den Kalender" oder eine Uhrzeit nennt: "termin":{"datum":"…","zeit":"…","dauer":60}. Fällig = Datum des Termins, falls genannt. heute=true nur wenn er "heute" sagt. prio: A = wichtig/dringend, C = irgendwann, sonst B. bereich: Business bei Kunden/Arbeit/Agentur/Akquise, sonst Privat.
+{"typ":"termin","titel":"…","datum":"…","zeit":"…","dauer":60,"ganztags":false,"ort":"","notiz":""}  (nur Kalender, ohne Aufgabe)
+{"typ":"erledigt","id":"…","titel":"…"}  (id aus der Aufgabenliste, nur wenn eindeutig passend)
+{"typ":"aendern","id":"…","titel":"…","faellig":"","heute":null,"prio":""}  (verschieben, auf heute setzen, Prio ändern. Nur Felder füllen, die sich ändern)
+{"typ":"lesenotiz","text":"…","seite":""}  (Gedanke oder Notiz zum aktuellen Buch)
+{"typ":"lesen_starten"}
+{"typ":"oeffnen","bereich":"home|aufgaben|kalender|nachrichten|koerper|lesen|ziele|routinen|reflexion|fortschritt|upwork|affirmationen|wutjournal|sprechuebung|worksheets"}
+{"typ":"mail","an":"","betreff":"…","text":"…"}  (öffnet nur einen Entwurf, sendet nie)
+Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wann ist …?") beantwortest du nur in "antwort" aus dem Kontext, ohne Aktionen. Titel kurz und klar, in seinen Worten. Erfinde nichts. Ist etwas unklar, frag in "antwort" nach und gib keine Aktion. Keine Gedankenstriche.`;
+    async function think(text){
+      if(!getAnthropicToken()) throw new Error('Für die Sprachsteuerung brauchst du den Anthropic-Schlüssel in den Einstellungen.');
+      const ctx = await context();
+      history.push('Dominic: ' + text);
+      const out = await callClaudeCoach(PROMPT + '\n\nKONTEXT\n' + ctx + '\n\nVERLAUF\n' + history.slice(-6).join('\n'));
+      const j = JSON.parse((out.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+      history.push('Kongrow: ' + (j.antwort || ''));
+      return { antwort: String(j.antwort || ''), aktionen: Array.isArray(j.aktionen) ? j.aktionen.filter(a=>a && a.typ) : [] };
+    }
+
+    /* ---------- Vorschau ---------- */
+    const fmtD = d=>{ if(!d) return ''; const x = new Date(d + 'T12:00:00'); if(isNaN(x)) return d; const t = todayStr(), m = dayStr(addDays(new Date(), 1)); return d === t ? 'heute' : d === m ? 'morgen' : WD[x.getDay()].slice(0, 2) + ', ' + x.getDate() + '.' + (x.getMonth() + 1) + '.'; };
+    const findTask = id=>aufgabenCache.find(t=>t.id === id);
+    function describe(a){
+      const esc = escapeHtml;
+      switch(a.typ){
+        case 'aufgabe': return ['☑️', 'Aufgabe: ' + esc(a.titel || ''), [a.prio ? 'Prio ' + a.prio : '', a.bereich, a.heute ? 'heute' : (a.faellig ? 'fällig ' + fmtD(a.faellig) : ''), a.termin ? '📅 ' + fmtD(a.termin.datum) + ' ' + (a.termin.zeit || '') + ' im Kalender' : ''].filter(Boolean).join(' · ')];
+        case 'termin': return ['📅', 'Termin: ' + esc(a.titel || ''), fmtD(a.datum) + (a.ganztags ? ' · ganztags' : ' · ' + (a.zeit || '09:00') + ' · ' + (a.dauer || 60) + ' Min') + (a.ort ? ' · ' + esc(a.ort) : '')];
+        case 'erledigt': { const t = findTask(a.id); return ['✅', 'Abhaken: ' + esc(t ? t.titel : (a.titel || '?')), t ? '' : 'Aufgabe nicht gefunden']; }
+        case 'aendern': { const t = findTask(a.id); return ['✏️', 'Ändern: ' + esc(t ? t.titel : (a.titel || '?')), [a.faellig ? 'fällig ' + fmtD(a.faellig) : '', a.heute === true ? 'auf heute' : a.heute === false ? 'nicht mehr heute' : '', a.prio ? 'Prio ' + a.prio : ''].filter(Boolean).join(' · ')]; }
+        case 'lesenotiz': return ['💭', 'Lese-Notiz', esc(a.text || '') + (a.seite ? ' · S. ' + esc(String(a.seite)) : '')];
+        case 'lesen_starten': return ['📖', '25-Min-Lese-Session starten', ''];
+        case 'oeffnen': return ['➡️', 'Öffnen: ' + esc(a.bereich || ''), ''];
+        case 'mail': return ['✉️', 'Mail-Entwurf' + (a.an ? ' an ' + esc(a.an) : ''), esc(a.betreff || '')];
+        default: return ['•', esc(a.typ), ''];
+      }
+    }
+    async function run(text){
+      busy = true; stEl.textContent = 'Verstehe …'; outEl.innerHTML = '<div class="kg-ask-dots"><i></i><i></i><i></i></div>';
+      let res;
+      try{ res = await think(text); }
+      catch(e){ busy = false; stEl.textContent = 'Tippen und sprechen'; outEl.innerHTML = `<div class="kg-ask-say err">${escapeHtml(e.message)}</div>`; return; }
+      busy = false;
+      const acts = res.aktionen;
+      const onlyNav = acts.length && acts.every(a=>a.typ === 'oeffnen' || a.typ === 'lesen_starten' || a.typ === 'mail');
+      stEl.textContent = acts.length ? '' : 'Tippen, um weiterzusprechen';
+      outEl.innerHTML = (res.antwort ? `<div class="kg-ask-say">${renderSimpleMarkdown ? renderSimpleMarkdown(res.antwort) : escapeHtml(res.antwort)}</div>` : '') +
+        (acts.length && !onlyNav ? `<div class="kg-ask-acts">${acts.map((a, i)=>{ const [ic, t, d] = describe(a); return `<label class="kg-ask-act"><input type="checkbox" checked data-i="${i}"><span class="ic">${ic}</span><span class="tx"><b>${t}</b>${d ? `<small>${d}</small>` : ''}</span></label>`; }).join('')}</div>
+          <div class="nav-row" style="margin-top:12px;"><button type="button" class="ghost" data-k="again">Nochmal</button><button type="button" class="primary" data-k="go">Ausführen</button></div>` : '');
+      if(onlyNav){ await execute(acts); return; }
+      const go = outEl.querySelector('[data-k="go"]');
+      if(go){
+        outEl.querySelector('[data-k="again"]').onclick = ()=>{ outEl.innerHTML = ''; listen(); };
+        go.onclick = async ()=>{
+          if(go.disabled) return; go.disabled = true; go.textContent = 'Führe aus …';
+          const pick = [...outEl.querySelectorAll('.kg-ask-act input')].filter(x=>x.checked).map(x=>acts[+x.dataset.i]);
+          await execute(pick);
+        };
+      }
+    }
+
+    /* ---------- Ausführen ---------- */
+    const loc = d=>d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00';
+    const okDate = d=>/^\d{4}-\d{2}-\d{2}$/.test(d || '');
+    async function calEvent(title, datum, zeit, dauer, ganztags, ort, notiz){
+      const st = cal.status || await loadGoogleStatus();
+      if(!st || !st.connected) throw new Error('Google-Kalender ist nicht verbunden');
+      if(!okDate(datum)) throw new Error('Kein gültiges Datum');
+      let start, end;
+      if(ganztags){ start = datum; end = dayStr(addDays(new Date(datum + 'T12:00:00'), 1)); }
+      else { const s = new Date(datum + 'T' + (/^\d{1,2}:\d{2}$/.test(zeit || '') ? zeit.padStart(5, '0') : '09:00')); start = loc(s); end = loc(new Date(+s + (Number(dauer) || 60) * 60000)); }
+      const ev = await kgApi('google.php?action=event_save', { calendarId:'primary', title, allDay: !!ganztags, start, end, location: ort || '', description: notiz || '' });
+      cal.loadedKey = ''; homeTermineLoaded = 0;
+      return { ev, start };
+    }
+    async function execute(acts){
+      const done = [], fails = [], undo = [];
+      let nav = null;
+      for(const a of acts){
+        try{
+          if(a.typ === 'aufgabe'){
+            const titel = String(a.titel || '').trim(); if(!titel) continue;
+            const faellig = okDate(a.faellig) ? a.faellig : (a.termin && okDate(a.termin.datum) ? a.termin.datum : '');
+            const heute = a.heute && (!faellig || faellig <= todayStr()) ? todayStr() : '';
+            const fields = { 'Titel': titel, 'Prio': ['A','B','C'].includes(a.prio) ? a.prio : 'B', 'Bereich': a.bereich === 'Business' ? 'Business' : 'Privat', 'Faellig': faellig, 'Heute': heute, 'Notiz': String(a.notiz || ''), 'Quelle': JSON.stringify({ typ:'sprache' }), 'Erstellt am': new Date().toISOString() };
+            const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
+            const t = { id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig, heute, erledigtAm:'', zielId:'', notiz: fields['Notiz'], quelle:{ typ:'sprache' }, createdAt: fields['Erstellt am'] };
+            aufgabenCache.push(t);
+            let evInfo = null;
+            if(a.termin){
+              try{
+                const r = await calEvent(titel, a.termin.datum, a.termin.zeit, a.termin.dauer, false, '', fields['Notiz']);
+                evInfo = r.ev;
+                await patchAufgabe(t, { 'EventId': r.ev.id || '', 'Termin': r.start }); t.eventId = r.ev.id || ''; t.termin = r.start;
+              }catch(err){ fails.push('Kalender für „' + titel + '“: ' + err.message); }
+            }
+            done.push('Aufgabe „' + titel + '“' + (evInfo ? ' + Termin' : ''));
+            undo.push(async ()=>{ aufgabenCache = aufgabenCache.filter(x=>x.id !== id); await airtableDelete(TABLE_AUFGABEN, id, ROUTINEN_BASE_ID).catch(()=>{}); if(evInfo && evInfo.id) await kgApi('google.php?action=event_delete', { calendarId:'primary', id: evInfo.id }).catch(()=>{}); });
+          } else if(a.typ === 'termin'){
+            const titel = String(a.titel || '').trim() || 'Termin';
+            const r = await calEvent(titel, a.datum, a.zeit, a.dauer, a.ganztags, a.ort, a.notiz);
+            done.push('Termin „' + titel + '“ ' + fmtD(a.datum) + (a.ganztags ? '' : ' ' + (a.zeit || '')));
+            undo.push(async ()=>{ if(r.ev && r.ev.id) await kgApi('google.php?action=event_delete', { calendarId:'primary', id: r.ev.id }).catch(()=>{}); cal.loadedKey = ''; });
+          } else if(a.typ === 'erledigt'){
+            const t = findTask(a.id); if(!t){ fails.push('Aufgabe „' + (a.titel || '') + '“ nicht gefunden'); continue; }
+            t.erledigtAm = todayStr(); await patchAufgabe(t, { 'Erledigt am': t.erledigtAm });
+            awardXP('task:' + t.id, 'Aufgabe ' + t.prio + ': ' + t.titel, { A:15, B:10, C:5 }[t.prio] || 10);
+            done.push('„' + t.titel + '“ abgehakt');
+            undo.push(async ()=>{ t.erledigtAm = ''; await patchAufgabe(t, { 'Erledigt am': '' }).catch(()=>{}); revokeXP('task:' + t.id); });
+          } else if(a.typ === 'aendern'){
+            const t = findTask(a.id); if(!t){ fails.push('Aufgabe „' + (a.titel || '') + '“ nicht gefunden'); continue; }
+            const prev = { 'Faellig': t.faellig || '', 'Heute': t.heute || '', 'Prio': t.prio }, f = {};
+            if(okDate(a.faellig)) f['Faellig'] = a.faellig;
+            if(a.heute === true) f['Heute'] = todayStr(); else if(a.heute === false) f['Heute'] = '';
+            if(['A','B','C'].includes(a.prio)) f['Prio'] = a.prio;
+            if(!Object.keys(f).length) continue;
+            await patchAufgabe(t, f);
+            if('Faellig' in f) t.faellig = f['Faellig']; if('Heute' in f) t.heute = f['Heute']; if('Prio' in f) t.prio = f['Prio'];
+            done.push('„' + t.titel + '“ geändert');
+            undo.push(async ()=>{ await patchAufgabe(t, prev).catch(()=>{}); t.faellig = prev['Faellig']; t.heute = prev['Heute']; t.prio = prev['Prio']; });
+          } else if(a.typ === 'lesenotiz'){
+            if(!lesenBookId) { fails.push('Kein aktuelles Buch'); continue; }
+            const e = await lesenQuickSave('Notiz', String(a.text || '').trim(), String(a.seite || ''));
+            done.push('Lese-Notiz gespeichert');
+            undo.push(async ()=>{ lesenEntries = lesenEntries.filter(x=>x.id !== e.id); lesenSessionNotes = lesenSessionNotes.filter(x=>x.id !== e.id); await airtableDelete(TABLE_LESEN_EINTRAEGE, e.id, LESEN_BASE_ID).catch(()=>{}); renderLesenHistory(); });
+          } else if(a.typ === 'lesen_starten'){ nav = ()=>{ switchTab('lesen'); window.scrollTo(0, 0); if(!lesenActive) lesenBeginSession(); }; }
+          else if(a.typ === 'oeffnen'){ const k = a.bereich; if(panels[k]) nav = ()=>{ switchTab(k); window.scrollTo(0, 0); }; }
+          else if(a.typ === 'mail'){ nav = async ()=>{ switchTab('nachrichten'); if(!(msg.sources || []).length) await loadMessages(true); openNewMail({ to: /@/.test(a.an || '') ? a.an : '', subject: a.betreff || '', body: (a.an && !/@/.test(a.an) ? 'Hallo ' + a.an + ',\n\n' : '') + (a.text || '') }); }; }
+        }catch(err){ fails.push(err.message || 'Fehler'); }
+      }
+      try{ renderAufgaben(); renderHomeAufgaben(); renderHomeTermine(true); }catch(e){}
+      if(nav && !done.length && !fails.length){ close(); setTimeout(nav, 220); return; }
+      outEl.innerHTML = `<div class="kg-ask-say">${done.length ? '✓ ' + done.map(escapeHtml).join('<br>✓ ') : 'Nichts ausgeführt.'}${fails.length ? `<div class="err" style="margin-top:8px;">⚠️ ${fails.map(escapeHtml).join('<br>⚠️ ')}</div>` : ''}</div>
+        <div class="nav-row" style="margin-top:12px;">${undo.length ? '<button type="button" class="ghost" data-k="undo">Rückgängig</button>' : ''}<button type="button" class="primary" data-k="more">Noch was</button></div>`;
+      stEl.textContent = '';
+      const u = outEl.querySelector('[data-k="undo"]');
+      if(u) u.onclick = async ()=>{ u.disabled = true; u.textContent = '…'; for(const f of undo.reverse()) await f(); try{ renderAufgaben(); renderHomeAufgaben(); renderHomeTermine(true); }catch(e){} outEl.innerHTML = '<div class="kg-ask-say">Rückgängig gemacht.</div>'; };
+      outEl.querySelector('[data-k="more"]').onclick = ()=>{ outEl.innerHTML = ''; liveEl.textContent = ''; listen(); };
+      if(done.length) vibrateDevice();
+      if(nav) setTimeout(()=>{ close(); nav(); }, 900);
+    }
+    // einmaliger Hinweis
+    try{ if(!localStorage.getItem('kongrow_ask_hint')){ setTimeout(()=>{ kgUndoToast('Neu: Home-Button gedrückt halten = Sprachsteuerung 🎙️', null, 6000); localStorage.setItem('kongrow_ask_hint', '1'); }, 4000); } }catch(e){}
+  })();
+
   const TABLE_UPWORK = 'tblKgUpworkKpi001';
   const TABLE_UPWORK_CFG = 'tblKgUpworkCfg001';
   const UP_DEFAULT_KPIS = [
