@@ -754,6 +754,52 @@
   .kg-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
   @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(34,227,211,.5); } 50%{ box-shadow:0 0 0 10px rgba(34,227,211,0); } }
   .kg-mic-live{ position:fixed; z-index:1300; left:16px; right:72px; padding:8px 12px; border-radius:12px; background:rgba(20,27,31,.96); border:1px solid var(--line-soft); color:var(--ink-soft); font-size:13.5px; display:none; max-height:4.5em; overflow:hidden; }
+
+  /* Lesen: aktuelles Buch + Bibliothek (Kindle-Stil) */
+  .lesen-hero{ display:flex; gap:16px; align-items:center; padding:16px; border-radius:22px; background:linear-gradient(135deg, rgba(34,227,211,.12), rgba(255,255,255,.03)); border:1px solid rgba(34,227,211,.28); cursor:pointer; margin-top:14px; transition:transform .15s; }
+  .lesen-hero:active{ transform:scale(.98); }
+  .lesen-hero-cover{ flex:0 0 92px; width:92px; aspect-ratio:2/3; border-radius:8px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.45); }
+  .lesen-hero-cover img, .lesen-tile-cover img, .lesen-dash-cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .lesen-hero-info{ flex:1; min-width:0; }
+  .lesen-hero-title{ font-size:19px; font-weight:800; line-height:1.2; }
+  .lesen-hero-author{ color:var(--ink-soft); font-size:14px; margin-top:2px; }
+  .lesen-hero-meta{ color:var(--ink-soft); font-size:12.5px; font-variant-numeric:tabular-nums; }
+  .lesen-start{ width:100%; margin-top:12px; min-height:52px; font-size:16px; }
+  .lesen-nocover{ width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; gap:6px; padding:10px; box-sizing:border-box; background:linear-gradient(160deg, hsl(var(--h) 45% 32%), hsl(calc(var(--h) + 40) 50% 16%)); color:#fff; text-align:center; }
+  .lesen-nocover b{ font-size:13px; line-height:1.2; hyphens:auto; -webkit-hyphens:auto; overflow-wrap:anywhere; overflow:hidden; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; }
+  .lesen-nocover small{ font-size:10.5px; opacity:.75; }
+  .lesen-lib{ margin-top:28px; }
+  .lesen-lib-head{ display:flex; align-items:center; justify-content:space-between; }
+  .lesen-lib-title{ font-size:28px; font-weight:800; letter-spacing:-.02em; }
+  .lesen-sort{ width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); display:flex; align-items:center; justify-content:center; padding:0; }
+  .lesen-sort svg{ width:20px; height:20px; }
+  .lesen-lib-search{ -webkit-appearance:none; appearance:none; display:block; width:100%; box-sizing:border-box; margin:12px 0 12px; padding:12px 18px; border-radius:99px; border:1px solid var(--line); background:rgba(255,255,255,.05); color:var(--ink); font-size:16px; outline:none; }
+  .lesen-lib-search:focus{ border-color:rgba(34,227,211,.55); }
+  .lesen-chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; -webkit-overflow-scrolling:touch; }
+  .lesen-chip{ flex-shrink:0; padding:8px 14px; border-radius:12px; border:1px solid var(--line); background:none; color:var(--ink); font-size:14px; white-space:nowrap; }
+  .lesen-chip.on{ background:var(--forest); border-color:var(--forest); color:#04110F; font-weight:700; }
+  .lesen-chip.add{ color:var(--forest); border-color:rgba(34,227,211,.45); }
+  .lesen-grid{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px 12px; }
+  @media (min-width:700px){ .lesen-grid{ grid-template-columns:repeat(5, minmax(0, 1fr)); } }
+  .lesen-tile{ width:100%; min-width:0; padding:0; background:none; border:none; cursor:pointer; text-align:left; transition:transform .15s; }
+  .lesen-tile:active{ transform:scale(.96); }
+  .lesen-tile-cover{ position:relative; aspect-ratio:2/3; border-radius:4px; overflow:hidden; background:var(--paper); box-shadow:0 4px 14px rgba(0,0,0,.4); }
+  .lesen-tile.cur .lesen-tile-cover{ outline:2px solid var(--forest); outline-offset:2px; }
+  .lesen-pct{ position:absolute; top:0; right:6px; background:rgba(10,14,16,.9); color:#fff; font-size:11.5px; font-weight:700; padding:6px 5px 5px; border-radius:0 0 3px 3px; font-variant-numeric:tabular-nums; }
+  .lesen-check{ position:absolute; right:6px; bottom:6px; width:26px; height:26px; border-radius:50%; background:rgba(10,14,16,.92); color:#fff; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .lesen-done-tag{ position:absolute; top:12px; right:-26px; transform:rotate(45deg); background:rgba(10,14,16,.9); color:#fff; font-size:9.5px; font-weight:700; padding:3px 28px; letter-spacing:.03em; }
+  .lesen-dash-top{ display:flex; flex-direction:column; align-items:center; padding-top:20px; }
+  .lesen-dash-cover{ width:150px; aspect-ratio:2/3; border-radius:10px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.55); }
+  .lesen-dash-title{ font-size:22px; font-weight:800; text-align:center; margin-top:18px; line-height:1.2; }
+  .lesen-dash-top .up-bar{ width:100%; }
+  .lesen-stats{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-top:18px; }
+  .lesen-stats > div{ background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:14px; padding:12px 6px; text-align:center; }
+  .lesen-stats b{ display:block; font-size:16px; font-variant-numeric:tabular-nums; }
+  .lesen-stats span{ font-size:11.5px; color:var(--ink-soft); }
+  .lesen-sbar{ height:6px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; margin:12px 0 6px; }
+  .lesen-sbar i{ display:block; height:100%; width:calc(var(--p, 0) * 1%); background:var(--forest); border-radius:99px; transition:width .9s linear; }
+  .lesen-timer-s{ font-size:13px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+  .lesen-timer-s b{ color:var(--ink); font-size:20px; }
   .lesen-mic{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%; min-height:150px; margin:14px 0 6px; border-radius:22px; border:1px solid rgba(34,227,211,.45); background:radial-gradient(circle at 50% 40%, rgba(34,227,211,.18), rgba(34,227,211,.04)); color:var(--forest); font-size:16px; font-weight:700; }
   .lesen-mic svg{ width:46px; height:46px; }
   .lesen-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
@@ -1956,22 +2002,21 @@
   <div id="panelLesen" style="display:none;">
     <div class="eyebrow">Lesen</div>
     <h1>Lesen</h1>
-    <div class="sub">Erst kurz abrufen, was hängengeblieben ist. Dann lesen, notieren, zusammenfassen.</div>
 
-    <div class="card">
-      <div class="turn-title">Meine Bibliothek</div>
-      <div id="lesenLibrary"></div>
-      <div id="lesenBookInfo"></div>
-      <button type="button" class="ghost" id="lesenNewBookBtn">+ Neues Buch</button>
-      <div id="lesenBookForm"></div>
-    </div>
-
+    <div id="lesenHero"></div>
     <div id="lesenMain"></div>
 
-    <div style="margin-top:24px;">
-      <button class="journal-toggle" id="lesenHistoryToggle">Notizen & Zusammenfassungen anzeigen</button>
-      <div id="lesenHistory" style="display:none;"></div>
+    <div class="lesen-lib">
+      <div class="lesen-lib-head"><div class="lesen-lib-title">Bibliothek</div><button type="button" class="lesen-sort" id="lesenSortBtn" aria-label="Sortieren"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20V4M3 8l4-4 4 4M17 4v16M13 16l4 4 4-4"/></svg></button></div>
+      <input type="search" id="lesenLibSearch" class="lesen-lib-search" placeholder="Bibliothek durchsuchen">
+      <div class="lesen-chips" id="lesenChips"></div>
+      <div id="lesenLibrary"></div>
+      <div id="lesenBookForm"></div>
     </div>
+    <div id="lesenBookInfo" style="display:none;"></div>
+    <button type="button" id="lesenNewBookBtn" style="display:none;"></button>
+    <button id="lesenHistoryToggle" style="display:none;"></button>
+    <div id="lesenHistory" style="display:none;"></div>
   </div>
 
 </div>
@@ -2243,6 +2288,12 @@
   </div>
 </div>
 
+<div class="modal-overlay kg-full" id="lesenDash" style="display:none; align-items:stretch; padding:0; overflow-y:auto; z-index:56;">
+  <div style="background:#07090A; width:100%; min-height:100%; max-width:640px; margin:0 auto; padding:20px 20px 60px; position:relative;">
+    <button type="button" class="modal-close lesen-dash-close" aria-label="Schließen">×</button>
+    <div class="lesen-dash-body"></div>
+  </div>
+</div>
 <div class="modal-overlay kg-full" id="ernSheet" style="display:none; align-items:stretch; z-index:60;">
   <div class="msg-sheet">
     <div class="msg-sheet-head"><button type="button" class="back-btn" id="ernSheetClose" style="margin:0;">← Zurück</button></div>
@@ -6714,24 +6765,27 @@
   let lesenSessionNotes = [];
   let lesenReadStart = null;   // Start der laufenden Lesezeit (ms)
   try{ const v = +localStorage.getItem('kongrow_lesen_start'); if(v && Date.now() - v < 6 * 3600000) lesenReadStart = v; }catch(e){}
-  const LESEN_ZIEL_MIN = 60;
+  const LESEN_ZIEL_MIN = 25;   // eine Lese-Session = 25 Minuten
+  let lesenActive = !!lesenReadStart;   // Session-Karte sichtbar?
+  let lesenAlarmCtx = null, lesenAlarmNodes = [], lesenAlarmDone = false;
   function lesenMinutesToday(){ const t = todayStr(); return lesenEntries.filter(e=>e.typ === 'Lesezeit' && (e.createdAt || '').slice(0, 10) === t).reduce((s, e)=>s + (parseInt(e.text, 10) || 0), 0) + (lesenReadStart ? Math.floor((Date.now() - lesenReadStart) / 60000) : 0); }
   function renderHomeLesen(){
     const el = document.getElementById('homeLesenCard'); if(!el) return;
     const bk = lesenBooks.find(b=>b.id === lesenBookId) || lesenBooks.find(b=>!b.fertig);
     if(!bk){ el.style.display = 'none'; return; }
-    const min = lesenMinutesToday(), pct = Math.min(100, Math.round(min / LESEN_ZIEL_MIN * 100));
+    const min = lesenMinutesToday(), pct = Math.min(100, Math.round((min % LESEN_ZIEL_MIN || (min ? LESEN_ZIEL_MIN : 0)) / LESEN_ZIEL_MIN * 100));
     el.style.display = '';
-    el.innerHTML = `<div class="home-aufg-head"><div class="step-label" style="margin:0;">Lesen · Heute</div><span class="home-lesen-min">${min} / ${LESEN_ZIEL_MIN} Min</span></div>
+    el.innerHTML = `<div class="home-aufg-head"><div class="step-label" style="margin:0;">Lesen · Heute</div><span class="home-lesen-min">${min} Min · Session ${LESEN_ZIEL_MIN} Min</span></div>
       <div class="up-bar" style="margin:10px 0 12px;"><i style="width:${pct}%"></i></div>
       <div class="home-lesen-row"><div><b>${escapeHtml(bk.titel)}</b><small>${bk.aktuelleSeite ? 'Weiter bei Position/Seite ' + bk.aktuelleSeite : 'Noch nicht begonnen'}</small></div>
-      <button type="button" class="primary" id="homeLesenGo">${lesenReadStart ? 'Weiterlesen' : 'Lesen starten'}</button></div>`;
-    el.querySelector('#homeLesenGo').onclick = ()=>{ if(bk.id !== lesenBookId){ lesenBookId = bk.id; } lesenStartTimer(); switchTab('lesen'); lesenPhase = 'notes'; renderLesenMain(); window.scrollTo(0, 0); };
+      <button type="button" class="primary" id="homeLesenGo">${lesenReadStart ? 'Weiterlesen' : '25-Min-Session'}</button></div>`;
+    el.querySelector('#homeLesenGo').onclick = ()=>{ if(bk.id !== lesenBookId){ lesenBookId = bk.id; } lesenActive = true; lesenStartTimer(); switchTab('lesen'); lesenPhase = 'notes'; renderLesenMain(); renderLesenHero(); window.scrollTo(0, 0); };
   }
   async function lesenLogTime(){
     if(!lesenReadStart) return 0;
     const min = Math.round((Date.now() - lesenReadStart) / 60000);
     lesenReadStart = null; try{ localStorage.removeItem('kongrow_lesen_start'); }catch(e){}
+    lesenAlarmStop();
     if(typeof keepAwake === 'function') keepAwake(!!activeWorkout);
     if(min < 1) return 0;
     const fields = { 'Titel': 'Lesezeit ' + min + ' Min', 'BuchId': lesenBookId, 'Typ': 'Lesezeit', 'Text': String(min), 'Erstellt am': new Date().toISOString() };
@@ -6831,19 +6885,29 @@
     el.querySelector('#lesenEditBookBtn').onclick = openLesenBookEdit;
   }
 
-  let lesenShowFinished = false;
-
+  let lesenFilter = 'alle', lesenSort = 'zuletzt', lesenQ = '';
+  try{ lesenSort = localStorage.getItem('kongrow_lesen_sort') || 'zuletzt'; }catch(e){}
+  function lesenPct(b){ return b.seiten ? Math.min(100, Math.round((b.aktuelleSeite || 0) / b.seiten * 100)) : 0; }
+  function lesenCoverHtml(b, cls){
+    const hue = [...(b.titel || 'x')].reduce((h, c)=>h + c.charCodeAt(0), 0) % 360;
+    return b.cover ? `<img class="${cls || ''}" src="${escapeHtml(b.cover)}" alt="" loading="lazy">`
+      : `<div class="lesen-nocover ${cls || ''}" style="--h:${hue}"><b>${escapeHtml(b.titel)}</b>${b.autor ? `<small>${escapeHtml(b.autor)}</small>` : ''}</div>`;
+  }
+  function lesenBookStats(id){
+    const es = lesenEntries.filter(e=>e.bookId === id);
+    const zeit = es.filter(e=>e.typ === 'Lesezeit');
+    return { min: zeit.reduce((s, e)=>s + (parseInt(e.text, 10) || 0), 0), sessions: zeit.length,
+      notizen: es.filter(e=>e.typ === 'Notiz').length, zitate: es.filter(e=>e.typ === 'Zitat').length,
+      summaries: es.filter(e=>e.typ === 'Zusammenfassung'),
+      last: es.reduce((m, e)=>e.createdAt > m ? e.createdAt : m, '') };
+  }
   function lesenBookTile(b){
-    const pct = b.seiten ? Math.min(100, Math.round((b.aktuelleSeite || 0) / b.seiten * 100)) : 0;
-    const active = b.id === lesenBookId;
-    return `
-      <button type="button" class="lesen-tile" data-id="${b.id}" style="flex:0 0 92px;width:92px;padding:0;background:none;border:none;text-align:left;cursor:pointer;opacity:${b.fertig && !active ? '0.6' : '1'};">
-        <div style="width:92px;height:136px;border-radius:8px;overflow:hidden;background:var(--paper);border:2px solid ${active ? 'var(--forest)' : 'var(--line)'};display:flex;align-items:center;justify-content:center;${active ? 'box-shadow:0 0 12px rgba(31,209,196,.45);' : ''}">
-          ${b.cover ? `<img src="${escapeHtml(b.cover)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : `<span style="padding:8px;font-size:12px;color:var(--ink-soft);text-align:center;">${escapeHtml(b.titel)}</span>`}
-        </div>
-        <div style="font-size:12px;margin-top:6px;color:var(--ink);line-height:1.25;max-height:30px;overflow:hidden;">${escapeHtml(b.titel)}</div>
-        <div style="font-size:11px;color:var(--ink-soft);">${b.fertig ? '✓ Gelesen' : (b.seiten ? pct + '%' : '')}</div>
-      </button>`;
+    const pct = lesenPct(b);
+    return `<button type="button" class="lesen-tile ${b.id === lesenBookId ? 'cur' : ''}" data-id="${b.id}" aria-label="${escapeHtml(b.titel)}">
+        <div class="lesen-tile-cover">${lesenCoverHtml(b)}
+          ${!b.fertig && pct ? `<span class="lesen-pct">${pct}%</span>` : ''}
+          ${b.fertig ? '<span class="lesen-done-tag">Gelesen</span><span class="lesen-check">✓</span>' : ''}
+        </div></button>`;
   }
 
   function selectLesenBook(id){
@@ -6853,25 +6917,125 @@
     renderLesenSelect();
     resetLesenSession();
     renderLesenHistory();
+    renderHomeLesen();
+  }
+
+  // Aktuelles Buch oben (antippen = Dashboard)
+  function renderLesenHero(){
+    const el = document.getElementById('lesenHero'); if(!el) return;
+    const b = lesenBooks.find(x=>x.id === lesenBookId);
+    if(!b){ el.innerHTML = `<div class="card lesen-hero-empty"><div class="hint" style="margin:0 0 12px;">Noch kein Buch. Leg dein erstes an.</div><button type="button" class="primary" id="lesenHeroAdd">+ Buch hinzufügen</button></div>`;
+      el.querySelector('#lesenHeroAdd').onclick = lesenOpenNewBook; return; }
+    const pct = lesenPct(b), st = lesenBookStats(b.id);
+    const running = !!lesenReadStart;
+    el.innerHTML = `<div class="lesen-hero" id="lesenHeroCard" role="button" tabindex="0">
+        <div class="lesen-hero-cover">${lesenCoverHtml(b)}</div>
+        <div class="lesen-hero-info">
+          <div class="step-label" style="margin:0 0 4px;">Lese ich gerade</div>
+          <div class="lesen-hero-title">${escapeHtml(b.titel)}</div>
+          ${b.autor ? `<div class="lesen-hero-author">${escapeHtml(b.autor)}</div>` : ''}
+          <div class="up-bar" style="margin:10px 0 6px;"><i style="width:${pct}%"></i></div>
+          <div class="lesen-hero-meta">${b.seiten ? pct + '% · S. ' + (b.aktuelleSeite || 0) + '/' + b.seiten : (b.aktuelleSeite ? 'S. ' + b.aktuelleSeite : 'Seitenzahl fehlt')} · ${st.sessions} Sessions</div>
+        </div>
+      </div>
+      ${lesenActive ? '' : `<button type="button" class="primary lesen-start" id="lesenStartBtn">${running ? 'Session fortsetzen' : '▶ 25-Min-Session starten'}</button>`}`;
+    el.querySelector('#lesenHeroCard').onclick = ()=>openLesenDash(b.id);
+    const sb = el.querySelector('#lesenStartBtn');
+    if(sb) sb.onclick = lesenBeginSession;
+  }
+  function lesenBeginSession(){
+    if(!lesenBookId) return;
+    lesenActive = true; lesenSessionNotes = []; lesenSessionStart = new Date().toISOString();
+    const prev = lesenBookEntries(lesenBookId).filter(e=>e.typ === 'Notiz' || e.typ === 'Zusammenfassung');
+    lesenChapter = prev.length ? prev[0].kapitel : '';
+    lesenPhase = lesenReadStart ? 'notes' : (prev.length ? 'recall' : 'notes');
+    if(lesenPhase === 'notes') lesenStartTimer();
+    renderLesenHero(); renderLesenMain();
+    setTimeout(()=>{ const m = document.getElementById('lesenMain'); if(m && m.firstElementChild) m.scrollIntoView({ behavior:'smooth', block:'start' }); }, 60);
+  }
+  async function lesenCloseSession(){
+    if(lesenReadStart){ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); }
+    lesenActive = false; lesenPhase = 'start'; lesenSessionNotes = [];
+    if(typeof keepAwake === 'function') keepAwake(!!activeWorkout);
+    renderLesenMain(); renderLesenHero(); window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  // Dashboard eines Buches
+  function openLesenDash(id){
+    const b = lesenBooks.find(x=>x.id === id); if(!b) return;
+    const ov = document.getElementById('lesenDash');
+    const pct = lesenPct(b), st = lesenBookStats(id), cur = id === lesenBookId;
+    const lastSum = st.summaries.sort((x, y)=>y.createdAt.localeCompare(x.createdAt))[0];
+    const hh = st.min >= 60 ? Math.floor(st.min / 60) + ' h ' + (st.min % 60) + ' Min' : st.min + ' Min';
+    ov.querySelector('.lesen-dash-body').innerHTML = `
+      <div class="lesen-dash-top">
+        <div class="lesen-dash-cover">${lesenCoverHtml(b)}</div>
+        <div class="lesen-dash-title">${escapeHtml(b.titel)}</div>
+        ${b.autor ? `<div class="lesen-hero-author" style="text-align:center;">${escapeHtml(b.autor)}</div>` : ''}
+        <div class="up-bar" style="margin:16px 0 6px;"><i style="width:${b.fertig ? 100 : pct}%"></i></div>
+        <div class="lesen-hero-meta" style="text-align:center;">${b.fertig ? '✓ Gelesen' : (b.seiten ? pct + '% · Seite ' + (b.aktuelleSeite || 0) + ' von ' + b.seiten : (b.aktuelleSeite ? 'Seite ' + b.aktuelleSeite : 'Seitenzahl fehlt'))}${st.last ? ' · zuletzt ' + new Date(st.last).toLocaleDateString('de-DE', { day:'2-digit', month:'short' }) : ''}</div>
+      </div>
+      <div class="lesen-stats">
+        <div><b>${hh}</b><span>Lesezeit</span></div>
+        <div><b>${st.sessions}</b><span>Sessions</span></div>
+        <div><b>${st.notizen}</b><span>Gedanken</span></div>
+        <div><b>${st.zitate}</b><span>Zitate</span></div>
+      </div>
+      ${!b.fertig ? `<button type="button" class="primary" id="ldStart" style="width:100%;margin-top:16px;">${lesenActive && cur ? 'Zur laufenden Session' : '▶ 25-Min-Session starten'}</button>` : ''}
+      ${!b.fertig && !cur ? '<button type="button" class="ghost" id="ldCur" style="width:100%;margin-top:10px;">Als aktuelles Buch setzen</button>' : ''}
+      <div class="nav-row" style="margin-top:10px;">
+        <button type="button" class="ghost" id="ldEdit">Bearbeiten</button>
+        <button type="button" class="ghost" id="ldDone">${b.fertig ? 'Wieder lesen' : 'Als gelesen markieren'}</button>
+      </div>
+      ${lastSum ? `<div class="summary-q" style="margin-top:22px;">Letzte Zusammenfassung${lastSum.kapitel ? ' · ' + escapeHtml(lastSum.kapitel) : ''}</div><div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(lastSum.text)}</div>` : ''}
+      <div class="summary-q" style="margin-top:22px;">Alle Notizen & Zusammenfassungen</div>
+      <div id="ldHistory"></div>`;
+    const hist = document.getElementById('lesenHistory');
+    lesenHistBook = id; renderLesenHistory(); hist.style.display = 'block'; ov.querySelector('#ldHistory').appendChild(hist);
+    const close = ()=>{ lesenHistBook = ''; renderLesenHistory(); ov.style.display = 'none'; document.body.style.overflow = ''; hist.style.display = 'none'; document.getElementById('panelLesen').appendChild(hist); };
+    ov.querySelector('.lesen-dash-close').onclick = close;
+    const sb = ov.querySelector('#ldStart');
+    if(sb) sb.onclick = ()=>{ close(); if(lesenBookId !== id){ if(lesenActive) lesenCloseSession(); selectLesenBook(id); } if(!lesenActive) lesenBeginSession(); else document.getElementById('lesenMain').scrollIntoView({ behavior:'smooth' }); };
+    const cb = ov.querySelector('#ldCur');
+    if(cb) cb.onclick = ()=>{ close(); selectLesenBook(id); window.scrollTo({ top:0, behavior:'smooth' }); };
+    ov.querySelector('#ldEdit').onclick = ()=>{ close(); if(lesenBookId !== id) selectLesenBook(id); openLesenBookEdit(); setTimeout(()=>document.getElementById('lesenBookForm').scrollIntoView({ behavior:'smooth', block:'center' }), 60); };
+    ov.querySelector('#ldDone').onclick = async ()=>{
+      b.fertig = !b.fertig;
+      if(b.fertig && b.seiten) b.aktuelleSeite = b.seiten;
+      airtableFetch(TABLE_LESEN_BUECHER + '/' + b.id, { method:'PATCH', body: JSON.stringify({ fields: Object.assign({ 'Abgeschlossen': b.fertig }, b.fertig && b.seiten ? { 'Aktuelle Seite': b.seiten } : {}) }) }, LESEN_BASE_ID).catch(()=>{});
+      if(b.fertig){ kgUndoToast('„' + b.titel + '“ gelesen 🎉'); if(cur){ const next = lesenBooks.find(x=>!x.fertig); if(next){ lesenBookId = next.id; try{ localStorage.setItem('kongrow_lesen_book', next.id); }catch(e){} } } }
+      close(); renderLesenSelect(); renderHomeLesen();
+    };
+    ov.style.display = 'flex'; document.body.style.overflow = 'hidden'; ov.scrollTop = 0;
   }
 
   function renderLesenSelect(){
-    renderLesenBookInfo();
+    renderLesenHero();
     const libEl = document.getElementById('lesenLibrary');
-    if(lesenBooks.length === 0){
-      libEl.innerHTML = '<div class="hint">Noch kein Buch angelegt.</div>';
-      return;
-    }
-    const reading = lesenBooks.filter(b=>!b.fertig);
-    const finished = lesenBooks.filter(b=>b.fertig);
-    const row = list => `<div style="display:flex;gap:12px;overflow-x:auto;padding:4px 2px 10px;-webkit-overflow-scrolling:touch;">${list.map(lesenBookTile).join('')}</div>`;
-    libEl.innerHTML =
-      (reading.length ? `<div class="hint" style="margin:0 0 4px;">Lese ich gerade (${reading.length})</div>` + row(reading) : '') +
-      (finished.length ? `<button type="button" class="ghost" id="lesenFinishedToggle" style="margin-bottom:8px;">${lesenShowFinished ? 'Gelesene ausblenden' : 'Gelesene Bücher anzeigen (' + finished.length + ')'}</button>` + (lesenShowFinished ? row(finished) : '') : '');
-    libEl.querySelectorAll('.lesen-tile').forEach(t=>{ t.onclick = ()=>selectLesenBook(t.dataset.id); });
-    const ft = libEl.querySelector('#lesenFinishedToggle');
-    if(ft) ft.onclick = ()=>{ lesenShowFinished = !lesenShowFinished; renderLesenSelect(); };
+    const chips = document.getElementById('lesenChips');
+    const nRead = lesenBooks.filter(b=>!b.fertig).length, nDone = lesenBooks.length - nRead;
+    chips.innerHTML = [['alle', 'Alle (' + lesenBooks.length + ')'], ['lese', 'Lese ich (' + nRead + ')'], ['gelesen', 'Gelesen (' + nDone + ')']]
+      .map(([k, l])=>`<button type="button" class="lesen-chip ${lesenFilter === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('') + '<button type="button" class="lesen-chip add" id="lesenAddChip">+ Buch</button>';
+    chips.querySelectorAll('[data-f]').forEach(c=>{ c.onclick = ()=>{ lesenFilter = c.dataset.f; renderLesenSelect(); }; });
+    chips.querySelector('#lesenAddChip').onclick = lesenOpenNewBook;
+    const q = lesenQ.toLowerCase();
+    let list = lesenBooks.filter(b=>lesenFilter === 'alle' || (lesenFilter === 'lese' ? !b.fertig : b.fertig))
+      .filter(b=>!q || (b.titel + ' ' + b.autor).toLowerCase().includes(q));
+    const lastOf = {}; lesenEntries.forEach(e=>{ if(!lastOf[e.bookId] || e.createdAt > lastOf[e.bookId]) lastOf[e.bookId] = e.createdAt; });
+    if(lesenSort === 'titel') list.sort((a, b)=>a.titel.localeCompare(b.titel, 'de'));
+    else if(lesenSort === 'fortschritt') list.sort((a, b)=>(b.fertig ? -1 : lesenPct(b)) - (a.fertig ? -1 : lesenPct(a)));
+    else list.sort((a, b)=>(lastOf[b.id] || b.createdAt || '').localeCompare(lastOf[a.id] || a.createdAt || ''));
+    if(!lesenBooks.length){ libEl.innerHTML = '<div class="hint">Noch kein Buch angelegt.</div>'; return; }
+    libEl.innerHTML = list.length ? `<div class="lesen-grid">${list.map(lesenBookTile).join('')}</div>` : '<div class="hint">Nichts gefunden.</div>';
+    libEl.querySelectorAll('.lesen-tile').forEach(t=>{ t.onclick = ()=>openLesenDash(t.dataset.id); });
   }
+  (function(){
+    const si = document.getElementById('lesenLibSearch');
+    if(si) si.oninput = ()=>{ lesenQ = si.value.trim(); renderLesenSelect(); };
+    const sb = document.getElementById('lesenSortBtn');
+    const names = { zuletzt:'Zuletzt gelesen', titel:'Titel A–Z', fortschritt:'Fortschritt' };
+    if(sb) sb.onclick = ()=>{ const order = ['zuletzt', 'titel', 'fortschritt']; lesenSort = order[(order.indexOf(lesenSort) + 1) % 3]; try{ localStorage.setItem('kongrow_lesen_sort', lesenSort); }catch(e){} kgUndoToast('Sortiert: ' + names[lesenSort]); renderLesenSelect(); };
+  })();
 
   function openLesenBookEdit(){
     const b = lesenBooks.find(x=>x.id === lesenBookId);
@@ -6939,7 +7103,7 @@
     lesenSessionNotes = [];
     const prev = lesenBookId ? lesenBookEntries(lesenBookId).filter(e=>e.typ === 'Notiz' || e.typ === 'Zusammenfassung') : [];
     lesenChapter = prev.length ? prev[0].kapitel : '';
-    lesenPhase = !lesenBookId ? 'start' : (prev.length ? 'recall' : 'notes');
+    lesenPhase = !lesenBookId ? 'start' : (lesenReadStart ? 'notes' : (prev.length ? 'recall' : 'notes'));
     renderLesenMain();
   }
 
@@ -6960,8 +7124,9 @@
     }
   }
 
-  document.getElementById('lesenNewBookBtn').onclick = ()=>{
+  function lesenOpenNewBook(){
     const formEl = document.getElementById('lesenBookForm');
+    setTimeout(()=>formEl.scrollIntoView({ behavior:'smooth', block:'start' }), 80);
     formEl.innerHTML = `
       <div style="margin-top:12px;">
         <div class="turn-title">Buch suchen</div>
@@ -7061,10 +7226,7 @@
   };
 
   function renderLesenMain(){
-    if(!lesenBookId){
-      lesenMainEl.innerHTML = '<div class="card"><div class="empty">Lege oben ein Buch an, um zu starten.</div></div>';
-      return;
-    }
+    if(!lesenBookId || !lesenActive){ clearInterval(lesenTick); lesenMainEl.innerHTML = ''; return; }
     if(lesenPhase === 'recall') return renderLesenRecall();
     if(lesenPhase === 'summary') return renderLesenSummary();
     return renderLesenNotes();
@@ -7161,6 +7323,32 @@
   function lesenStartTimer(){
     if(!lesenReadStart){ lesenReadStart = Date.now(); try{ localStorage.setItem('kongrow_lesen_start', String(lesenReadStart)); }catch(e){} }
     if(typeof keepAwake === 'function') keepAwake(true);
+    lesenAlarmArm();
+  }
+  // Signal nach 25 Minuten: Töne werden beim Tippen im Audio-Takt eingeplant (iOS spielt Audio nur nach einer Berührung)
+  function lesenAlarmStop(){ lesenAlarmNodes.forEach(o=>{ try{ o.stop(); }catch(e){} }); lesenAlarmNodes = []; }
+  function lesenAlarmArm(){
+    if(!lesenReadStart) return;
+    const left = LESEN_ZIEL_MIN * 60 - (Date.now() - lesenReadStart) / 1000;
+    lesenAlarmDone = left <= 0;
+    if(left <= 0 || lesenAlarmNodes.length) return;
+    try{
+      const C = window.AudioContext || window.webkitAudioContext; if(!C) return;
+      if(!lesenAlarmCtx || lesenAlarmCtx.state === 'closed') lesenAlarmCtx = new C();
+      if(lesenAlarmCtx.state !== 'running') lesenAlarmCtx.resume().catch(()=>{});
+      const ctx = lesenAlarmCtx, t0 = ctx.currentTime + left;
+      [0, 0.35, 0.7, 1.6, 1.95, 2.3].forEach((d, i)=>{
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = i % 3 === 2 ? 1318 : 1046;
+        g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.8, t0 + d + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.3);
+        o.connect(g); g.connect(ctx.destination); o.start(t0 + d); o.stop(t0 + d + 0.35); lesenAlarmNodes.push(o);
+      });
+    }catch(e){}
+  }
+  function lesenSessionDone(){
+    if(lesenAlarmDone) return; lesenAlarmDone = true; lesenAlarmNodes = [];
+    try{ if(navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 500]); }catch(e){}
+    kgUndoToast('25 Minuten geschafft 🎉 Kurz Pause oder weiterlesen');
   }
   // Ein Diktat -> KI erkennt Seite, Kapitel, Zitat oder Gedanke (auch mehrere auf einmal)
   async function lesenParseSpeech(text){
@@ -7187,10 +7375,12 @@ Diktat: ${text}`);
     for(const it of items){ if(it.kapitel) lesenChapter = it.kapitel; await lesenQuickSave(it.typ, it.text, it.seite); }
   }
   function renderLesenNotes(){
+    if(lesenActive) lesenStartTimer();
     const SRok = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     lesenMainEl.innerHTML = `
       <div class="card lesen-mode">
-        <div class="lesen-mode-top"><div class="step-label" style="margin:0;">Lese-Modus</div><div class="lesen-today"><span class="lesen-timer-s" id="lesenTimer"></span> <span id="lesenToday"></span></div></div>
+        <div class="lesen-mode-top"><div class="step-label" style="margin:0;">Session läuft</div><div class="lesen-today" id="lesenToday"></div></div>
+        <div class="lesen-sbar" id="lesenRing"><i></i></div><div class="lesen-timer-s" id="lesenTimer"></div>
         <button type="button" class="lesen-mic ${SRok ? '' : 'off'}" id="lesenVoice" aria-label="Sprechen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
           <span id="lesenVoiceLabel">${SRok ? 'Tippen und sprechen' : 'Spracheingabe nicht verfügbar'}</span>
@@ -7207,10 +7397,16 @@ Diktat: ${text}`);
         <button class="ghost" id="lesenToSummary" style="margin-top:14px;width:100%;">Lesen beenden</button>
       </div>`;
     const tEl = lesenMainEl.querySelector('#lesenTimer'), todayEl = lesenMainEl.querySelector('#lesenToday');
-    const qst = lesenMainEl.querySelector('#lesenQuickStatus'), live = lesenMainEl.querySelector('#lesenLive');
+    const qst = lesenMainEl.querySelector('#lesenQuickStatus'), live = lesenMainEl.querySelector('#lesenLive'), ring = lesenMainEl.querySelector('#lesenRing');
     const tick = ()=>{ if(!document.body.contains(tEl)){ clearInterval(lesenTick); return; }
-      if(lesenReadStart){ const sec = Math.floor((Date.now() - lesenReadStart) / 1000); tEl.textContent = '⏱ ' + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') + ' ·'; } else tEl.textContent = '';
-      todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' / ' + LESEN_ZIEL_MIN + ' Min'; };
+      if(lesenReadStart){
+        const sec = Math.floor((Date.now() - lesenReadStart) / 1000), left = LESEN_ZIEL_MIN * 60 - sec, a = Math.abs(left);
+        const pct = Math.min(100, sec / (LESEN_ZIEL_MIN * 60) * 100);
+        tEl.innerHTML = left > 0 ? '⏱ <b>' + Math.floor(a / 60) + ':' + String(a % 60).padStart(2, '0') + '</b> übrig' : '✓ <b>+' + Math.floor(a / 60) + ':' + String(a % 60).padStart(2, '0') + '</b> drüber';
+        if(ring) ring.style.setProperty('--p', pct);
+        if(left <= 0) lesenSessionDone();
+      } else { tEl.textContent = '25-Min-Session'; if(ring) ring.style.setProperty('--p', 0); }
+      todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' Min'; };
     clearInterval(lesenTick); lesenTick = setInterval(tick, 1000); tick();
     renderLesenSessionNotes();
     const handle = async text=>{
@@ -7250,7 +7446,7 @@ Diktat: ${text}`);
       try{ await lesenQuickSave('Zitat', k.text, k.pos || bk.aktuelleSeite || ''); qst.textContent = 'Markierung gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
     };
     lesenMainEl.querySelector('#lesenKindleImport').onclick = openKindleImport;
-    lesenMainEl.querySelector('#lesenToSummary').onclick = async ()=>{ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); lesenPhase = 'summary'; renderLesenMain(); };
+    lesenMainEl.querySelector('#lesenToSummary').onclick = async ()=>{ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); lesenPhase = 'summary'; renderLesenMain(); renderLesenHero(); };
   }
   let lesenTick = null;
   // Kindle-Notizbuch: in der Kindle-App Notizbuch → Teilen/Exportieren → Text kopieren und hier einfügen
@@ -7310,9 +7506,11 @@ Diktat: ${text}`);
           <button class="ghost" id="lesenBackNotes">Zurück</button>
           <button class="primary" id="lesenSaveSummary">Speichern</button>
         </div>
+        <button type="button" class="aufg-link" id="lesenSkipSum" style="display:block;margin:12px auto 0;">Ohne Zusammenfassung beenden</button>
         <div id="lesenSummaryStatus" class="save-status"></div>
       </div>`;
-    lesenMainEl.querySelector('#lesenBackNotes').onclick = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
+    lesenMainEl.querySelector('#lesenBackNotes').onclick = ()=>{ lesenPhase = 'notes'; lesenStartTimer(); renderLesenMain(); renderLesenHero(); };
+    lesenMainEl.querySelector('#lesenSkipSum').onclick = lesenCloseSession;
     const aiSum = lesenMainEl.querySelector('#lesenAiSum');
     if(aiSum) aiSum.onclick = async ()=>{
       if(aiSum.disabled) return; aiSum.disabled = true; aiSum.textContent = '✨ Fasse zusammen …';
@@ -7348,8 +7546,9 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
         renderLesenHistory();
         lesenMainEl.innerHTML = `<div class="card"><div class="step-label">Fertig</div><div class="question" style="font-size:19px;">Gespeichert.</div><div class="hint">Beim nächsten Mal fragt dich die KI genau danach ab.</div>
           ${take ? `<button class="ghost" id="lesenTakeTask" style="width:100%;margin-top:12px;">„${escapeHtml(take.length > 50 ? take.slice(0, 50) + '…' : take)}“ als Aufgabe</button>` : ''}
-          <button class="primary" id="lesenNextChapter" style="width:100%;margin-top:12px;">Weiterlesen</button></div>`;
-        lesenMainEl.querySelector('#lesenNextChapter').onclick = ()=>{ lesenChapter = ''; lesenSessionNotes = []; lesenPhase = 'notes'; renderLesenMain(); };
+          <div class="nav-row"><button class="ghost" id="lesenDoneBtn">Fertig</button><button class="primary" id="lesenNextChapter">Noch eine Session</button></div></div>`;
+        lesenMainEl.querySelector('#lesenNextChapter').onclick = ()=>{ lesenChapter = ''; lesenSessionNotes = []; lesenPhase = 'notes'; lesenStartTimer(); renderLesenMain(); renderLesenHero(); };
+        lesenMainEl.querySelector('#lesenDoneBtn').onclick = lesenCloseSession;
         const tt = lesenMainEl.querySelector('#lesenTakeTask');
         if(tt) tt.onclick = ()=>{ const bk = lesenBooks.find(x=>x.id === lesenBookId) || {}; window.__openAufgNew({ titel: take.slice(0, 90), notiz: 'Aus dem Buch „' + (bk.titel || '') + '“', bereich:'Privat', heute:false }); };
       }catch(e){
@@ -7366,8 +7565,10 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
     lesenHistoryToggle.textContent = showing ? 'Notizen & Zusammenfassungen anzeigen' : 'Ausblenden';
   };
 
+  let lesenHistBook = '';
   function renderLesenHistory(){
-    const list = lesenBookId ? lesenBookEntries(lesenBookId).filter(e=>e.typ !== 'Abfrage' && e.typ !== 'Lesezeit') : [];
+    const hb = lesenHistBook || lesenBookId;
+    const list = hb ? lesenBookEntries(hb).filter(e=>e.typ !== 'Abfrage' && e.typ !== 'Lesezeit') : [];
     if(!list.length){ lesenHistoryEl.innerHTML = '<div class="empty">Noch keine Einträge.</div>'; return; }
     lesenHistoryEl.innerHTML = list.map(e=>`
       <div class="entry">
