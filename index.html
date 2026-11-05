@@ -6856,6 +6856,7 @@
   function lesenMinutesToday(){ const t = todayStr(); return lesenEntries.filter(e=>e.typ === 'Lesezeit' && (e.createdAt || '').slice(0, 10) === t).reduce((s, e)=>s + (parseInt(e.text, 10) || 0), 0) + (lesenReadStart ? Math.floor((Date.now() - lesenReadStart) / 60000) : 0); }
   function renderHomeLesen(){
     const el = document.getElementById('homeLesenCard'); if(!el) return;
+    el.style.display = 'none'; return;   // Lesen-Karte auf der Startseite ausgeblendet (Wunsch)
     const bk = lesenBooks.find(b=>b.id === lesenBookId) || lesenBooks.find(b=>!b.fertig);
     if(!bk){ el.style.display = 'none'; return; }
     const min = lesenMinutesToday(), pct = Math.min(100, Math.round((min % LESEN_ZIEL_MIN || (min ? LESEN_ZIEL_MIN : 0)) / LESEN_ZIEL_MIN * 100));
