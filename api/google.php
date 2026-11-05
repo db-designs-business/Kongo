@@ -182,7 +182,7 @@ switch ($action) {
     $plain = ''; $html = ''; $atts = [];
     $walk = function ($p) use (&$walk, &$plain, &$html, &$atts) {
       $mt = $p['mimeType'] ?? '';
-      if (($p['filename'] ?? '') !== '' && (!empty($p['body']['attachmentId']) || !empty($p['body']['data']))) { $atts[] = ['name' => $p['filename'], 'size' => (int)($p['body']['size'] ?? 0), 'mime' => $mt]; return; }
+      if (($p['filename'] ?? '') !== '' && (!empty($p['body']['attachmentId']) || !empty($p['body']['data']))) { $atts[] = ['n' => count($atts), 'name' => $p['filename'], 'size' => (int)($p['body']['size'] ?? 0), 'mime' => $mt]; return; }
       if (!empty($p['body']['data'])) {
         if ($mt === 'text/plain' && $plain === '') $plain = b64url_dec($p['body']['data']);
         if ($mt === 'text/html' && $html === '') $html = b64url_dec($p['body']['data']);
@@ -193,6 +193,20 @@ switch ($action) {
     if (in_array('UNREAD', $m['labelIds'] ?? [], true)) g_api($uid, 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '/modify', ['removeLabelIds' => ['UNREAD']]);
     kg_json(['id' => $id, 'thread' => $m['threadId'] ?? '', 'from' => $h['from'] ?? '', 'to' => $h['to'] ?? '', 'cc' => $h['cc'] ?? '', 'subject' => $h['subject'] ?? '', 'date' => $h['date'] ?? '',
       'messageId' => $h['message-id'] ?? '', 'references' => $h['references'] ?? '', 'replyTo' => $h['reply-to'] ?? '', 'attachments' => $atts, 'text' => $plain !== '' ? $plain : kg_html_to_text($html)]);
+
+  case 'mail_att':
+    // Einzelnen Anhang anzeigen / herunterladen (n = Position in der Anhangsliste von mail_get)
+    $id = preg_replace('/[^A-Za-z0-9]/', '', (string)($_GET['id'] ?? '')); $n = (int)($_GET['n'] ?? -1);
+    $m = g_api($uid, 'GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '?format=full');
+    $found = []; $walkA = function ($p) use (&$walkA, &$found) {
+      if (($p['filename'] ?? '') !== '' && (!empty($p['body']['attachmentId']) || !empty($p['body']['data']))) { $found[] = $p; return; }
+      foreach ($p['parts'] ?? [] as $c) $walkA($c);
+    };
+    $walkA($m['payload'] ?? []);
+    $p = $found[$n] ?? null; if (!$p) { http_response_code(404); exit('Anhang nicht gefunden'); }
+    $data = !empty($p['body']['data']) ? b64url_dec($p['body']['data']) : '';
+    if ($data === '' && !empty($p['body']['attachmentId'])) { $a = g_api($uid, 'GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '/attachments/' . $p['body']['attachmentId']); $data = b64url_dec($a['data'] ?? ''); }
+    kg_send_attachment($p['filename'], $p['mimeType'] ?? '', $data, !empty($_GET['dl']));
 
   case 'mail_forward':
     // Weiterleiten inkl. Anhängen der Originalmail

@@ -1009,8 +1009,28 @@
   .msg-item mark{ background:rgba(34,227,211,.25); color:var(--ink); border-radius:3px; padding:0 1px; }
   .msg-new-btn{ display:inline-flex; align-items:center; justify-content:center; }
   .msg-new-btn svg{ width:18px; height:18px; }
-  .msg-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-  .msg-att{ font-size:13px; padding:7px 11px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink-soft); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msg-atts-title{ margin:16px 2px 8px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); }
+  .msg-att-thumbs{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:8px; margin-bottom:8px; }
+  .msg-att-thumb{ padding:0; border:1px solid var(--line-soft); border-radius:12px; overflow:hidden; aspect-ratio:1; background:rgba(255,255,255,.03); }
+  .msg-att-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .msg-atts{ display:flex; flex-direction:column; gap:6px; }
+  .msg-att{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink); min-height:48px; }
+  .msg-att-ico{ font-size:20px; flex-shrink:0; }
+  .msg-att-name{ display:flex; flex-direction:column; min-width:0; font-size:14px; font-weight:600; }
+  .msg-att-name, .msg-att-name small{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msg-att-name small{ font-weight:500; font-size:12px; color:var(--ink-soft); }
+  .att-sheet{ width:100%; max-width:900px; margin:0 auto; padding-left:16px; padding-right:16px; background:#07090A; display:flex; flex-direction:column; height:100%; min-height:0; }
+  #attViewer > .att-sheet{ padding-bottom:0 !important; }
+  .att-head{ display:flex; align-items:center; gap:10px; padding:0 0 12px; }
+  .att-title{ flex:1; min-width:0; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; }
+  .att-share{ flex-shrink:0; min-height:40px; padding:8px 14px; font-size:14px; }
+  .att-share::after{ content:none !important; }
+  .att-body{ flex:1; min-height:0; overflow:auto; display:flex; align-items:center; justify-content:center; padding-bottom:calc(16px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling:touch; }
+  .att-img{ width:100%; height:100%; object-fit:contain; border-radius:8px; }
+  .att-pdf{ width:100%; height:100%; border:0; border-radius:8px; background:#fff; }
+  .att-file{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:24px; }
+  .att-file-ico{ font-size:52px; }
+  .att-file small{ color:var(--ink-soft); }
   .msg-actions button{ flex:1; min-height:48px; font-size:15.5px; }
   .msg-actions .primary::after{ content:none !important; }
   .msg-actions{ gap:8px; }
@@ -2137,6 +2157,17 @@
     </div>
     <div id="msgDetail"></div>
     <div class="msg-actions" id="msgActions"></div>
+  </div>
+</div>
+
+<div class="modal-overlay kg-full" id="attViewer" style="display:none; align-items:stretch; z-index:57;">
+  <div class="att-sheet">
+    <div class="att-head">
+      <button type="button" class="back-btn" id="attClose" style="margin:0;">← Zurück</button>
+      <span class="att-title" id="attName"></span>
+      <button type="button" class="primary att-share" id="attShare">Sichern</button>
+    </div>
+    <div class="att-body" id="attBody"></div>
   </div>
 </div>
 
@@ -9246,9 +9277,52 @@
   document.getElementById('msgNewBtn').onclick = ()=>openNewMail();
 
   const msgOverlay = document.getElementById('msgOverlay');
+  document.getElementById('attClose').onclick = ()=>{ const ov = document.getElementById('attViewer'); ov.style.display = 'none'; document.getElementById('attBody').innerHTML = ''; if(ov.dataset.url){ URL.revokeObjectURL(ov.dataset.url); ov.dataset.url = ''; } };
   document.getElementById('msgClose').onclick = ()=>{ document.getElementById('msgComposeOverlay').style.display = 'none'; msgOverlay.style.display = 'none'; renderMessages(); updateMsgBadge(); };
   function fmtMB(b){ return (Math.round(b / 104857.6) / 10).toLocaleString('de-DE') + ' MB'; }
   function addrOnly(s){ const m = /<([^>]+)>/.exec(s || ''); return m ? m[1] : (s || '').trim(); }
+  /* ---- Anhänge: Vorschau, Ansehen, Sichern/Teilen ---- */
+  function attUrl(m, a, dl){
+    return m.source === 'gmail' ? 'api/google.php?action=mail_att&id=' + encodeURIComponent(m.id) + '&n=' + a.n + (dl ? '&dl=1' : '')
+      : 'api/mail.php?action=att&account=' + encodeURIComponent(m.accountId) + '&id=' + encodeURIComponent(m.id) + '&n=' + a.n + (dl ? '&dl=1' : '');
+  }
+  const attIsImg = a=>/^image\/(png|jpe?g|gif|webp|heic|heif)$/i.test(a.mime || '') || /\.(png|jpe?g|gif|webp|heic)$/i.test(a.name || '');
+  const attIsPdf = a=>/pdf/i.test(a.mime || '') || /\.pdf$/i.test(a.name || '');
+  const attSize = b=>b ? (b > 1048576 ? fmtMB(b) : Math.max(1, Math.round(b / 1024)) + ' KB') : '';
+  function attIcon(a){ return attIsImg(a) ? '🖼️' : attIsPdf(a) ? '📄' : /sheet|excel|\.xlsx?$|\.csv$/i.test((a.mime || '') + a.name) ? '📊' : /word|\.docx?$/i.test((a.mime || '') + a.name) ? '📝' : /zip|\.zip$/i.test((a.mime || '') + a.name) ? '🗜️' : '📎'; }
+  function attHtml(m, j){
+    const atts = j.attachments || []; if(!atts.length) return '';
+    const imgs = atts.filter(a=>attIsImg(a) && !/heic|heif/i.test(a.mime || a.name));
+    return `<div class="msg-atts-title">${atts.length} ${atts.length === 1 ? 'Anhang' : 'Anhänge'}</div>
+      ${imgs.length ? `<div class="msg-att-thumbs">${imgs.map(a=>`<button type="button" class="msg-att-thumb" data-att="${atts.indexOf(a)}"><img loading="lazy" src="${escapeHtml(attUrl(m, a))}" alt="${escapeHtml(a.name)}"></button>`).join('')}</div>` : ''}
+      <div class="msg-atts">${atts.map((a, i)=>`<button type="button" class="msg-att" data-att="${i}"><span class="msg-att-ico">${attIcon(a)}</span><span class="msg-att-name">${escapeHtml(a.name)}<small>${attSize(a.size)}</small></span></button>`).join('')}</div>`;
+  }
+  async function openAttachment(m, a){
+    if(!a) return;
+    const ov = document.getElementById('attViewer'), body = document.getElementById('attBody');
+    document.getElementById('attName').textContent = a.name;
+    const shareBtn = document.getElementById('attShare'); shareBtn.disabled = true; shareBtn.textContent = 'Lädt …';
+    body.innerHTML = '<div class="loading">Lade Anhang …</div>';
+    ov.style.display = 'flex';
+    let blob = null, file = null;
+    try{
+      const r = await fetch(attUrl(m, a), { credentials:'same-origin' });
+      if(!r.ok) throw new Error('Anhang konnte nicht geladen werden (' + r.status + ').');
+      blob = await r.blob();
+      file = new File([blob], a.name, { type: blob.type || a.mime || 'application/octet-stream' });
+    }catch(e){ body.innerHTML = '<div class="msg-err">⚠️ ' + escapeHtml(e.message) + '</div>'; shareBtn.textContent = 'Sichern'; return; }
+    const url = URL.createObjectURL(blob);
+    if(attIsImg(a)) body.innerHTML = `<img class="att-img" src="${url}" alt="${escapeHtml(a.name)}">`;
+    else if(attIsPdf(a)) body.innerHTML = `<iframe class="att-pdf" src="${url}" title="${escapeHtml(a.name)}"></iframe>`;
+    else body.innerHTML = `<div class="att-file"><div class="att-file-ico">${attIcon(a)}</div><b>${escapeHtml(a.name)}</b><small>${attSize(blob.size)}</small><div class="hint" style="margin-top:10px;">Dieser Dateityp lässt sich hier nicht anzeigen. Über den Button oben rechts speicherst du ihn in Dateien oder öffnest ihn in einer anderen App.</div></div>`;
+    const canShare = navigator.canShare && navigator.canShare({ files:[file] });
+    shareBtn.textContent = canShare ? 'Teilen / Sichern' : 'Herunterladen'; shareBtn.disabled = false;
+    shareBtn.onclick = async ()=>{
+      if(canShare){ try{ await navigator.share({ files:[file], title:a.name }); return; }catch(e){ if(e.name === 'AbortError') return; } }
+      const l = document.createElement('a'); l.href = url; l.download = a.name; document.body.appendChild(l); l.click(); l.remove();
+    };
+    ov.dataset.url = url;
+  }
   async function openMessage(m){
     msg.current = { item:m, detail:null };
     document.getElementById('msgSrc').textContent = (SRC_ICON[m.source] || '') + ' ' + msgLabel(m.source, m.account);
@@ -9270,8 +9344,9 @@
         det.innerHTML = `<div class="msg-subject">${escapeHtml(j.subject || m.subject)}</div>
           <div class="msg-meta"><b>${escapeHtml(j.from)}</b><br>an ${escapeHtml(j.to)}${j.cc ? '<br>cc ' + escapeHtml(j.cc) : ''}<br>${escapeHtml(j.date)}</div>
           <div class="msg-body">${linkify(j.text || '')}</div>
-          ${(j.attachments || []).length ? `<div class="msg-atts">${j.attachments.map(a=>`<span class="msg-att">📎 ${escapeHtml(a.name)}${a.size ? ' · ' + (a.size > 1048576 ? fmtMB(a.size) : Math.max(1, Math.round(a.size / 1024)) + ' KB') : ''}</span>`).join('')}</div>` : ''}`;
+          ${attHtml(m, j)}`;
         det.scrollTop = 0;
+        det.querySelectorAll('[data-att]').forEach(b=>b.onclick = ()=>openAttachment(m, (j.attachments || [])[+b.dataset.att]));
         acts.innerHTML = '<button type="button" class="ghost msg-task-btn" data-act="task">Als Aufgabe</button><button type="button" class="ghost" data-act="forward">Weiterleiten</button><button type="button" class="primary" data-act="reply">Antworten</button>';
       }
       acts.querySelectorAll('[data-act]').forEach(b=>b.onclick = ()=>b.dataset.act === 'task' ? messageToTask(b) : openCompose(b.dataset.act));

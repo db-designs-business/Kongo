@@ -225,3 +225,17 @@ function kg_mime_mixed(array $headers, string $text, array $atts): string {
   return $out . '--' . $b . "--\r\n";
 }
 
+// Anhang ausliefern: nur harmlose Typen dürfen im Browser angezeigt werden, alles andere nur als Download (Schutz vor Skripten in Anhängen)
+function kg_send_attachment(string $name, string $mime, string $data, bool $download): void {
+  $mime = strtolower(trim($mime));
+  $safe = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'application/pdf', 'text/plain'];
+  if (!in_array($mime, $safe, true)) { $mime = 'application/octet-stream'; $download = true; }
+  $fn = preg_replace('/[\r\n"]+/', '', $name) ?: 'anhang';
+  header('Content-Type: ' . $mime);
+  header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . preg_replace('/[^\x20-\x7e]/', '_', $fn) . '"; filename*=UTF-8\'\'' . rawurlencode($fn));
+  header('Content-Length: ' . strlen($data));
+  header('X-Content-Type-Options: nosniff');
+  header("Content-Security-Policy: sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'");
+  header('Cache-Control: private, max-age=3600');
+  echo $data; exit;
+}

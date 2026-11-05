@@ -172,7 +172,7 @@ switch ($action) {
     $st = imap_fetchstructure($mb, $u, FT_UID);
     $plain = ''; $html = '';
     if ($st) m_part_text($mb, $u, $st, '', $plain, $html);
-    $attList = $st ? array_map(fn($x) => ['name' => $x['name'], 'size' => $x['size'], 'mime' => $x['mime']], m_attachments($st)) : [];
+    $attList = $st ? array_map(fn($x, $i) => ['n' => $i, 'name' => $x['name'], 'size' => $x['size'], 'mime' => $x['mime']], m_attachments($st), array_keys(m_attachments($st))) : [];
     imap_setflag_full($mb, (string)$u, '\\Seen', ST_UID);
     imap_close($mb);
     preg_match('/^References:\s*(.+(?:\r?\n[ \t].+)*)/mi', $hdrRaw, $rm);
@@ -180,6 +180,17 @@ switch ($action) {
     kg_json(['id' => (string)$u, 'from' => $addr($h->from ?? []), 'to' => $addr($h->to ?? []), 'cc' => $addr($h->cc ?? []), 'replyTo' => $addr($h->reply_to ?? []),
       'subject' => m_dec($h->subject ?? ''), 'date' => $h->date ?? '', 'messageId' => $h->message_id ?? '', 'references' => trim(preg_replace('/\s+/', ' ', $rm[1] ?? '')),
       'attachments' => $attList, 'text' => $plain !== '' ? trim($plain) : kg_html_to_text($html)]);
+
+  case 'att':
+    $a = m_find($uid, (string)($_GET['account'] ?? '')); $u = (int)($_GET['id'] ?? 0); $n = (int)($_GET['n'] ?? -1);
+    [$mb, $err] = m_open($a, 'INBOX', OP_READONLY);
+    if (!$mb) { http_response_code(502); exit($err); }
+    $st = imap_fetchstructure($mb, $u, FT_UID);
+    $list = $st ? m_attachments($st) : []; $x = $list[$n] ?? null;
+    if (!$x) { imap_close($mb); http_response_code(404); exit('Anhang nicht gefunden'); }
+    $d = imap_fetchbody($mb, $u, $x['num'], FT_UID | FT_PEEK); imap_close($mb);
+    if ($x['enc'] == 3) $d = base64_decode($d); elseif ($x['enc'] == 4) $d = quoted_printable_decode($d);
+    kg_send_attachment($x['name'], $x['mime'], $d, !empty($_GET['dl']));
 
   case 'forward':
     // Weiterleiten inkl. Anhängen
