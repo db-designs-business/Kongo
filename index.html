@@ -999,6 +999,14 @@
   #msgDetail{ flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-bottom:16px; }
   .msg-actions{ display:flex; gap:10px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line-soft); background:#07090A; }
   .msg-actions:empty{ display:none; }
+  .msg-search{ position:relative; margin-top:10px; }
+  .msg-search svg{ position:absolute; left:13px; top:50%; width:17px; height:17px; transform:translateY(-50%); color:var(--ink-soft); pointer-events:none; }
+  .msg-search input{ width:100%; font-family:var(--font); font-size:16px; color:var(--ink); background:rgba(0,0,0,.35); border:1px solid var(--line-soft); border-radius:12px; padding:11px 40px 11px 38px; -webkit-appearance:none; }
+  .msg-search input::-webkit-search-cancel-button{ display:none; }
+  .msg-search input:focus{ border-color:rgba(34,227,211,.5); outline:none; }
+  #msgSearchClear{ position:absolute; right:6px; top:50%; transform:translateY(-50%); width:32px; height:32px; border:0; border-radius:50%; background:rgba(255,255,255,.08); color:var(--ink-soft); font-size:18px; line-height:1; padding:0; }
+  .msg-search-info{ font-size:12.5px; color:var(--ink-soft); margin:2px 4px 8px; }
+  .msg-item mark{ background:rgba(34,227,211,.25); color:var(--ink); border-radius:3px; padding:0 1px; }
   .msg-new-btn{ display:inline-flex; align-items:center; justify-content:center; }
   .msg-new-btn svg{ width:18px; height:18px; }
   .msg-atts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
@@ -1864,6 +1872,11 @@
         <button type="button" class="msg-box-btn" id="msgBoxBtn"><span id="msgBoxLabel">Alle Postfächer</span> ▾</button>
         <button type="button" class="msg-box-clear" id="msgBoxClear" aria-label="Filter zurücksetzen" style="display:none;">×</button>
         <button type="button" class="msg-unread-btn" id="msgUnreadBtn" aria-label="Nur ungelesen" title="Nur ungelesen"><span class="dot"></span> Ungelesen</button>
+      </div>
+      <div class="msg-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="msgSearch" placeholder="Suchen: Absender, Betreff, Text …" enterkeyhint="search" autocomplete="off" autocorrect="off">
+        <button type="button" id="msgSearchClear" aria-label="Suche leeren" style="display:none;">×</button>
       </div>
     </div>
     <div id="msgErrors"></div>
@@ -9084,6 +9097,7 @@
     ]);
     const sources = [];
     if(gs.connected){ sources.push({ src:'gmail', account: gs.email || 'Google' }); jobs.push(kgApi('google.php?action=mail_list&max=30').then(j=>j.messages).catch(e=>{ errors.push('Gmail: ' + e.message); return []; })); }
+    msg.accounts = ms.accounts || [];
     (ms.accounts || []).forEach(a=>{ sources.push({ src:'mail', account:a.label }); jobs.push(kgApi('mail.php?action=list&account=' + encodeURIComponent(a.id)).then(j=>j.messages).catch(e=>{ errors.push(e.message); return []; })); });
     (ss.teams || []).forEach(t=>sources.push({ src:'slack', account:t.team_name }));
     if((ss.teams || []).length) jobs.push(kgApi('slack.php?action=list' + (force ? '&fresh=1' : '')).then(j=>{ (j.errors || []).forEach(x=>errors.push('Slack ' + x)); return j.messages; }).catch(e=>{ errors.push('Slack: ' + e.message); return []; }));
@@ -9171,20 +9185,57 @@
     document.getElementById('msgUnreadBtn').classList.toggle('active', msg.unreadOnly);
     const listEl = document.getElementById('msgList');
     if(msg.none){ listEl.innerHTML = `<div class="card"><div class="hint" style="margin-bottom:12px;">Noch keine Quelle verbunden. Verbinde Google, deine E-Mail-Postfächer und Slack.</div><button type="button" class="primary" id="msgConnNow">Verbindungen einrichten</button></div>`; document.getElementById('msgConnNow').onclick = openConnections; return; }
-    const items = msg.items.filter(m=>msgMatches(m));
-    listEl.innerHTML = items.length ? '<div class="card msg-card">' + items.map((m, i)=>`<button type="button" class="msg-item ${m.unread ? 'unread' : ''}" data-i="${msg.items.indexOf(m)}">
+    const q = (msg.q || '').trim().toLowerCase();
+    let items;
+    if(q){
+      const words = q.split(/\s+/).filter(Boolean);
+      const hit = m=>{ const t = [m.from, m.subject, m.snippet, m.account, msgLabel(m.source, m.account)].join(' ').toLowerCase(); return words.every(w=>t.includes(w)); };
+      const seen = new Set(); items = [];
+      [...msg.items.filter(hit), ...(msg.results || [])].forEach(m=>{ const k = m.source + '|' + (m.accountId || m.team || m.account) + '|' + m.id; if(seen.has(k)) return; seen.add(k); if(msgMatches(m, true)) items.push(m); });
+      items.sort((a,b)=>(b.date || '').localeCompare(a.date || ''));
+    } else items = msg.items.filter(m=>msgMatches(m));
+    msg.view = items;
+    const hl = t=>{ let h = escapeHtml(t || ''); if(!q) return h; q.split(/\s+/).filter(w=>w.length > 1).forEach(w=>{ h = h.replace(new RegExp('(' + escapeHtml(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark>$1</mark>'); }); return h; };
+    const info = q ? `<div class="msg-search-info">${msg.searching ? 'Suche in deinen Postfächern …' : items.length + ' Treffer' + (msg.results ? '' : ' in den geladenen Nachrichten')}${msg.filter !== 'email' && (msg.sources || []).some(x=>x.src === 'slack') ? ' · Slack: nur geladene Chats' : ''}</div>` : '';
+    listEl.innerHTML = info + (items.length ? '<div class="card msg-card">' + items.map((m, i)=>`<button type="button" class="msg-item ${m.unread ? 'unread' : ''}" data-i="${i}">
         <span class="msg-ico">${SRC_ICON[m.source] || '•'}</span>
         <span class="msg-main">
-          <span class="msg-top"><span class="msg-from">${escapeHtml(m.source === 'slack' ? m.subject : fromName(m.from))}</span><span class="msg-time">${escapeHtml(relTime(m.date))}</span></span>
-          <span class="msg-subj">${escapeHtml(m.source === 'slack' ? (m.from + ': ' + m.snippet) : m.subject)}</span>
-          ${m.source !== 'slack' && m.snippet ? `<span class="msg-snip">${escapeHtml(m.snippet)}</span>` : ''}
+          <span class="msg-top"><span class="msg-from">${hl(m.source === 'slack' ? m.subject : fromName(m.from))}</span><span class="msg-time">${escapeHtml(relTime(m.date))}</span></span>
+          <span class="msg-subj">${hl(m.source === 'slack' ? (m.from + ': ' + m.snippet) : m.subject)}</span>
+          ${m.source !== 'slack' && m.snippet ? `<span class="msg-snip">${hl(m.snippet)}</span>` : ''}
           <span class="msg-acc"><span class="mbox-dot" style="background:${msgColor(m.source, m.account)}"></span>${escapeHtml(msgLabel(m.source, m.account))}</span>
         </span>
-      </button>`).join('') + '</div>' : '<div class="card"><div class="empty">Keine Nachrichten für diesen Filter.</div></div>';
-    listEl.querySelectorAll('.msg-item').forEach(b=>b.onclick = ()=>openMessage(msg.items[+b.dataset.i]));
+      </button>`).join('') + '</div>' : (q && msg.searching ? '' : `<div class="card"><div class="empty">${q ? 'Nichts gefunden.' : 'Keine Nachrichten für diesen Filter.'}</div></div>`));
+    listEl.querySelectorAll('.msg-item').forEach(b=>b.onclick = ()=>openMessage(msg.view[+b.dataset.i]));
   }
   document.querySelectorAll('#msgSeg .aufg-tab').forEach(b=>b.onclick = ()=>{ msg.filter = b.dataset.f; msg.account = ''; try{ localStorage.setItem('kongrow_msg_filter', msg.filter); localStorage.setItem('kongrow_msg_account', ''); }catch(e){} renderMessages(); });
   document.getElementById('msgBoxBtn').onclick = openMsgBoxPicker;
+  // Suche: sofort in den geladenen Nachrichten, kurz danach zusätzlich in den Postfächern selbst (ältere Mails)
+  (function(){
+    const inp = document.getElementById('msgSearch'), clr = document.getElementById('msgSearchClear');
+    let t = null, seq = 0;
+    const serverSearch = async q=>{
+      const my = ++seq; msg.searching = true; renderMessages();
+      const jobs = [];
+      (msg.sources || []).forEach(x=>{
+        if(x.src === 'slack' || msg.filter === 'slack') return;
+        if(msg.account && msg.account !== x.key) return;
+        if(x.src === 'gmail') jobs.push(kgApi('google.php?action=mail_list&max=25&q=' + encodeURIComponent('-in:trash -in:spam ' + q)).then(j=>j.messages || []).catch(()=>[]));
+        else { const acc = (msg.accounts || []).find(a=>a.label === x.account); if(acc) jobs.push(kgApi('mail.php?action=list&max=25&account=' + encodeURIComponent(acc.id) + '&q=' + encodeURIComponent(q)).then(j=>j.messages || []).catch(()=>[])); }
+      });
+      const res = [].concat(...await Promise.all(jobs)).filter(m=>m && typeof m === 'object').map(m=>Object.assign({ date:'' }, m));
+      if(my !== seq) return;
+      msg.results = res; msg.searching = false; renderMessages();
+    };
+    inp.addEventListener('input', ()=>{
+      msg.q = inp.value; msg.results = null; clr.style.display = inp.value ? '' : 'none';
+      clearTimeout(t); renderMessages();
+      const q = inp.value.trim();
+      if(q.length >= 2) t = setTimeout(()=>serverSearch(q), 600); else { seq++; msg.searching = false; }
+    });
+    inp.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); clearTimeout(t); const q = inp.value.trim(); if(q.length >= 2) serverSearch(q); inp.blur(); } });
+    clr.onclick = ()=>{ inp.value = ''; msg.q = ''; msg.results = null; msg.searching = false; seq++; clr.style.display = 'none'; renderMessages(); };
+  })();
   document.getElementById('msgBoxClear').onclick = ()=>{ msg.account = ''; try{ localStorage.setItem('kongrow_msg_account', ''); }catch(e){} renderMessages(); };
   document.getElementById('msgUnreadBtn').onclick = ()=>{ msg.unreadOnly = !msg.unreadOnly; try{ localStorage.setItem('kongrow_msg_unread', msg.unreadOnly ? '1' : '0'); }catch(e){} renderMessages(); };
   function updateMsgBadge(){
@@ -9259,7 +9310,7 @@
   const micLiveEl = document.createElement('div'); micLiveEl.className = 'kg-mic-live';
   if(SR){ document.body.appendChild(micBtn); document.body.appendChild(micLiveEl); }
   let micField = null;
-  const micOk = el=>el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'search'))) && !el.closest('.auth-screen') && !el.readOnly;
+  const micOk = el=>el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text')) && !el.closest('.auth-screen') && !el.readOnly;
   function micPlace(){
     if(!micField){ micBtn.style.display = 'none'; return; }
     const vv = window.visualViewport; const r = micField.getBoundingClientRect();

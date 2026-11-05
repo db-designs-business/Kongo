@@ -147,7 +147,12 @@ switch ($action) {
     $a = m_find($uid, (string)($_GET['account'] ?? ''));
     [$mb, $err] = m_open($a, 'INBOX', OP_READONLY);
     if (!$mb) kg_json(['error' => ['message' => $a['label'] . ': ' . $err]], 502);
-    $uids = imap_search($mb, 'SINCE "' . date('j-M-Y', strtotime('-21 days')) . '"', SE_UID) ?: [];
+    $q = trim((string)($_GET['q'] ?? ''));
+    if ($q !== '') {   // Suche im ganzen Posteingang (Absender, Betreff, Text)
+      $qq = '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], mb_substr($q, 0, 80)) . '"';
+      $uids = @imap_search($mb, 'TEXT ' . $qq, SE_UID, 'UTF-8') ?: (@imap_search($mb, 'OR FROM ' . $qq . ' SUBJECT ' . $qq, SE_UID, 'UTF-8') ?: []);
+      imap_errors();
+    } else $uids = imap_search($mb, 'SINCE "' . date('j-M-Y', strtotime('-21 days')) . '"', SE_UID) ?: [];
     rsort($uids); $uids = array_slice($uids, 0, (int)($_GET['max'] ?? 30));
     $out = [];
     if ($uids) foreach (imap_fetch_overview($mb, implode(',', $uids), FT_UID) ?: [] as $o) {
