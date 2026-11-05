@@ -754,9 +754,20 @@
   .kg-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
   @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(34,227,211,.5); } 50%{ box-shadow:0 0 0 10px rgba(34,227,211,0); } }
   .kg-mic-live{ position:fixed; z-index:1300; left:16px; right:72px; padding:8px 12px; border-radius:12px; background:rgba(20,27,31,.96); border:1px solid var(--line-soft); color:var(--ink-soft); font-size:13.5px; display:none; max-height:4.5em; overflow:hidden; }
-  .lesen-mode-top{ display:flex; justify-content:space-between; align-items:flex-end; gap:10px; margin-bottom:12px; }
+  .lesen-mic{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%; min-height:150px; margin:14px 0 6px; border-radius:22px; border:1px solid rgba(34,227,211,.45); background:radial-gradient(circle at 50% 40%, rgba(34,227,211,.18), rgba(34,227,211,.04)); color:var(--forest); font-size:16px; font-weight:700; }
+  .lesen-mic svg{ width:46px; height:46px; }
+  .lesen-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
+  .lesen-mic.off{ opacity:.5; }
+  .lesen-say{ text-align:center; font-size:13.5px; color:var(--ink-soft); line-height:1.5; margin:6px 0 4px; }
+  .lesen-say i{ color:var(--ink); font-style:normal; }
+  .lesen-live{ min-height:0; text-align:center; font-size:14.5px; color:var(--ink); margin:6px 4px; }
+  .lesen-live:empty{ display:none; }
+  .lesen-meta{ display:block; margin-top:4px; color:var(--ink-soft); font-size:12px; }
+  .lesen-links{ display:flex; flex-wrap:wrap; justify-content:center; gap:4px 16px; margin-top:12px; }
+  .lesen-timer-s{ font-variant-numeric:tabular-nums; }
+  .lesen-mode-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .lesen-timer{ font-size:34px; font-weight:800; color:var(--forest); font-variant-numeric:tabular-nums; line-height:1.1; }
-  .lesen-today{ font-size:13px; color:var(--ink-soft); text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .lesen-today{ font-size:13px; color:var(--ink-soft); text-align:right; }
   .lesen-start{ min-height:40px; padding:8px 14px; font-size:14px; }
   .lesen-quick{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .lesen-quick button{ min-height:56px; font-size:15px; }
@@ -7151,109 +7162,94 @@
     if(!lesenReadStart){ lesenReadStart = Date.now(); try{ localStorage.setItem('kongrow_lesen_start', String(lesenReadStart)); }catch(e){} }
     if(typeof keepAwake === 'function') keepAwake(true);
   }
+  // Ein Diktat -> KI erkennt Seite, Kapitel, Zitat oder Gedanke (auch mehrere auf einmal)
+  async function lesenParseSpeech(text){
+    const bk = lesenBooks.find(x=>x.id === lesenBookId) || {};
+    const lastSeite = bk.aktuelleSeite || '', lastKap = (lesenChapter || '').trim();
+    const fallback = ()=>{
+      const sm = /(?:seite|position|pos\.?)\s*(\d+)/i.exec(text), km = /kapitel\s*([\w\d.]+(?:\s*[:,]\s*[^.,;]{2,40})?)/i.exec(text);
+      let t = text.replace(/(?:auf\s+)?(?:seite|position)\s*\d+[,.]?/ig, '').replace(/kapitel\s*[\w\d.]+(?:\s*[:,]\s*[^.,;]{2,40})?[,.]?/i, '').trim();
+      return [{ typ: /^\s*zitat\b/i.test(text) ? 'Zitat' : 'Notiz', seite: sm ? sm[1] : lastSeite, kapitel: km ? 'Kapitel ' + km[1].trim() : lastKap, text: (t.replace(/^\s*zitat[:,]?\s*/i, '') || text).replace(/^./, c=>c.toUpperCase()) }];
+    };
+    if(!getAnthropicToken()) return fallback();
+    try{
+      const out = await callClaudeCoach(`Dominic liest „${bk.titel || ''}“ und hat beim Lesen frei gesprochen. Zerlege das Diktat in Notizen.
+Bisher: Seite/Position ${lastSeite || 'unbekannt'}, Kapitel ${lastKap || 'unbekannt'}. Nennt er keine neue Seite oder kein neues Kapitel, übernimm die bisherigen.
+Regeln: "Seite 42", "Position 1200", "Kapitel 3" usw. sind Angaben, kein Notiztext. Sagt er "Zitat" oder liest er offensichtlich eine Stelle vor, ist es typ "Zitat" (wörtlich übernehmen). Sonst typ "Notiz": seine Gedanken in seinen Worten, nur Füllwörter und Versprecher glätten, nichts dazuerfinden, Ich-Form. Mehrere getrennte Gedanken = mehrere Einträge. Keine Gedankenstriche.
+Antworte NUR mit JSON: [{"typ":"Notiz"|"Zitat","seite":"42","kapitel":"Kapitel 3: Titel","text":"..."}]
+Diktat: ${text}`);
+      const arr = JSON.parse((out.match(/\[[\s\S]*\]/) || ['[]'])[0]);
+      const ok = arr.filter(x=>x && x.text && String(x.text).trim()).map(x=>({ typ: x.typ === 'Zitat' ? 'Zitat' : 'Notiz', seite: String(x.seite || lastSeite || ''), kapitel: String(x.kapitel || lastKap || ''), text: String(x.text).trim() }));
+      return ok.length ? ok : fallback();
+    }catch(e){ return fallback(); }
+  }
+  async function lesenSaveParsed(items){
+    for(const it of items){ if(it.kapitel) lesenChapter = it.kapitel; await lesenQuickSave(it.typ, it.text, it.seite); }
+  }
   function renderLesenNotes(){
     const SRok = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
     lesenMainEl.innerHTML = `
       <div class="card lesen-mode">
-        <div class="lesen-mode-top"><div><div class="step-label" style="margin:0;">Lese-Modus</div><div class="lesen-timer" id="lesenTimer">0:00</div></div>
-          <div class="lesen-today"><span id="lesenToday"></span><button type="button" class="ghost lesen-start" id="lesenStartBtn">Lesezeit starten</button></div></div>
-        <div class="lesen-quick">
-          ${SRok ? '<button type="button" class="primary" id="lesenVoice">Gedanke sprechen</button>' : ''}
-          <button type="button" class="ghost" id="lesenPaste">Markierung einfügen</button>
-        </div>
-        <div class="hint" id="lesenQuickHint" style="margin:8px 0 0;">${SRok ? 'Antippen, sprechen, nochmal antippen. Wird mit Seite gespeichert.' : ''} In Kindle Text markieren → Kopieren → hier „Markierung einfügen“.</div>
-        <div class="lesen-page-row"><span>Position / Seite</span><input type="text" id="lesenCurPage" inputmode="numeric" placeholder="z. B. 1234"></div>
-        <div class="save-status" id="lesenQuickStatus"></div>
+        <div class="lesen-mode-top"><div class="step-label" style="margin:0;">Lese-Modus</div><div class="lesen-today"><span class="lesen-timer-s" id="lesenTimer"></span> <span id="lesenToday"></span></div></div>
+        <button type="button" class="lesen-mic ${SRok ? '' : 'off'}" id="lesenVoice" aria-label="Sprechen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          <span id="lesenVoiceLabel">${SRok ? 'Tippen und sprechen' : 'Spracheingabe nicht verfügbar'}</span>
+        </button>
+        <div class="lesen-say">Sag einfach, was dir durch den Kopf geht, z. B.<br><i>„Seite 42, Kapitel 3. Mir ist aufgefallen, dass …“</i><br>Seite und Kapitel erkennt die KI selbst.</div>
+        <div class="lesen-live" id="lesenLive"></div>
+        <div class="save-status" id="lesenQuickStatus" style="text-align:center;"></div>
         <div id="lesenSessionNotesTop"></div>
-        <button type="button" class="aufg-link" id="lesenKindleImport" style="margin-top:8px;">Kindle-Notizbuch importieren</button>
-      </div>
-      <div class="card">
-        <div class="step-label">Notiz tippen</div>
-        <div class="turn-title">Kapitel</div>
-        <input type="text" id="lesenChapterInput" placeholder="z.B. Kapitel 3: Gewohnheiten" value="${escapeHtml(lesenChapter)}" style="margin-bottom:12px;">
-        <div class="turn-title">Notiz</div>
-        <textarea id="lesenNoteInput" placeholder="Was willst du dir merken? In eigenen Worten ..." style="min-height:110px;"></textarea>
-        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-          <input type="text" id="lesenPageInput" inputmode="numeric" placeholder="Seite" style="width:90px;">
-          <label style="display:flex;gap:6px;align-items:center;font-size:15px;"><input type="checkbox" id="lesenImportant" style="width:auto;"> ★ Wichtig</label>
+        <div class="lesen-links">
+          <button type="button" class="aufg-link" id="lesenTypeBtn">Tippen statt sprechen</button>
+          <button type="button" class="aufg-link" id="lesenPaste">Kindle-Markierung einfügen</button>
+          <button type="button" class="aufg-link" id="lesenKindleImport">Kindle-Notizbuch importieren</button>
         </div>
-        <button class="primary" id="lesenSaveNote" style="margin-top:14px;width:100%;">Notiz speichern</button>
-        <div id="lesenNoteStatus" class="save-status"></div>
-        <div id="lesenSessionNotes"></div>
-        <button class="ghost" id="lesenToSummary" style="margin-top:16px;width:100%;">Lesen beenden → Zusammenfassung</button>
+        <button class="ghost" id="lesenToSummary" style="margin-top:14px;width:100%;">Lesen beenden</button>
       </div>`;
-    // Timer
     const tEl = lesenMainEl.querySelector('#lesenTimer'), todayEl = lesenMainEl.querySelector('#lesenToday');
-    const startBtn = lesenMainEl.querySelector('#lesenStartBtn');
-    startBtn.onclick = ()=>{ lesenStartTimer(); clearInterval(lesenTick); lesenTick = setInterval(tick, 1000); tick(); };
-    const tick = ()=>{ startBtn.style.display = lesenReadStart ? 'none' : ''; tEl.style.opacity = lesenReadStart ? '' : '.35'; if(!lesenReadStart){ todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' / ' + LESEN_ZIEL_MIN + ' Min'; return; } if(!document.body.contains(tEl)){ clearInterval(lesenTick); return; } const sec = Math.floor((Date.now() - lesenReadStart) / 1000); tEl.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' / ' + LESEN_ZIEL_MIN + ' Min'; };
+    const qst = lesenMainEl.querySelector('#lesenQuickStatus'), live = lesenMainEl.querySelector('#lesenLive');
+    const tick = ()=>{ if(!document.body.contains(tEl)){ clearInterval(lesenTick); return; }
+      if(lesenReadStart){ const sec = Math.floor((Date.now() - lesenReadStart) / 1000); tEl.textContent = '⏱ ' + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') + ' ·'; } else tEl.textContent = '';
+      todayEl.textContent = 'Heute ' + lesenMinutesToday() + ' / ' + LESEN_ZIEL_MIN + ' Min'; };
     clearInterval(lesenTick); lesenTick = setInterval(tick, 1000); tick();
-    const bkNow = lesenBooks.find(x=>x.id === lesenBookId);
-    const curPage = lesenMainEl.querySelector('#lesenCurPage'); if(bkNow && bkNow.aktuelleSeite) curPage.value = bkNow.aktuelleSeite;
-    const qst = lesenMainEl.querySelector('#lesenQuickStatus');
-    const vBtn = lesenMainEl.querySelector('#lesenVoice');
-    if(vBtn) vBtn.onclick = ()=>{
+    renderLesenSessionNotes();
+    const handle = async text=>{
+      if(!text){ qst.textContent = 'Nichts verstanden. Nochmal?'; return; }
+      qst.textContent = 'Erfasse …';
+      try{
+        const items = await lesenParseSpeech(text);
+        await lesenSaveParsed(items);
+        const it = items[items.length - 1];
+        qst.textContent = (items.length > 1 ? items.length + ' Einträge' : (it.typ === 'Zitat' ? 'Zitat' : 'Gedanke')) + ' gespeichert ✓' + (it.seite ? ' · S. ' + it.seite : '') + (it.kapitel ? ' · ' + it.kapitel : '');
+      }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
+      live.textContent = '';
+    };
+    const vBtn = lesenMainEl.querySelector('#lesenVoice'), vLbl = lesenMainEl.querySelector('#lesenVoiceLabel');
+    vBtn.onclick = ()=>{
+      if(!SRok) return;
       if(voice.on && voice.onEnd){ voiceStop(); return; }
-      if(!lesenReadStart) startBtn.click();
-      vBtn.textContent = 'Fertig'; vBtn.classList.add('on'); qst.textContent = 'Ich höre zu …';
-      const ok = voiceStart(null, async text=>{
-        vBtn.textContent = 'Gedanke sprechen'; vBtn.classList.remove('on');
-        if(!text){ qst.textContent = 'Nichts verstanden. Nochmal versuchen?'; return; }
-        try{ await lesenQuickSave('Notiz', text.charAt(0).toUpperCase() + text.slice(1), curPage.value.trim()); qst.textContent = 'Gedanke gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
-      });
-      if(!ok){ vBtn.textContent = 'Gedanke sprechen'; vBtn.classList.remove('on'); qst.textContent = 'Spracheingabe nicht verfügbar.'; }
+      lesenStartTimer(); tick();
+      vBtn.classList.add('on'); vLbl.textContent = 'Ich höre zu … tippen zum Speichern'; qst.textContent = ''; live.textContent = '';
+      const shadow = { value:'', selectionStart:0, dispatchEvent(){ live.textContent = this.value; } };   // Live-Text anzeigen
+      const ok = voiceStart(shadow, async text=>{ vBtn.classList.remove('on'); vLbl.textContent = 'Tippen und sprechen'; await handle(text || shadow.value.trim()); });
+      if(!ok){ vBtn.classList.remove('on'); vLbl.textContent = 'Tippen und sprechen'; qst.textContent = 'Spracheingabe nicht verfügbar.'; }
+    };
+    lesenMainEl.querySelector('#lesenTypeBtn').onclick = ()=>{
+      openErnModal(`<div class="modal-title">Notiz</div><div class="modal-sub">Schreib wie du sprechen würdest, z. B. „S. 42, Kapitel 3: …“. Seite und Kapitel erkennt die KI.</div>
+        <textarea id="lnText" rows="6" style="min-height:140px;"></textarea><button type="button" class="primary" id="lnSave" style="width:100%;margin-top:12px;">Speichern</button>`);
+      const c = ernModalCard(); setTimeout(()=>c.querySelector('#lnText').focus(), 200);
+      c.querySelector('#lnSave').onclick = async ()=>{ const t = c.querySelector('#lnText').value.trim(); if(!t) return; closeErnModal(); lesenStartTimer(); await handle(t); };
     };
     lesenMainEl.querySelector('#lesenPaste').onclick = async ()=>{
-      if(!lesenReadStart) startBtn.click();
+      lesenStartTimer();
       let raw = '';
       try{ raw = await navigator.clipboard.readText(); }catch(e){}
       if(!raw){ raw = prompt('Markierung hier einfügen:') || ''; }
       if(!raw.trim()){ qst.textContent = 'Zwischenablage ist leer. In Kindle erst Text markieren und „Kopieren“ tippen.'; return; }
-      const k = kindleParse(raw);
-      try{ await lesenQuickSave('Zitat', k.text, k.pos || curPage.value.trim()); if(k.pos) curPage.value = k.pos; qst.textContent = 'Markierung gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
+      const k = kindleParse(raw); const bk = lesenBooks.find(x=>x.id === lesenBookId) || {};
+      try{ await lesenQuickSave('Zitat', k.text, k.pos || bk.aktuelleSeite || ''); qst.textContent = 'Markierung gespeichert ✓'; }catch(e){ qst.textContent = 'Speichern fehlgeschlagen.'; }
     };
-    curPage.onchange = ()=>{ const n = parseInt(curPage.value, 10); const bk = lesenBooks.find(x=>x.id === lesenBookId); if(bk && n > 0){ bk.aktuelleSeite = n; renderLesenBookInfo(); airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': n } }) }, LESEN_BASE_ID).catch(()=>{}); renderHomeLesen(); } };
     lesenMainEl.querySelector('#lesenKindleImport').onclick = openKindleImport;
-    const chapterEl = lesenMainEl.querySelector('#lesenChapterInput');
-    chapterEl.oninput = ()=>{ lesenChapter = chapterEl.value; };
-    renderLesenSessionNotes();
-    const saveBtn = lesenMainEl.querySelector('#lesenSaveNote');
-    const statusEl = lesenMainEl.querySelector('#lesenNoteStatus');
-    saveBtn.onclick = async ()=>{
-      if(saveBtn.disabled) return;
-      const text = lesenMainEl.querySelector('#lesenNoteInput').value.trim();
-      if(!text){ statusEl.textContent = 'Bitte eine Notiz eingeben.'; return; }
-      const seite = lesenMainEl.querySelector('#lesenPageInput').value.trim();
-      const wichtig = lesenMainEl.querySelector('#lesenImportant').checked;
-      saveBtn.disabled = true; statusEl.textContent = 'Speichere ...';
-      const fields = {
-        'Titel': text.slice(0, 60), 'BuchId': lesenBookId, 'Typ': 'Notiz',
-        'Kapitel': lesenChapter.trim(), 'Seite': seite, 'Text': text,
-        'Wichtig': wichtig, 'Erstellt am': new Date().toISOString()
-      };
-      try{
-        const id = await airtableCreate(TABLE_LESEN_EINTRAEGE, fields, LESEN_BASE_ID);
-        const entry = { id, bookId: lesenBookId, typ:'Notiz', kapitel: fields['Kapitel'], seite, text, wichtig, createdAt: fields['Erstellt am'] };
-        lesenEntries.push(entry);
-        lesenSessionNotes.unshift(entry);
-        const pageNum = parseInt(seite, 10);
-        const bk = lesenBooks.find(x=>x.id === lesenBookId);
-        if(bk && pageNum > 0 && pageNum > (bk.aktuelleSeite || 0)){
-          bk.aktuelleSeite = pageNum;
-          renderLesenBookInfo();
-          airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': pageNum } }) }, LESEN_BASE_ID).catch(()=>{});
-        }
-        lesenMainEl.querySelector('#lesenNoteInput').value = '';
-        lesenMainEl.querySelector('#lesenPageInput').value = '';
-        lesenMainEl.querySelector('#lesenImportant').checked = false;
-        statusEl.textContent = 'Gespeichert.';
-        renderLesenSessionNotes();
-        renderLesenHistory();
-      }catch(e){
-        showSaveFailure(statusEl, ()=>saveBtn.click(), text);
-      }
-      saveBtn.disabled = false;
-    };
     lesenMainEl.querySelector('#lesenToSummary').onclick = async ()=>{ const min = await lesenLogTime(); if(min) kgUndoToast(min + ' Minuten gelesen ✓'); lesenPhase = 'summary'; renderLesenMain(); };
   }
   let lesenTick = null;
@@ -7291,7 +7287,7 @@
 
   function renderLesenSessionNotes(){
     const top = lesenMainEl.querySelector('#lesenSessionNotesTop');
-    if(top) top.innerHTML = lesenSessionNotes.slice(0, 6).map(n=>`<div class="lesen-snip ${n.typ === 'Zitat' ? 'q' : ''}">${n.typ === 'Zitat' ? '❝ ' : '💭 '}${escapeHtml(n.text.length > 160 ? n.text.slice(0, 160) + '…' : n.text)}${n.seite ? ' <small>· ' + escapeHtml(String(n.seite)) + '</small>' : ''}</div>`).join('');
+    if(top) top.innerHTML = lesenSessionNotes.slice(0, 8).map(n=>`<div class="lesen-snip ${n.typ === 'Zitat' ? 'q' : ''}">${n.typ === 'Zitat' ? '❝ ' : '💭 '}${escapeHtml(n.text.length > 180 ? n.text.slice(0, 180) + '…' : n.text)}${n.seite || n.kapitel ? `<small class="lesen-meta">${n.seite ? 'S. ' + escapeHtml(String(n.seite)) : ''}${n.seite && n.kapitel ? ' · ' : ''}${n.kapitel ? escapeHtml(n.kapitel) : ''}</small>` : ''}</div>`).join('');
     const el = lesenMainEl.querySelector('#lesenSessionNotes');
     if(!el) return;
     if(!lesenSessionNotes.length){ el.innerHTML = ''; return; }
