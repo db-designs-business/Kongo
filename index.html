@@ -828,6 +828,8 @@
   .kg-ask-type input{ flex:1; min-width:0; border-radius:99px !important; padding:12px 16px !important; }
   .kg-ask-type button{ width:46px; height:46px; min-height:46px; border-radius:50%; padding:0; font-size:20px; flex-shrink:0; }
   .kg-ask-type .primary::after{ content:none !important; }
+  .siri-key{ font-family:ui-monospace, Menlo, monospace; font-size:12.5px; word-break:break-all; background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:6px 0 4px; -webkit-user-select:all; user-select:all; }
+  .siri-steps{ margin:0; padding-left:20px; font-size:14px; line-height:1.5; } .siri-steps li{ margin-bottom:8px; }
   .kg-ask-ex{ font-size:12.5px; color:var(--ink-soft); text-align:center; margin-top:12px; line-height:1.45; }
   .kg-ask-dots{ display:flex; justify-content:center; gap:6px; margin:16px 0; }
   .kg-ask-dots i{ width:8px; height:8px; border-radius:50%; background:var(--forest); animation:kgDot 1s infinite ease-in-out; }
@@ -2406,6 +2408,7 @@
       <button type="button" class="aufg-tab active" data-v="allgemein">Allgemein</button>
       <button type="button" class="aufg-tab" data-v="verbindungen">Verbindungen</button>
       <button type="button" class="aufg-tab" data-v="push">Mitteilungen</button>
+      <button type="button" class="aufg-tab" data-v="siri">Siri</button>
       <button type="button" class="aufg-tab" data-v="konto">Konto</button>
     </div>
     <div class="set-pane" data-pane="allgemein">
@@ -2437,6 +2440,9 @@
       <div id="notifyList"><div class="loading">Lade ...</div></div>
       <div class="hint" style="margin:10px 0 0;">E-Mails und Slack werden alle 5 Minuten geprüft. Ausgeschaltete Postfächer lösen keine Mitteilung mehr aus, in der App siehst du ihre Nachrichten weiterhin.</div>
       <div class="hint" style="margin:10px 0 0;">Auf dem iPhone kommen Mitteilungen nur, wenn Kongrow vom Home-Bildschirm geöffnet wurde und unter Einstellungen → Mitteilungen → Kongrow erlaubt ist.</div>
+    </div>
+    <div class="set-pane" data-pane="siri" style="display:none;">
+      <div id="siriBody"><div class="loading">Lade ...</div></div>
     </div>
     <div class="set-pane" data-pane="konto" style="display:none;">
       <div class="push-box" style="margin-top:4px;" id="faceIdBox">
@@ -3046,6 +3052,7 @@
     if(v === 'verbindungen' && window.renderConnections) window.renderConnections(window.__connNote || '');
     if(v === 'push') renderNotifyPrefs();
     if(v === 'konto') renderFaceId();
+    if(v === 'siri') renderSiri();
     window.__connNote = '';
   }
   document.querySelectorAll('#setTabs .aufg-tab').forEach(b=>b.onclick = ()=>showSetTab(b.dataset.v));
@@ -3081,6 +3088,50 @@
     }
     document.getElementById('appLockOn').onchange = e=>saveLock(e.target.checked);
     document.getElementById('appLockIdle').onchange = ()=>saveLock(document.getElementById('appLockOn').checked);
+  }
+  // Siri / Kurzbefehl: Schlüssel + Anleitung
+  async function renderSiri(newKey){
+    const el = document.getElementById('siriBody');
+    let c; try{ c = await kgApi('assistant.php?action=cfg'); }catch(e){ el.innerHTML = '<div class="hint">Konnte nicht geladen werden: ' + escapeHtml(e.message) + '</div>'; return; }
+    const local = getAnthropicToken();
+    el.innerHTML = `
+      <div class="modal-sub">Sag „Hey Siri, Kongrow“ oder drück die Aktionstaste, sprich los, und Kongrow trägt Aufgaben, Termine und Lese-Notizen ein, ohne die App zu öffnen. In der App: Home-Button gedrückt halten.</div>
+      <div class="push-box">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:4px;">1 · KI-Schlüssel auf dem Server</div>
+        <div class="hint" style="margin-bottom:10px;">${c.hasKey ? '✓ Hinterlegt (verschlüsselt). Siri kann die KI nutzen.' : 'Siri läuft ohne App, darum braucht dein Server den Anthropic-Schlüssel. Er wird verschlüsselt gespeichert.'}</div>
+        ${c.hasKey ? '<button type="button" class="aufg-link" id="siriDelKey">Schlüssel vom Server entfernen</button>'
+          : (local ? '<button type="button" class="primary" id="siriUseLocal">Schlüssel aus dieser App übernehmen</button>' : '<div class="hint">Trag zuerst unter „Allgemein“ deinen Anthropic-Schlüssel ein.</div>')}
+      </div>
+      <div class="push-box" style="margin-top:12px;">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:4px;">2 · Siri-Schlüssel</div>
+        ${newKey ? `<div class="hint" style="margin-bottom:8px;">Wird nur jetzt angezeigt. Kopieren und gleich in den Kurzbefehl einfügen.</div>
+          <div class="siri-key" id="siriKeyVal">${escapeHtml(newKey)}</div>
+          <button type="button" class="primary" id="siriCopy" style="width:100%;margin-top:8px;">Schlüssel kopieren</button>`
+          : `<div class="hint" style="margin-bottom:10px;">${c.siri ? '✓ Aktiv seit ' + escapeHtml(c.siriSince || '') + '. Verloren? Einfach neu erstellen, der alte wird dann ungültig.' : 'Damit weiß dein Server, dass der Kurzbefehl von dir kommt.'}</div>
+          <button type="button" class="${c.siri ? 'ghost' : 'primary'}" id="siriNew">${c.siri ? 'Neuen Schlüssel erstellen' : 'Siri-Schlüssel erstellen'}</button>
+          ${c.siri ? '<button type="button" class="aufg-link" id="siriRevoke" style="display:block;margin-top:8px;">Siri ausschalten</button>' : ''}`}
+      </div>
+      <div class="push-box" style="margin-top:12px;">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:6px;">3 · Kurzbefehl anlegen (einmalig, 2 Minuten)</div>
+        <ol class="siri-steps">
+          <li>App <b>Kurzbefehle</b> öffnen → <b>+</b> → oben den Namen <b>Kongrow</b> geben.</li>
+          <li>Aktion <b>Text diktieren</b> hinzufügen. Sprache: Deutsch, Zuhören beenden: <b>Nach Pause</b>.</li>
+          <li>Aktion <b>Inhalte von URL abrufen</b> hinzufügen. Als URL einfügen:<div class="siri-key" id="siriUrl">${escapeHtml(c.url)}</div><button type="button" class="aufg-link" id="siriCopyUrl">URL kopieren</button></li>
+          <li>Dort auf den Pfeil tippen: Methode <b>POST</b>, Anforderungstext <b>JSON</b>. Zwei Felder (Text): <b>text</b> = „Diktierter Text“ (Variable antippen) und <b>key</b> = dein Siri-Schlüssel.</li>
+          <li>Aktion <b>Text sprechen</b> hinzufügen (nimmt automatisch „Inhalte der URL“). Fertig.</li>
+        </ol>
+        <div class="hint" style="margin-top:8px;"><b>Starten:</b> „Hey Siri, Kongrow“ · <b>Aktionstaste:</b> Einstellungen → Aktionstaste → Kurzbefehl → Kongrow · <b>Zurücktippen:</b> Einstellungen → Bedienungshilfen → Tippen → Auf Rückseite tippen → Doppeltippen → Kongrow</div>
+      </div>
+      <div class="save-status" id="siriStatus"></div>`;
+    const st = el.querySelector('#siriStatus');
+    const q = s=>el.querySelector(s);
+    if(q('#siriUseLocal')) q('#siriUseLocal').onclick = async ()=>{ try{ await kgApi('assistant.php?action=set_key', { key: getAnthropicToken() }); renderSiri(newKey); }catch(e){ st.textContent = e.message; } };
+    if(q('#siriDelKey')) q('#siriDelKey').onclick = async ()=>{ await kgApi('assistant.php?action=del_key', {}).catch(()=>{}); renderSiri(); };
+    if(q('#siriNew')) q('#siriNew').onclick = async ()=>{ try{ const r = await kgApi('assistant.php?action=siri_new', {}); renderSiri(r.key); }catch(e){ st.textContent = e.message; } };
+    if(q('#siriRevoke')) q('#siriRevoke').onclick = async ()=>{ await kgApi('assistant.php?action=siri_revoke', {}).catch(()=>{}); renderSiri(); };
+    const copy = async (t, b)=>{ try{ await navigator.clipboard.writeText(t); b.textContent = 'Kopiert ✓'; }catch(e){ const r = document.createRange(); r.selectNodeContents(b.previousElementSibling); const s2 = getSelection(); s2.removeAllRanges(); s2.addRange(r); b.textContent = 'Markiert, jetzt kopieren'; } };
+    if(q('#siriCopy')) q('#siriCopy').onclick = e=>copy(newKey, e.currentTarget);
+    q('#siriCopyUrl').onclick = e=>copy(c.url, e.currentTarget);
   }
   // Mitteilungen pro Quelle an/aus
   async function renderNotifyPrefs(){
