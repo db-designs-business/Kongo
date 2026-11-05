@@ -6801,7 +6801,7 @@
     const entry = { id, bookId: lesenBookId, typ, kapitel: fields['Kapitel'], seite: fields['Seite'], text, wichtig:false, createdAt: fields['Erstellt am'] };
     lesenEntries.push(entry); lesenSessionNotes.unshift(entry);
     const pageNum = parseInt(seite, 10); const bk = lesenBooks.find(x=>x.id === lesenBookId);
-    if(bk && pageNum > (bk.aktuelleSeite || 0)){ bk.aktuelleSeite = pageNum; renderLesenBookInfo(); airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': pageNum } }) }, LESEN_BASE_ID).catch(()=>{}); }
+    if(bk && pageNum > (bk.aktuelleSeite || 0) && (!bk.seiten || pageNum <= bk.seiten)){ bk.aktuelleSeite = pageNum; renderLesenBookInfo(); renderLesenHero(); airtableFetch(TABLE_LESEN_BUECHER + '/' + bk.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Aktuelle Seite': pageNum } }) }, LESEN_BASE_ID).catch(()=>{}); }
     renderLesenSessionNotes(); renderLesenHistory();
     return entry;
   }
@@ -6984,13 +6984,11 @@
       </div>
       ${!b.fertig ? `<button type="button" class="primary" id="ldStart" style="width:100%;margin-top:16px;">${lesenActive && cur ? 'Zur laufenden Session' : '▶ 25-Min-Session starten'}</button>` : ''}
       ${!b.fertig && !cur ? '<button type="button" class="ghost" id="ldCur" style="width:100%;margin-top:10px;">Als aktuelles Buch setzen</button>' : ''}
-      <div class="nav-row" style="margin-top:10px;">
-        <button type="button" class="ghost" id="ldEdit">Bearbeiten</button>
-        <button type="button" class="ghost" id="ldDone">${b.fertig ? 'Wieder lesen' : 'Als gelesen markieren'}</button>
-      </div>
+      <button type="button" class="ghost" id="ldEdit" style="width:100%;margin-top:10px;">Bearbeiten</button>
       ${lastSum ? `<div class="summary-q" style="margin-top:22px;">Letzte Zusammenfassung${lastSum.kapitel ? ' · ' + escapeHtml(lastSum.kapitel) : ''}</div><div class="summary-a" style="white-space:pre-wrap;">${escapeHtml(lastSum.text)}</div>` : ''}
       <div class="summary-q" style="margin-top:22px;">Alle Notizen & Zusammenfassungen</div>
-      <div id="ldHistory"></div>`;
+      <div id="ldHistory"></div>
+      <button type="button" class="aufg-link" id="ldDone" style="display:block;margin:28px auto 0;">${b.fertig ? '↺ Wieder auf „Lese ich“ setzen' : '✓ Buch als fertig gelesen markieren'}</button>`;
     const hist = document.getElementById('lesenHistory');
     lesenHistBook = id; renderLesenHistory(); hist.style.display = 'block'; ov.querySelector('#ldHistory').appendChild(hist);
     const close = ()=>{ lesenHistBook = ''; renderLesenHistory(); ov.style.display = 'none'; document.body.style.overflow = ''; hist.style.display = 'none'; document.getElementById('panelLesen').appendChild(hist); };
@@ -7000,12 +6998,18 @@
     const cb = ov.querySelector('#ldCur');
     if(cb) cb.onclick = ()=>{ close(); selectLesenBook(id); window.scrollTo({ top:0, behavior:'smooth' }); };
     ov.querySelector('#ldEdit').onclick = ()=>{ close(); if(lesenBookId !== id) selectLesenBook(id); openLesenBookEdit(); setTimeout(()=>document.getElementById('lesenBookForm').scrollIntoView({ behavior:'smooth', block:'center' }), 60); };
-    ov.querySelector('#ldDone').onclick = async ()=>{
-      b.fertig = !b.fertig;
-      if(b.fertig && b.seiten) b.aktuelleSeite = b.seiten;
-      airtableFetch(TABLE_LESEN_BUECHER + '/' + b.id, { method:'PATCH', body: JSON.stringify({ fields: Object.assign({ 'Abgeschlossen': b.fertig }, b.fertig && b.seiten ? { 'Aktuelle Seite': b.seiten } : {}) }) }, LESEN_BASE_ID).catch(()=>{});
-      if(b.fertig){ kgUndoToast('„' + b.titel + '“ gelesen 🎉'); if(cur){ const next = lesenBooks.find(x=>!x.fertig); if(next){ lesenBookId = next.id; try{ localStorage.setItem('kongrow_lesen_book', next.id); }catch(e){} } } }
-      close(); renderLesenSelect(); renderHomeLesen();
+    const setDone = (fertig, seite, makeCur)=>{
+      b.fertig = fertig; b.aktuelleSeite = seite;
+      airtableFetch(TABLE_LESEN_BUECHER + '/' + b.id, { method:'PATCH', body: JSON.stringify({ fields: { 'Abgeschlossen': fertig, 'Aktuelle Seite': seite || 0 } }) }, LESEN_BASE_ID).catch(()=>{});
+      if(makeCur){ lesenBookId = b.id; try{ localStorage.setItem('kongrow_lesen_book', b.id); }catch(e){} }
+      else if(fertig && lesenBookId === b.id){ const next = lesenBooks.find(x=>!x.fertig); if(next){ lesenBookId = next.id; try{ localStorage.setItem('kongrow_lesen_book', next.id); }catch(e){} } }
+      renderLesenSelect(); renderHomeLesen();
+    };
+    ov.querySelector('#ldDone').onclick = ()=>{
+      const prevSeite = b.aktuelleSeite || 0, wasCur = lesenBookId === b.id;
+      close();
+      if(!b.fertig){ setDone(true, b.seiten || prevSeite, false); kgUndoToast('„' + b.titel + '“ als gelesen markiert', ()=>setDone(false, prevSeite, wasCur), 7000); }
+      else { setDone(false, b.seiten && prevSeite >= b.seiten ? 0 : prevSeite, true); kgUndoToast('Wieder auf „Lese ich“ gesetzt. Seite bitte über „Bearbeiten“ eintragen.', ()=>setDone(true, prevSeite, false), 7000); window.scrollTo({ top:0, behavior:'smooth' }); }
     };
     ov.style.display = 'flex'; document.body.style.overflow = 'hidden'; ov.scrollTop = 0;
   }
