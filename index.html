@@ -7355,20 +7355,23 @@
     const bk = lesenBooks.find(x=>x.id === lesenBookId) || {};
     const lastSeite = bk.aktuelleSeite || '', lastKap = (lesenChapter || '').trim();
     const fallback = ()=>{
-      const sm = /(?:seite|position|pos\.?)\s*(\d+)/i.exec(text), km = /kapitel\s*([\w\d.]+(?:\s*[:,]\s*[^.,;]{2,40})?)/i.exec(text);
-      let t = text.replace(/(?:auf\s+)?(?:seite|position)\s*\d+[,.]?/ig, '').replace(/kapitel\s*[\w\d.]+(?:\s*[:,]\s*[^.,;]{2,40})?[,.]?/i, '').trim();
-      return [{ typ: /^\s*zitat\b/i.test(text) ? 'Zitat' : 'Notiz', seite: sm ? sm[1] : lastSeite, kapitel: km ? 'Kapitel ' + km[1].trim() : lastKap, text: (t.replace(/^\s*zitat[:,]?\s*/i, '') || text).replace(/^./, c=>c.toUpperCase()) }];
+      const sm = /(?:seite|position|pos\.?)\s*(\d+)/i.exec(text), km = /kapitel\s*([\w\d.]+(?:\s*:\s*[^.,;]{2,40})?)/i.exec(text);
+      let t = text.replace(/(?:auf\s+)?(?:seite|position)\s*\d+[,.]?/ig, '').replace(/kapitel\s*[\w\d.]+(?:\s*:\s*[^.,;]{2,40})?[,.]?/i, '').trim();
+      return [{ typ: /^\s*zitat\b/i.test(text) ? 'Zitat' : 'Notiz', seite: sm ? sm[1] : lastSeite, kapitel: km ? 'Kapitel ' + km[1].trim().replace(/[.,:]+$/, '') : lastKap, text: (t.replace(/^\s*zitat[:,]?\s*/i, '') || text).replace(/^./, c=>c.toUpperCase()) }];
     };
     if(!getAnthropicToken()) return fallback();
     try{
       const out = await callClaudeCoach(`Dominic liest „${bk.titel || ''}“ und hat beim Lesen frei gesprochen. Zerlege das Diktat in Notizen.
 Bisher: Seite/Position ${lastSeite || 'unbekannt'}, Kapitel ${lastKap || 'unbekannt'}. Nennt er keine neue Seite oder kein neues Kapitel, übernimm die bisherigen.
-Regeln: "Seite 42", "Position 1200", "Kapitel 3" usw. sind Angaben, kein Notiztext. Sagt er "Zitat" oder liest er offensichtlich eine Stelle vor, ist es typ "Zitat" (wörtlich übernehmen). Sonst typ "Notiz": seine Gedanken in seinen Worten, nur Füllwörter und Versprecher glätten, nichts dazuerfinden, Ich-Form. Mehrere getrennte Gedanken = mehrere Einträge. Keine Gedankenstriche.
+Regeln: "Seite 42", "Position 1200", "Kapitel 3" usw. sind Angaben, kein Notiztext. Sagt er "Zitat" oder liest er offensichtlich eine Stelle vor, ist es typ "Zitat" (wörtlich übernehmen). Sonst typ "Notiz": seine Gedanken in seinen Worten, nur Füllwörter und Versprecher glätten, nichts dazuerfinden, Ich-Form. Mehrere getrennte Gedanken = mehrere Einträge. WICHTIG: Nichts weglassen, nicht zusammenfassen, nicht kürzen. Jeder Gedanke muss vollständig drinstehen. Keine Gedankenstriche.
 Antworte NUR mit JSON: [{"typ":"Notiz"|"Zitat","seite":"42","kapitel":"Kapitel 3: Titel","text":"..."}]
 Diktat: ${text}`);
       const arr = JSON.parse((out.match(/\[[\s\S]*\]/) || ['[]'])[0]);
       const ok = arr.filter(x=>x && x.text && String(x.text).trim()).map(x=>({ typ: x.typ === 'Zitat' ? 'Zitat' : 'Notiz', seite: String(x.seite || lastSeite || ''), kapitel: String(x.kapitel || lastKap || ''), text: String(x.text).trim() }));
-      return ok.length ? ok : fallback();
+      // Sicherheitsnetz: hat die KI deutlich gekürzt, lieber den vollen Text speichern
+      const rawLen = fallback()[0].text.length, aiLen = ok.reduce((n, x)=>n + x.text.length, 0);
+      if(!ok.length || aiLen < rawLen * 0.6){ const f = fallback(); if(ok[0]){ f[0].seite = ok[0].seite || f[0].seite; f[0].kapitel = ok[0].kapitel || f[0].kapitel; } return f; }
+      return ok;
     }catch(e){ return fallback(); }
   }
   async function lesenSaveParsed(items){
@@ -7421,14 +7424,37 @@ Diktat: ${text}`);
       live.textContent = '';
     };
     const vBtn = lesenMainEl.querySelector('#lesenVoice'), vLbl = lesenMainEl.querySelector('#lesenVoiceLabel');
+    // Eigene Aufnahme fürs Lesen: hört zu, bis du wieder tippst. iOS beendet die Erkennung bei Pausen
+    // von selbst, dann wird still neu gestartet und weiter gesammelt. Gespeichert wird alles, auch der
+    // letzte, noch nicht "fertige" Teil.
+    const rec = { on:false, r:null, done:'', cur:'' };
+    const recText = ()=>(rec.done + ' ' + rec.cur).replace(/\s+/g, ' ').trim();
+    const segJoin = list=>{ let out = ''; list.forEach(t=>{ t = t.trim(); if(!t) return; const o = out.trim();
+      if(o && t.toLowerCase().startsWith(o.toLowerCase())) out = t;          // iOS liefert teils kumulativ
+      else if(o && o.toLowerCase().endsWith(t.toLowerCase())) return;        // Doppelung
+      else out = o ? o + ' ' + t : t; }); return out; };
+    const recStart = ()=>{
+      const C = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const r = new C(); r.lang = 'de-DE'; r.continuous = true; r.interimResults = true; rec.r = r;
+      r.onresult = ev=>{ if(rec.r !== r) return; const segs = []; for(let i = 0; i < ev.results.length; i++) segs.push(ev.results[i][0].transcript); rec.cur = segJoin(segs); live.textContent = recText(); };
+      r.onerror = e=>{ if(rec.r !== r) return; if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){ rec.on = false; qst.textContent = 'Mikrofon nicht erlaubt. iPhone: Einstellungen → Safari → Mikrofon.'; } };
+      r.onend = ()=>{ if(rec.r !== r) return; rec.done = recText(); rec.cur = '';
+        if(rec.on){ try{ recStart(); }catch(e){ recFinish(); } } else recFinish(); };
+      r.start();
+    };
+    const recFinish = async ()=>{
+      rec.r = null; vBtn.classList.remove('on'); vLbl.textContent = 'Tippen und sprechen';
+      const text = recText(); rec.done = ''; rec.cur = '';
+      await handle(text);
+    };
     vBtn.onclick = ()=>{
       if(!SRok) return;
-      if(voice.on && voice.onEnd){ voiceStop(); return; }
+      if(rec.on){ rec.on = false; vLbl.textContent = 'Speichere …'; const r = rec.r; if(r){ try{ r.stop(); }catch(e){} setTimeout(()=>{ if(rec.r === r){ rec.done = recText(); rec.cur = ''; recFinish(); } }, 1500); } return; }
+      if(voice.on) voiceStop(true);
       lesenStartTimer(); tick();
-      vBtn.classList.add('on'); vLbl.textContent = 'Ich höre zu … tippen zum Speichern'; qst.textContent = ''; live.textContent = '';
-      const shadow = { value:'', selectionStart:0, dispatchEvent(){ live.textContent = this.value; } };   // Live-Text anzeigen
-      const ok = voiceStart(shadow, async text=>{ vBtn.classList.remove('on'); vLbl.textContent = 'Tippen und sprechen'; await handle(text || shadow.value.trim()); });
-      if(!ok){ vBtn.classList.remove('on'); vLbl.textContent = 'Tippen und sprechen'; qst.textContent = 'Spracheingabe nicht verfügbar.'; }
+      rec.on = true; rec.done = ''; rec.cur = '';
+      vBtn.classList.add('on'); vLbl.textContent = 'Ich höre zu … tippen, wenn du fertig bist'; qst.textContent = ''; live.textContent = '';
+      try{ recStart(); }catch(e){ rec.on = false; vBtn.classList.remove('on'); vLbl.textContent = 'Tippen und sprechen'; qst.textContent = 'Spracheingabe nicht verfügbar.'; }
     };
     lesenMainEl.querySelector('#lesenTypeBtn').onclick = ()=>{
       openErnModal(`<div class="modal-title">Notiz</div><div class="modal-sub">Schreib wie du sprechen würdest, z. B. „S. 42, Kapitel 3: …“. Seite und Kapitel erkennt die KI.</div>
@@ -7483,7 +7509,7 @@ Diktat: ${text}`);
 
   function renderLesenSessionNotes(){
     const top = lesenMainEl.querySelector('#lesenSessionNotesTop');
-    if(top) top.innerHTML = lesenSessionNotes.slice(0, 8).map(n=>`<div class="lesen-snip ${n.typ === 'Zitat' ? 'q' : ''}">${n.typ === 'Zitat' ? '❝ ' : '💭 '}${escapeHtml(n.text.length > 180 ? n.text.slice(0, 180) + '…' : n.text)}${n.seite || n.kapitel ? `<small class="lesen-meta">${n.seite ? 'S. ' + escapeHtml(String(n.seite)) : ''}${n.seite && n.kapitel ? ' · ' : ''}${n.kapitel ? escapeHtml(n.kapitel) : ''}</small>` : ''}</div>`).join('');
+    if(top) top.innerHTML = lesenSessionNotes.slice(0, 8).map(n=>`<div class="lesen-snip ${n.typ === 'Zitat' ? 'q' : ''}">${n.typ === 'Zitat' ? '❝ ' : '💭 '}${escapeHtml(n.text)}${n.seite || n.kapitel ? `<small class="lesen-meta">${n.seite ? 'S. ' + escapeHtml(String(n.seite)) : ''}${n.seite && n.kapitel ? ' · ' : ''}${n.kapitel ? escapeHtml(n.kapitel) : ''}</small>` : ''}</div>`).join('');
     const el = lesenMainEl.querySelector('#lesenSessionNotes');
     if(!el) return;
     if(!lesenSessionNotes.length){ el.innerHTML = ''; return; }
