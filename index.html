@@ -10446,7 +10446,9 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     function recStart(){
       const r = new SRC(); r.lang = 'de-DE'; r.continuous = true; r.interimResults = true; rec.r = r;
       r.onresult = ev=>{ if(rec.r !== r) return; const segs = []; for(let i = 0; i < ev.results.length; i++) segs.push(ev.results[i][0].transcript); rec.cur = segJoin(segs); liveEl.textContent = recText(); };
-      r.onerror = e=>{ if(rec.r !== r) return; if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){ rec.on = false; stEl.textContent = 'Mikrofon nicht erlaubt. iPhone: Einstellungen → Safari → Mikrofon.'; } };
+      r.onerror = e=>{ if(rec.r !== r) return;
+        if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){ rec.on = false; stEl.innerHTML = 'Kein Zugriff aufs Mikrofon. iPhone: <b>Einstellungen → Allgemein → Tastaturen → Diktierfunktion</b> an, und <b>Einstellungen → Apps → Safari → Mikrofon</b> erlauben.'; }
+        else if(e.error === 'audio-capture'){ rec.on = false; stEl.textContent = 'Kein Mikrofon gefunden (läuft gerade ein Anruf oder eine andere Aufnahme?).'; } };
       r.onend = ()=>{ if(rec.r !== r) return; rec.done = recText(); rec.cur = ''; if(rec.on){ try{ recStart(); }catch(e){ recFinish(); } } else recFinish(); };
       r.start();
     }
@@ -10458,6 +10460,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       if(typeof voice !== 'undefined' && voice.on) voiceStop(true);
       rec.on = true; rec.done = ''; rec.cur = ''; liveEl.textContent = ''; outEl.innerHTML = '';
       micB.classList.add('on'); stEl.textContent = 'Ich höre zu … tippen, wenn du fertig bist';
+      clearTimeout(listen._t); listen._t = setTimeout(()=>{ if(rec.on && !recText()) stEl.textContent = 'Ich höre noch nichts … sprich etwas lauter, oder tippe unten.'; }, 6000);
       try{ recStart(); }catch(e){ rec.on = false; micB.classList.remove('on'); stEl.textContent = 'Spracheingabe nicht verfügbar.'; }
     }
     function open(autoListen){
@@ -10480,10 +10483,12 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     const home = document.querySelector('.bb-item.bb-center');
     if(home){
       let tmr = null, fired = false;
-      const startP = ()=>{ fired = false; clearTimeout(tmr); tmr = setTimeout(()=>{ fired = true; try{ if(navigator.vibrate) navigator.vibrate(30); }catch(e){} open(true); }, 450); };
-      const endP = ()=>clearTimeout(tmr);
-      home.addEventListener('touchstart', startP, { passive:true }); home.addEventListener('touchend', endP); home.addEventListener('touchmove', endP, { passive:true }); home.addEventListener('touchcancel', endP);
-      home.addEventListener('mousedown', startP); home.addEventListener('mouseup', endP); home.addEventListener('mouseleave', endP);
+      // iOS startet die Spracherkennung nur direkt aus einer Berührung heraus: Fenster nach 0,45 s öffnen, Zuhören beim Loslassen starten
+      const startP = ()=>{ fired = false; clearTimeout(tmr); tmr = setTimeout(()=>{ fired = true; try{ if(navigator.vibrate) navigator.vibrate(30); }catch(e){} open(false); stEl.textContent = 'Loslassen …'; }, 450); };
+      const endP = e=>{ clearTimeout(tmr); if(fired && e && (e.type === 'touchend' || e.type === 'mouseup')){ if(e.cancelable) e.preventDefault(); listen(); } };
+      const cancelP = ()=>{ clearTimeout(tmr); if(fired) stEl.textContent = 'Tippen und sprechen'; };
+      home.addEventListener('touchstart', startP, { passive:true }); home.addEventListener('touchend', endP); home.addEventListener('touchmove', cancelP, { passive:true }); home.addEventListener('touchcancel', cancelP);
+      home.addEventListener('mousedown', e=>{ if(!('ontouchstart' in window)) startP(e); }); home.addEventListener('mouseup', e=>{ if(!('ontouchstart' in window)) endP(e); }); home.addEventListener('mouseleave', ()=>clearTimeout(tmr));
       home.addEventListener('contextmenu', e=>e.preventDefault());
       home.addEventListener('click', e=>{ if(fired){ e.stopImmediatePropagation(); e.preventDefault(); fired = false; } }, true);
     }
