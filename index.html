@@ -3728,9 +3728,8 @@
       });
     }
     lines.push('');
-    if(tf !== 'Tag') lines.push('## Neu gesetzte Ziele für den nächsten Zeitraum');
-    if(tf === 'Tag'){ /* abends werden keine Ziele mehr gesetzt */ }
-    else if(newGoalsDraft.length === 0){
+    lines.push('## Neu gesetzte Ziele für den nächsten Zeitraum');
+    if(newGoalsDraft.length === 0){
       lines.push('Keine neuen Ziele gesetzt.');
     } else {
       newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie}${g.prioritaet ? ', '+g.prioritaet : ''})`); });
@@ -4775,8 +4774,8 @@
     try{
       await airtableCreate(TABLE_EVENING, fields);
       if(historyPanel.style.display !== 'none' && currentHistoryTab === 'tag') loadEveningJournal();
-      // Abends keine extra Ziele mehr: "Was kann ich morgen besser machen?" reicht. Direkt zum Coaching.
-      showCoachingScreen('Tag', getPeriodKey('Tag', addPeriod('Tag', getReflectionDate())), []);
+      reflectionState.step = 2;
+      renderReflectionStep();
     }catch(e){
       showSaveFailure(statusEl, saveEveningEntryAndContinue, formatEveningEntryText(entry));
       const btn = document.getElementById('eveningNextBtn');
