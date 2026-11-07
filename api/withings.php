@@ -90,8 +90,6 @@ switch ($action) {
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $row) { $f = json_decode($row['fields'], true) ?: []; if (!empty($f['Datum'])) $byDate[$f['Datum']] = ['id' => $row['id'], 'f' => $f]; }
     foreach ($days as $date => $d) {
       $f = ['Datum' => $date, 'Kg' => round($d['v'][1], 2), 'Quelle' => 'Withings'];
-      if (isset($d['v'][6])) $f['Fett %'] = round($d['v'][6], 1);
-      if (isset($d['v'][76])) $f['Muskel kg'] = round($d['v'][76], 1);
       if (isset($byDate[$date])) {
         $merged = array_merge($byDate[$date]['f'], $f);
         $db->prepare('UPDATE records SET fields=? WHERE id=?')->execute([json_encode($merged, JSON_UNESCAPED_UNICODE), $byDate[$date]['id']]);

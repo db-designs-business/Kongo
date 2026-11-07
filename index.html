@@ -3609,7 +3609,7 @@
     });
     tryAdd(()=>{
       const g = gewichtCache.filter(x=>inR(x.datum));
-      if(g.length) L.push(`- Gewicht: ${g.length} Messungen, von ${fmtNum(g[0].kg)} auf ${fmtNum(g[g.length-1].kg)} kg${g[g.length-1].fett ? ', Körperfett zuletzt ' + fmtNum(g[g.length-1].fett) + ' %' : ''}.`);
+      if(g.length) L.push(`- Gewicht: ${g.length} Messungen, von ${fmtNum(g[0].kg)} auf ${fmtNum(g[g.length-1].kg)} kg.`);
       else L.push('- Gewicht: keine Messungen im Zeitraum.');
     });
     tryAdd(()=>{
@@ -12160,12 +12160,8 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
       <div class="w-sync">${withingsStatus && withingsStatus.connected
           ? `<span>⚖️ Withings verbunden${withingsSyncing ? ' · gleiche ab …' : withingsStatus.lastSync ? ' · zuletzt ' + new Date(withingsStatus.lastSync * 1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}</span><button type="button" class="aufg-link" id="wSyncBtn" ${withingsSyncing ? 'disabled' : ''}>Jetzt abgleichen</button>`
           : `<span>⚖️ Withings-Waage nicht verbunden</span><button type="button" class="aufg-link" id="wConnBtn">Verbinden</button>`}</div>
-      ${last && (last.fett || last.muskel) ? `<div class="evening-sum" style="grid-template-columns:1fr 1fr; margin:0 0 14px;">
-          <div><span>${last.fett ? fmtNum(last.fett) + ' %' : '–'}</span><small>Körperfett</small></div>
-          <div><span>${last.muskel ? fmtNum(last.muskel) + ' kg' : '–'}</span><small>Muskelmasse</small></div>
-        </div>` : ''}
       <div class="step-label" style="margin-top:18px;">Einträge</div>
-      ${gewichtCache.length ? `<div class="card">${[...gewichtCache].reverse().slice(0,20).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})}${x.quelle === 'Withings' ? ' <small style="color:var(--ink-soft);">· Withings</small>' : ''}</span><b>${fmtNum(x.kg)} kg${x.fett ? ` <small style="color:var(--ink-soft);font-weight:500;">· ${fmtNum(x.fett)} %</small>` : ''}</b></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch kein Gewicht eingetragen.</div></div>'}`;
+      ${gewichtCache.length ? `<div class="card">${[...gewichtCache].reverse().slice(0,20).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})}${x.quelle === 'Withings' ? ' <small style="color:var(--ink-soft);">· Withings</small>' : ''}</span><b>${fmtNum(x.kg)} kg</b></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch kein Gewicht eingetragen.</div></div>'}`;
     const wsb = body.querySelector('#wSyncBtn'); if(wsb) wsb.onclick = ()=>withingsSync(true);
     const wcb = body.querySelector('#wConnBtn'); if(wcb) wcb.onclick = ()=>openConnections();
     const sb = body.querySelector('#wSave');
