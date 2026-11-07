@@ -9008,6 +9008,14 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
       nofapRuns = recs.map(r=>{ const f = r.fields || {}; return { id:r.id, start:f['Start'] || '', ende:f['Ende'] || '', ausloeser:f['Ausloeser'] || '', lernen:f['Lernen'] || '', trackingAb:f['Tracking ab'] || f['Start'] || '', bestaetigtBis:f['Bestaetigt bis'] || '' }; })
         .filter(r=>r.start).sort((a,b)=> b.start.localeCompare(a.start));
       nofapLoaded = true;
+      // Reparatur: lief ein neuer Lauf am selben Tag wie der Rückfall an, beginnt er erst am Tag danach
+      const cur = nofapCurrent(), lastEnd = nofapRuns.filter(r=>r.ende).map(r=>r.ende).sort().pop();
+      if(cur && lastEnd && cur.start <= lastEnd){
+        const ns = shiftDay(lastEnd, 1), nb = cur.bestaetigtBis && cur.bestaetigtBis >= ns ? cur.bestaetigtBis : lastEnd;
+        cur.start = ns; cur.bestaetigtBis = nb;
+        airtableFetch(TABLE_NOFAP + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Start': ns, 'Bestaetigt bis': nb } }) }, ROUTINEN_BASE_ID).catch(()=>{});
+        if(xpEntries.some(e=>e.key === 'nofap:' + lastEnd)) revokeXP('nofap:' + lastEnd);
+      }
       renderNofap();
     }catch(e){
       document.getElementById('nofapBody').innerHTML = '<div class="empty">Counter konnte nicht geladen werden.</div>';
@@ -9072,10 +9080,10 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
       <div class="nofap-main">
         <div class="nofap-days"><span>${days}</span><small>${days === 1 ? 'Tag' : 'Tage'}</small></div>
         <div class="nofap-meta">
-          <div>Seit ${new Date(run.start + 'T12:00').toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'})}</div>
+          <div>${run.start > todayStr() ? 'Neuer Start: morgen 💪' : 'Seit ' + new Date(run.start + 'T12:00').toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'})}</div>
           <div>Rekord: <b>${best}</b> ${best === 1 ? 'Tag' : 'Tage'}</div>
           ${next ? `<div>Nächster Meilenstein: <b>${next}</b>${NOFAP_MS_XP[next] ? ` · +${NOFAP_MS_XP[next]} XP` : ''}</div>` : '<div><b>Legende.</b></div>'}
-          ${!open.length ? `<div class="nofap-ok">✓ Bestätigt bis ${run.bestaetigtBis ? fmtDay(run.bestaetigtBis) : '–'}${new Date().getHours() < NOFAP_TODAY_FROM ? ' · heute ab ' + NOFAP_TODAY_FROM + ' Uhr' : ''}</div>` : ''}
+          ${!open.length ? (run.bestaetigtBis && run.bestaetigtBis >= run.start ? `<div class="nofap-ok">✓ Bestätigt bis ${fmtDay(run.bestaetigtBis)}${new Date().getHours() < NOFAP_TODAY_FROM ? ' · heute ab ' + NOFAP_TODAY_FROM + ' Uhr' : ''}</div>` : `<div class="nofap-ok">Erster Check-in: ${fmtDay(run.start)} ab ${NOFAP_TODAY_FROM} Uhr</div>`) : ''}
         </div>
       </div>
       <div class="xp-bar" style="margin:12px 0 4px;"><div style="width:${pct}%"></div></div>
@@ -9258,8 +9266,9 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
         await airtableFetch(TABLE_NOFAP + '/' + run.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Ende': day, 'Bestaetigt bis': bis || '', 'Ausloeser': trig, 'Lernen': learn } }) }, ROUTINEN_BASE_ID);
         Object.assign(run, { ende:day, bestaetigtBis:bis || '', ausloeser:trig, lernen:learn });
         nofapAwardFor(run, cleanBefore);
-        const newStart = day < t ? shiftDay(day, 1) : t;
-        const newBis = day < t ? day : '';   // neuer Lauf: Tag nach dem Rückfall, noch nichts bestätigt
+        // neuer Lauf beginnt immer am Tag NACH dem Rückfall (auch wenn der Rückfall heute war), noch nichts bestätigt
+        const newStart = shiftDay(day, 1);
+        const newBis = day;
         const id = await airtableCreate(TABLE_NOFAP, { 'Start': newStart, 'Tracking ab': t, 'Bestaetigt bis': newBis }, ROUTINEN_BASE_ID);
         nofapRuns.unshift({ id, start:newStart, ende:'', ausloeser:'', lernen:'', trackingAb:t, bestaetigtBis:newBis });
         ov.style.display = 'none';
