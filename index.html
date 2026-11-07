@@ -836,6 +836,31 @@
   .kg-ask-dots i:nth-child(2){ animation-delay:.15s; } .kg-ask-dots i:nth-child(3){ animation-delay:.3s; }
   @keyframes kgDot{ 0%,100%{ opacity:.25; transform:translateY(0); } 50%{ opacity:1; transform:translateY(-4px); } }
   .bb-center{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+
+  /* Cardio & Dehnen Intervall-Timer */
+  #ivOverlay .iv-close{ position:fixed; top:calc(10px + env(safe-area-inset-top)); right:max(14px, calc((100vw - 560px) / 2 + 14px)); z-index:3; width:40px; height:40px; border-radius:50%; background:rgba(20,26,28,.85); border:1px solid var(--line); color:var(--ink); font-size:22px; display:flex; align-items:center; justify-content:center; }
+  .iv-card{ padding:6px 14px; }
+  .iv-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:15px; }
+  .iv-row:last-of-type{ border-bottom:none; }
+  .iv-step{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .iv-step button{ width:40px; height:40px; min-height:40px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.04); color:var(--ink); font-size:20px; padding:0; touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+  .iv-step b{ min-width:56px; text-align:center; font-size:17px; font-variant-numeric:tabular-nums; }
+  .iv-total{ text-align:right; color:var(--ink-soft); font-size:13.5px; padding:10px 0 6px; }
+  .iv-total b{ color:var(--ink); font-variant-numeric:tabular-nums; }
+  .iv-names{ margin-top:12px; } .iv-names summary{ cursor:pointer; color:var(--forest); font-size:14px; padding:6px 0; } .iv-names textarea{ margin-top:8px; }
+  .iv-run{ display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:10px; --c:var(--forest); }
+  .iv-run.k-rest, .iv-run.k-rrest, .iv-run.k-srest{ --c:#F5B544; } .iv-run.k-prep{ --c:#8aa4ff; } .iv-run.paused{ opacity:.65; }
+  .iv-phase{ font-size:15px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--c); min-height:20px; }
+  .iv-ring{ --p:0; width:min(74vw, 300px); aspect-ratio:1; border-radius:50%; margin:18px 0; display:flex; align-items:center; justify-content:center; background:radial-gradient(closest-side, #07090A 86%, transparent 87% 100%), conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.08) 0); }
+  .iv-big{ font-size:clamp(64px, 20vw, 96px); font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+  .iv-name{ font-size:22px; font-weight:800; line-height:1.25; min-height:28px; }
+  .iv-meta{ color:var(--ink-soft); font-size:14.5px; margin-top:10px; } .iv-meta b{ color:var(--ink); }
+  .iv-rest{ color:var(--ink-soft); font-size:13px; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .iv-ctl{ display:flex; gap:12px; margin-top:26px; width:100%; }
+  .iv-ctl .ghost{ flex:0 0 64px; min-height:60px; font-size:20px; } .iv-ctl .primary{ flex:1; min-height:60px; font-size:18px; }
+  .iv-ctl .primary::after{ content:none !important; }
+  .k-plan.k-cardio span{ color:var(--ink-soft); }
+  .tip-week .cd span{ color:var(--forest); }
   .lesen-mic{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%; min-height:150px; margin:14px 0 6px; border-radius:22px; border:1px solid rgba(34,227,211,.45); background:radial-gradient(circle at 50% 40%, rgba(34,227,211,.18), rgba(34,227,211,.04)); color:var(--forest); font-size:16px; font-weight:700; }
   .lesen-mic svg{ width:46px; height:46px; }
   .lesen-mic.on{ background:var(--forest); color:#04110F; animation:micPulse 1.2s ease-in-out infinite; }
@@ -2153,6 +2178,12 @@
     <button type="button" class="primary" id="restSkip">Weiter</button>
   </div>
 
+<div class="modal-overlay kg-full" id="ivOverlay" style="display:none; align-items:stretch; padding:0; overflow-y:auto; z-index:70;">
+  <div style="background:#07090A; width:100%; min-height:100%; max-width:560px; margin:0 auto; padding:20px 20px 60px; position:relative; box-sizing:border-box;">
+    <button type="button" class="modal-close iv-close lesen-dash-close" aria-label="Schließen">×</button>
+    <div class="iv-body" style="padding-top:28px;"></div>
+  </div>
+</div>
 <div class="modal-overlay" id="kPickerOverlay" style="display:none; z-index:80;">
   <div class="modal-card picker-card">
     <button class="modal-close" id="kPickClose" aria-label="Schließen">×</button>
@@ -11068,7 +11099,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       <div class="card">
         <div class="home-aufg-head"><div class="step-label" style="margin:0;">Training starten</div><button type="button" class="prio-edit-toggle" id="kPlansBtn">Pläne verwalten</button></div>
         <div class="k-plan-list">
-          ${(()=>{ const nx = nextSplitPlan(); return plaeneCache.slice().sort((a,b)=>(a.tag || 99) - (b.tag || 99)).map(p=>`<button type="button" class="k-plan ${nx && nx.id === p.id ? 'next' : ''}" data-id="${p.id}"><b>${escapeHtml(p.name)}${nx && nx.id === p.id ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>${p.uebungen.length} Übungen · ${escapeHtml(p.uebungen.slice(0,3).join(', '))}${p.uebungen.length > 3 ? ' …' : ''}</span></button>`).join(''); })()}
+          ${(()=>{ const cn = cardioIsNext(); return `<button type="button" class="k-plan k-cardio ${cn ? 'next' : ''}" id="kCardioBtn"><b>🏃 Cardio & Dehnen${iv ? ' <em class="k-next">Läuft</em>' : cn ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>Intervall-Timer · zwischen den Krafttagen</span></button>`; })()}
+          ${(()=>{ const nx = cardioIsNext() ? null : nextSplitPlan(); return plaeneCache.slice().sort((a,b)=>(a.tag || 99) - (b.tag || 99)).map(p=>`<button type="button" class="k-plan ${nx && nx.id === p.id ? 'next' : ''}" data-id="${p.id}"><b>${escapeHtml(p.name)}${nx && nx.id === p.id ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>${p.uebungen.length} Übungen · ${escapeHtml(p.uebungen.slice(0,3).join(', '))}${p.uebungen.length > 3 ? ' …' : ''}</span></button>`).join(''); })()}
           <button type="button" class="k-plan empty" id="kFreeBtn"><b>+ Freies Training</b><span>Übungen spontan hinzufügen</span></button>
         </div>
         <button type="button" class="k-tips-btn" id="kTipsBtn">📘 Regeln & Tipps aus deinem Plan</button>
@@ -11080,13 +11112,14 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     body.querySelector('#kTipsBtn').onclick = openTrainingTips;
     body.querySelector('#kFokusBtn').onclick = openFokusPicker;
     body.querySelector('#kFreeBtn').onclick = ()=>startWorkout(null);
+    body.querySelector('#kCardioBtn').onclick = openCardio;
     body.querySelectorAll('.k-plan[data-id]').forEach(b=>b.onclick = ()=>startWorkout(plaeneCache.find(p=>p.id === b.dataset.id)));
     const hist = body.querySelector('#kHistory');
     if(trainingsCache.length){
       hist.innerHTML = trainingsCache.slice(0, 30).map(t=>`
         <div class="entry">
           <div class="entry-head" data-key="${t.id}"><div>
-            <div class="entry-date">${new Date(t.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})} · ${t.dauer} Min · ${fmtNum(t.volumen)} kg</div>
+            <div class="entry-date">${new Date(t.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})} · ${t.dauer} Min${t.plan === IV_PLAN ? '' : ' · ' + fmtNum(t.volumen) + ' kg'}</div>
             <div class="entry-belief">${escapeHtml(t.plan || 'Freies Training')}</div>
           </div></div>
           <div class="entry-body" id="kh-${cssSafe(t.id)}">
@@ -11213,7 +11246,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       ['Rumpfdrehen mit Kurzhantel', 'Core', '2', 'Hantel mit gestreckten Armen vor dir halten und von Seite zu Seite drehen. Bis zur Erschöpfung.']
     ]}
   ];
-  const SPLIT_WOCHE = [['1','Brust Schulter'],['2','Pause'],['3','Rücken'],['4','Pause'],['5','Arme'],['6','Beine'],['7','Pause']];
+  const SPLIT_WOCHE = [['1','Brust Schulter'],['2','Cardio & Dehnen'],['3','Rücken'],['4','Cardio & Dehnen'],['5','Arme'],['6','Beine'],['7','Cardio & Dehnen']];
   function satzMin(s){ const m = /(\d+)/.exec(s || ''); return m ? Math.max(1, +m[1]) : 3; }
   function repTarget(schema, si){ return schema === 'frei' ? 'max' : si === 0 ? '15–25' : '10–20'; }
   async function importSplitOnce(){
@@ -11255,11 +11288,263 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const i = split.findIndex(p=>p.name === last.plan);
     return split[(i + 1) % split.length];
   }
+  /* ----- Cardio & Dehnen: Intervall-Timer (zwischen den Krafttagen) ----- */
+  const IV_PLAN = 'Cardio & Dehnen';
+  const IV_DEFAULT = {
+    cardio: { uebungen:6, arbeit:40, pauseUe:20, runden:3, pauseRunde:60, durchgaenge:1, pauseDurchgang:120, vorlauf:10, namen:'' },
+    dehnen: { uebungen:8, arbeit:45, pauseUe:10, runden:1, pauseRunde:30, durchgaenge:1, pauseDurchgang:60, vorlauf:10, namen:'' },
+    toene: { countdown:true, start:true, pause:true, runde:true, ende:true, stimme:false, vibration:true, laut:0.9 }
+  };
+  let ivCfg = (()=>{ try{ const s = JSON.parse(localStorage.getItem('kongrow_iv_cfg') || 'null'); if(s) return { cardio:Object.assign({}, IV_DEFAULT.cardio, s.cardio), dehnen:Object.assign({}, IV_DEFAULT.dehnen, s.dehnen), toene:Object.assign({}, IV_DEFAULT.toene, s.toene), modus:s.modus || 'cardio' }; }catch(e){} return JSON.parse(JSON.stringify(Object.assign({ modus:'cardio' }, IV_DEFAULT))); })();
+  const ivSaveCfg = ()=>{ try{ localStorage.setItem('kongrow_iv_cfg', JSON.stringify(ivCfg)); }catch(e){} };
+  let iv = null;   // laufender Timer
+  function cardioIsNext(){
+    const last = trainingsCache[0]; if(!last || last.plan === IV_PLAN) return false;
+    const split = plaeneCache.filter(p=>p.tag > 0);
+    const lp = split.find(p=>p.name === last.plan); if(!lp) return false;
+    const nx = nextSplitPlan();
+    return !(nx && nx.tag === lp.tag + 1);   // direkt aufeinanderfolgende Krafttage (z. B. Arme → Beine) ohne Cardio dazwischen
+  }
+  const ivFmt = s=>{ s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function ivBuild(c){
+    const names = String(c.namen || '').split(/\n|,/).map(x=>x.trim()).filter(Boolean);
+    const P = [];
+    if(c.vorlauf > 0) P.push({ k:'prep', d:c.vorlauf, label:'Gleich geht’s los' });
+    for(let s = 1; s <= c.durchgaenge; s++){
+      for(let r = 1; r <= c.runden; r++){
+        for(let u = 1; u <= c.uebungen; u++){
+          P.push({ k:'work', d:c.arbeit, s, r, u, label: names[u - 1] || ('Übung ' + u) });
+          const lastU = u === c.uebungen, lastR = r === c.runden, lastS = s === c.durchgaenge;
+          if(!lastU){ if(c.pauseUe > 0) P.push({ k:'rest', d:c.pauseUe, s, r, u, label:'Pause' }); }
+          else if(!lastR){ if(c.pauseRunde > 0) P.push({ k:'rrest', d:c.pauseRunde, s, r, u, label:'Rundenpause' }); }
+          else if(!lastS){ if(c.pauseDurchgang > 0) P.push({ k:'srest', d:c.pauseDurchgang, s, r, u, label:'Pause vor Durchgang ' + (s + 1) }); }
+        }
+      }
+    }
+    return P;
+  }
+  const ivTotal = c=>ivBuild(c).reduce((a, p)=>a + p.d, 0);
+
+  // Töne werden für alle Phasen vorab im Audio-Takt eingeplant: laufen exakt, auch wenn das Handy kurz drosselt
+  function ivTone(ctx, t, f, dur, vol, type){
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.001, vol), t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + dur + 0.02); iv.nodes.push(o);
+  }
+  function ivSchedule(){
+    if(!iv.ctx) return;
+    iv.nodes.forEach(o=>{ try{ o.stop(); }catch(e){} }); iv.nodes = [];
+    const T = ivCfg.toene, v = T.laut, ctx = iv.ctx, now = ctx.currentTime;
+    let t = now;
+    for(let i = iv.i; i < iv.P.length; i++){
+      const p = iv.P[i], cur = i === iv.i;
+      const startT = cur ? null : t, endT = cur ? now + Math.max(0, iv.left) : t + p.d;
+      if(startT !== null){
+        const prev = iv.P[i - 1];
+        if(p.k === 'work'){
+          if(T.runde && prev && (prev.k === 'rrest' || prev.k === 'srest')) [0, 0.16, 0.32].forEach((d, j)=>ivTone(ctx, startT + d, [880, 1175, 1568][j], 0.22, v));
+          else if(T.start) ivTone(ctx, startT, 1320, 0.6, v);
+        } else if(p.k === 'rest'){ if(T.pause){ ivTone(ctx, startT, 660, 0.25, v * 0.9); ivTone(ctx, startT + 0.3, 520, 0.35, v * 0.9); } }
+        else if(p.k === 'rrest' || p.k === 'srest'){ if(T.runde) [0, 0.18, 0.36].forEach((d, j)=>ivTone(ctx, startT + d, [1046, 784, 523][j], 0.28, v)); }
+      }
+      if(T.countdown) [3, 2, 1].forEach(n=>{ const at = endT - n; if(at > now + 0.05 && p.d > n + 0.5) ivTone(ctx, at, 880, 0.12, v * 0.8, 'square'); });
+      t = endT;
+    }
+    if(T.ende){ [0, 0.2, 0.4, 0.75].forEach((d, j)=>ivTone(ctx, t + d, [784, 988, 1175, 1568][j], j === 3 ? 0.9 : 0.22, v)); }
+  }
+  function ivSay(text){
+    if(!ivCfg.toene.stimme || !('speechSynthesis' in window)) return;
+    try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'de-DE'; u.rate = 1.05; speechSynthesis.speak(u); }catch(e){}
+  }
+  function ivVib(p){ if(ivCfg.toene.vibration){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} } }
+
+  function openCardio(){
+    const ov = document.getElementById('ivOverlay'), body = ov.querySelector('.iv-body');
+    ov.style.display = 'flex'; document.body.style.overflow = 'hidden';
+    ov.querySelector('.iv-close').onclick = ()=>{ if(iv){ kgUndoToast('Timer läuft im Hintergrund weiter. Unter Body → Cardio & Dehnen zurück.'); } ov.style.display = 'none'; document.body.style.overflow = ''; if(koerperView === 'training') renderKoerper(); };
+    if(iv) return ivRunView();
+    ivSetupView();
+  }
+  function ivSetupView(){
+    const body = document.querySelector('#ivOverlay .iv-body');
+    const m = ivCfg.modus, c = ivCfg[m], T = ivCfg.toene;
+    const step = (k, label, unit, min, max, st)=>`<div class="iv-row"><span>${label}</span><div class="iv-step"><button type="button" data-k="${k}" data-d="-${st}">−</button><b data-v="${k}">${unit === 's' ? ivFmt(c[k]) : c[k]}</b><button type="button" data-k="${k}" data-d="${st}">+</button></div></div>`;
+    const tog = (k, l, sub)=>`<label class="set-toggle"><span><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</span><input type="checkbox" role="switch" data-t="${k}" ${T[k] ? 'checked' : ''}><i></i></label>`;
+    body.innerHTML = `
+      <div class="step-label" style="margin:0 0 6px;">Zwischen den Krafttagen</div>
+      <div class="question" style="font-size:26px;margin:0 0 14px;">Cardio & Dehnen</div>
+      <div class="aufg-tabs" style="margin-bottom:14px;"><button type="button" class="aufg-tab ${m === 'cardio' ? 'active' : ''}" data-m="cardio">🏃 Cardio</button><button type="button" class="aufg-tab ${m === 'dehnen' ? 'active' : ''}" data-m="dehnen">🧘 Dehnen</button></div>
+      <div class="card iv-card">
+        ${step('uebungen', 'Übungen pro Runde', '', 1, 30, 1)}
+        ${step('arbeit', 'Dauer pro Übung', 's', 5, 600, 5)}
+        ${step('pauseUe', 'Pause zwischen Übungen', 's', 0, 300, 5)}
+        ${step('runden', 'Runden', '', 1, 20, 1)}
+        ${step('pauseRunde', 'Pause zwischen Runden', 's', 0, 600, 10)}
+        ${step('durchgaenge', 'Wiederholungen (Durchgänge)', '', 1, 10, 1)}
+        ${c.durchgaenge > 1 ? step('pauseDurchgang', 'Pause zwischen Durchgängen', 's', 0, 900, 15) : ''}
+        ${step('vorlauf', 'Vorlauf', 's', 0, 60, 5)}
+        <div class="iv-total">Gesamt: <b id="ivTotal">${ivFmt(ivTotal(c))}</b> Min</div>
+      </div>
+      <details class="iv-names"><summary>Übungen benennen (optional)</summary>
+        <textarea id="ivNames" rows="4" placeholder="${m === 'cardio' ? 'z. B. Seilspringen, Burpees, Mountain Climber …' : 'z. B. Hüftbeuger links, Hüftbeuger rechts, Brust an der Wand …'}">${escapeHtml(c.namen || '')}</textarea>
+        <div class="hint" style="margin:6px 0 0;">Eine pro Zeile oder mit Komma. Wird angezeigt und angesagt.</div>
+      </details>
+      <div class="step-label" style="margin:18px 0 8px;">Töne</div>
+      <div class="set-list">
+        ${tog('countdown', 'Countdown 3-2-1', 'vor jedem Wechsel')}
+        ${tog('start', 'Ton bei Übungsstart')}
+        ${tog('pause', 'Ton bei Pause')}
+        ${tog('runde', 'Ton bei Rundenende & Rundenstart', 'eigene Melodie')}
+        ${tog('ende', 'Abschluss-Melodie')}
+        ${tog('stimme', 'Ansage per Stimme', '„Übung 3: Burpees“, „Pause“, „Noch 10 Sekunden“')}
+        ${tog('vibration', 'Vibration')}
+        <div class="set-row"><span>Lautstärke</span><input type="range" min="0.2" max="1" step="0.1" value="${T.laut}" id="ivVol" style="width:140px;"></div>
+      </div>
+      <button type="button" class="ghost" id="ivTest" style="width:100%;margin-top:10px;">🔊 Töne testen</button>
+      <button type="button" class="primary" id="ivStart" style="width:100%;margin-top:12px;min-height:56px;font-size:17px;">▶ Start</button>`;
+    body.querySelectorAll('[data-m]').forEach(b=>b.onclick = ()=>{ ivCfg.modus = b.dataset.m; ivSaveCfg(); ivSetupView(); });
+    const lim = { uebungen:[1,30], arbeit:[5,600], pauseUe:[0,300], runden:[1,20], pauseRunde:[0,600], durchgaenge:[1,10], pauseDurchgang:[0,900], vorlauf:[0,60] };
+    let hold = null;
+    body.querySelectorAll('.iv-step button').forEach(b=>{
+      const bump = ()=>{ const k = b.dataset.k, [lo, hi] = lim[k]; const was = c[k]; c[k] = Math.min(hi, Math.max(lo, c[k] + +b.dataset.d)); if(c[k] === was) return;
+        ivSaveCfg(); if(k === 'durchgaenge' && (was === 1 || c[k] === 1)) return ivSetupView();
+        body.querySelector('[data-v="' + k + '"]').textContent = /arbeit|pause|vorlauf/.test(k) ? ivFmt(c[k]) : c[k]; body.querySelector('#ivTotal').textContent = ivFmt(ivTotal(c)); };
+      b.onclick = bump;
+      b.onpointerdown = ()=>{ clearInterval(hold); const t0 = setTimeout(()=>{ hold = setInterval(bump, 90); }, 450); b.onpointerup = b.onpointerleave = ()=>{ clearTimeout(t0); clearInterval(hold); }; };
+    });
+    body.querySelector('#ivNames').oninput = e=>{ c.namen = e.target.value; ivSaveCfg(); };
+    body.querySelectorAll('[data-t]').forEach(x=>x.onchange = ()=>{ T[x.dataset.t] = x.checked; ivSaveCfg(); });
+    body.querySelector('#ivVol').oninput = e=>{ T.laut = +e.target.value; ivSaveCfg(); };
+    body.querySelector('#ivTest').onclick = ()=>{
+      const C = window.AudioContext || window.webkitAudioContext; if(!C) return;
+      const ctx = new C(); const tmp = { nodes:[] }; const keep = iv; iv = tmp; const t = ctx.currentTime + 0.05, v = T.laut;
+      ivTone(ctx, t, 880, 0.12, v * 0.8, 'square'); ivTone(ctx, t + 1, 880, 0.12, v * 0.8, 'square'); ivTone(ctx, t + 2, 880, 0.12, v * 0.8, 'square');
+      ivTone(ctx, t + 3, 1320, 0.6, v); ivTone(ctx, t + 4.2, 660, 0.25, v * 0.9); ivTone(ctx, t + 4.5, 520, 0.35, v * 0.9);
+      [0, 0.16, 0.32].forEach((d, j)=>ivTone(ctx, t + 5.5 + d, [880, 1175, 1568][j], 0.22, v));
+      iv = keep; ivSay('Übung 1: Seilspringen'); ivVib(200);
+    };
+    body.querySelector('#ivStart').onclick = ivStart;
+  }
+  function ivStart(){
+    const m = ivCfg.modus, c = ivCfg[m], P = ivBuild(c);
+    if(!P.length) return;
+    let ctx = null; try{ const C = window.AudioContext || window.webkitAudioContext; if(C){ ctx = new C(); if(ctx.state !== 'running') ctx.resume().catch(()=>{}); } }catch(e){}
+    iv = { modus:m, P, i:0, left:P[0].d, running:true, ctx, nodes:[], startedAt:Date.now(), activeSec:0, lastSaid:'', phaseEnd: Date.now() + P[0].d * 1000 };
+    keepAwake(true);
+    ivSchedule();
+    ivAnnounce();
+    ivRunView();
+    clearInterval(ivStart._t); ivStart._t = setInterval(ivTick, 200);
+  }
+  function ivAnnounce(){
+    const p = iv.P[iv.i], next = iv.P[iv.i + 1];
+    if(p.k === 'work'){ ivSay(p.label + (iv.P.filter(x=>x.k === 'work').length > 1 && /^Übung \d+$/.test(p.label) ? '' : '')); ivVib(250); }
+    else if(p.k === 'rest'){ ivSay('Pause. Als Nächstes ' + (next ? next.label : '')); ivVib([80, 60, 80]); }
+    else if(p.k === 'rrest'){ ivSay('Runde ' + p.r + ' geschafft. Pause.'); ivVib([150, 80, 150, 80, 150]); }
+    else if(p.k === 'srest'){ ivSay('Durchgang ' + p.s + ' geschafft. Pause.'); ivVib([150, 80, 150, 80, 150]); }
+    else if(p.k === 'prep'){ ivSay('Gleich geht es los. Erste Übung: ' + (next ? next.label : '')); }
+  }
+  function ivTick(){
+    if(!iv || !iv.running) return;
+    const now = Date.now();
+    iv.left = (iv.phaseEnd - now) / 1000;
+    if(iv.left <= 10.2 && iv.left > 9.8 && iv.P[iv.i].d >= 30 && iv.lastSaid !== 'z' + iv.i){ iv.lastSaid = 'z' + iv.i; ivSay('Noch 10 Sekunden'); }
+    while(iv.left <= 0){
+      if(iv.P[iv.i].k === 'work') iv.activeSec += iv.P[iv.i].d;
+      iv.i++;
+      if(iv.i >= iv.P.length){ ivFinish(true); return; }
+      iv.phaseEnd += iv.P[iv.i].d * 1000; iv.left = (iv.phaseEnd - now) / 1000;
+      ivAnnounce();
+    }
+    ivPaint();
+  }
+  function ivPaint(){
+    const el = document.querySelector('#ivOverlay .iv-run'); if(!el || !iv) return;
+    const p = iv.P[iv.i], c = ivCfg[iv.modus];
+    const next = iv.P.slice(iv.i + 1).find(x=>x.k === 'work');
+    const remain = iv.left + iv.P.slice(iv.i + 1).reduce((a, x)=>a + x.d, 0);
+    const pct = Math.max(0, Math.min(1, 1 - iv.left / p.d));
+    el.className = 'iv-run k-' + p.k + (iv.running ? '' : ' paused');
+    el.querySelector('.iv-phase').textContent = p.k === 'work' ? (iv.modus === 'dehnen' ? 'Dehnen' : 'Los!') : p.k === 'prep' ? 'Bereit machen' : p.label;
+    el.querySelector('.iv-name').textContent = p.k === 'work' ? p.label : (next ? 'Als Nächstes: ' + next.label : 'Gleich geschafft');
+    el.querySelector('.iv-big').textContent = ivFmt(iv.left);
+    el.querySelector('.iv-ring').style.setProperty('--p', (pct * 100).toFixed(1));
+    el.querySelector('.iv-meta').innerHTML = p.k === 'prep' ? '' : `Übung <b>${p.u}/${c.uebungen}</b> · Runde <b>${p.r}/${c.runden}</b>${c.durchgaenge > 1 ? ` · Durchgang <b>${p.s}/${c.durchgaenge}</b>` : ''}`;
+    el.querySelector('.iv-rest').textContent = 'Noch ' + ivFmt(remain) + ' gesamt';
+    el.querySelector('#ivPause').textContent = iv.running ? '⏸ Pause' : '▶ Weiter';
+  }
+  function ivRunView(){
+    const body = document.querySelector('#ivOverlay .iv-body');
+    body.innerHTML = `<div class="iv-run">
+        <div class="iv-phase"></div>
+        <div class="iv-ring"><div class="iv-big"></div></div>
+        <div class="iv-name"></div>
+        <div class="iv-meta"></div>
+        <div class="iv-rest"></div>
+        <div class="iv-ctl"><button type="button" class="ghost" id="ivPrev" aria-label="Zurück">⏮</button><button type="button" class="primary" id="ivPause"></button><button type="button" class="ghost" id="ivNext" aria-label="Weiter">⏭</button></div>
+        <button type="button" class="aufg-link" id="ivEnd" style="display:block;margin:22px auto 0;">Beenden & speichern</button>
+      </div>`;
+    body.querySelector('#ivPause').onclick = ()=>{
+      if(iv.running){ iv.running = false; iv.left = (iv.phaseEnd - Date.now()) / 1000; iv.nodes.forEach(o=>{ try{ o.stop(); }catch(e){} }); iv.nodes = []; try{ speechSynthesis.cancel(); }catch(e){} }
+      else { iv.running = true; iv.phaseEnd = Date.now() + iv.left * 1000; if(iv.ctx && iv.ctx.state !== 'running') iv.ctx.resume().catch(()=>{}); ivSchedule(); }
+      ivPaint();
+    };
+    const jump = d=>{ const ni = Math.max(0, Math.min(iv.P.length - 1, iv.i + d)); if(d > 0 && iv.P[iv.i].k === 'work') iv.activeSec += Math.max(0, iv.P[iv.i].d - iv.left);
+      iv.i = ni; iv.left = iv.P[ni].d; iv.phaseEnd = Date.now() + iv.left * 1000; if(iv.running) ivSchedule(); ivAnnounce(); ivPaint(); };
+    body.querySelector('#ivPrev').onclick = ()=>jump(iv.left < iv.P[iv.i].d - 2 ? 0 : -1);
+    body.querySelector('#ivNext').onclick = ()=>jump(1);
+    body.querySelector('#ivEnd').onclick = ()=>ivFinish(true);
+    ivPaint();
+  }
+  function ivStop(){
+    clearInterval(ivStart._t);
+    if(iv){ iv.nodes.forEach(o=>{ try{ o.stop(); }catch(e){} }); setTimeout(()=>{ try{ iv && iv.ctx && iv.ctx.close(); }catch(e){} }, 3000); }
+    try{ speechSynthesis.cancel(); }catch(e){}
+    keepAwake(!!activeWorkout);
+  }
+  async function ivFinish(save){
+    if(!iv) return;
+    const run = iv;
+    if(run.P[run.i] && run.P[run.i].k === 'work' && run.i < run.P.length) run.activeSec += Math.max(0, run.P[run.i].d - Math.max(0, run.left));
+    const done = run.i >= run.P.length;
+    if(!done){ run.nodes.forEach(o=>{ try{ o.stop(); }catch(e){} }); run.nodes = []; }
+    clearInterval(ivStart._t); iv = null;
+    if(done) setTimeout(()=>ivStop(), 3500); else ivStop();
+    const dauer = Math.max(1, Math.round((Date.now() - run.startedAt) / 60000));
+    const body = document.querySelector('#ivOverlay .iv-body');
+    if(!save || dauer < 1){ if(body) ivSetupView(); return; }
+    const art = run.modus === 'dehnen' ? 'Dehnen' : 'Cardio';
+    const c = ivCfg[run.modus];
+    const notiz = art + ': ' + c.uebungen + ' Übungen × ' + c.runden + ' Runden' + (c.durchgaenge > 1 ? ' × ' + c.durchgaenge : '') + ', ' + ivFmt(c.arbeit) + ' / ' + ivFmt(c.pauseUe) + (done ? '' : ' (vorzeitig beendet)');
+    if(body) body.innerHTML = `<div class="card" style="text-align:center;padding:36px 20px;">
+        <div class="step-label">${art} geschafft</div>
+        <div class="question" style="font-size:24px;">${done ? 'Sauber durchgezogen. 🔥' : 'Gut, dass du dran warst.'}</div>
+        <div class="evening-sum" style="margin:18px 0;"><div><span>${dauer}</span><small>Minuten</small></div><div><span>${ivFmt(run.activeSec)}</span><small>aktiv</small></div></div>
+        <div class="save-status" id="ivSaveSt">Speichere …</div>
+        <button type="button" class="primary" id="ivDone" style="width:100%;margin-top:10px;">Fertig</button>
+      </div>`;
+    if(body) body.querySelector('#ivDone').onclick = ()=>{ document.getElementById('ivOverlay').style.display = 'none'; document.body.style.overflow = ''; if(koerperView === 'training') renderKoerper(); };
+    try{
+      const datum = todayStr();
+      const id = await airtableCreate(TABLE_TRAININGS, { 'Datum': datum, 'Plan': IV_PLAN, 'Dauer (Min)': dauer, 'Saetze': '[]', 'Volumen (kg)': 0, 'Notiz': notiz, 'Erstellt am': new Date().toISOString() }, ROUTINEN_BASE_ID);
+      trainingsCache.unshift({ id, datum, plan: IV_PLAN, dauer, saetze:[], volumen:0, notiz });
+      awardXP('training:' + id, 'Training: ' + IV_PLAN, Math.round(TRAINING_XP / 2));
+      const st = document.getElementById('ivSaveSt'); if(st) st.textContent = 'Gespeichert ✓';
+    }catch(e){ const st = document.getElementById('ivSaveSt'); if(st) st.textContent = 'Konnte nicht speichern: ' + e.message; }
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState !== 'visible' || !iv) return;
+    keepAwake(true);
+    if(iv.ctx && iv.ctx.state !== 'running') iv.ctx.resume().then(()=>{ if(iv && iv.running) ivSchedule(); }).catch(()=>{});
+    else if(iv.running){ ivTick(); if(iv) ivSchedule(); }
+  });
+
   function openTrainingTips(){
     const sec = (t, html)=>`<div class="tip-sec"><div class="tip-title">${t}</div>${html}</div>`;
     openErnModal(`<div class="modal-title">Regeln & Tipps</div>
       <div class="modal-sub">Aus deinem Trainingsplan. Gilt für alle Übungen, wenn nichts anderes dabei steht.</div>
-      ${sec('Wochenplan', `<div class="tip-week">${SPLIT_WOCHE.map(([d, n])=>`<div class="${n === 'Pause' ? 'off' : ''}"><b>Tag ${d}</b><span>${n}</span></div>`).join('')}</div>`)}
+      ${sec('Wochenplan', `<div class="tip-week">${SPLIT_WOCHE.map(([d, n])=>`<div class="${n === 'Pause' ? 'off' : n === 'Cardio & Dehnen' ? 'cd' : ''}"><b>Tag ${d}</b><span>${n}</span></div>`).join('')}</div>`)}
       ${sec('Sätze & Wiederholungen', `<p>Umgekehrte Pyramide: <b>Satz 1 mit 15 bis 25 Wdh</b>, alle weiteren Sätze <b>10 bis 20 Wdh</b>. Jeden Satz bis <b>1 bis 2 Wdh vor dem Muskelversagen</b>.</p><p>Hör auf deinen Körper. Fühlt sich bei einer Übung ein 4. Satz richtig an, mach ihn.</p>`)}
       ${sec('Pause', `<p>30 bis 60 Sekunden nach Gefühl. Nicht auf die Sekunde genau, aber gut erholt. Bei schweren Grundübungen etwas länger.</p>`)}
       ${sec('Fokus Squeeze', `<p>Das Wichtigste: bei jedem Zentimeter der Bewegung den Zielmuskel so fest wie möglich anspannen. Nicht ans Gewicht denken, sondern ans Zusammendrücken des Muskels.</p><p>Beispiel Bankdrücken: beim Hochdrücken die Brust zusammendrücken, oben weiter drücken und auch beim Absenken nicht locker lassen. Genau beim Ablassen wollen die meisten entspannen.</p>`)}
