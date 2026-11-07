@@ -3407,6 +3407,7 @@
     const tf = reflectionState.timeframe;
     const periodText = periodLabel(tf, getPeriodKey(tf, getReflectionDate()));
 
+    if(reflectionReviewGoals.length === 0 && tf === 'Tag'){ reflectionState.step = 1; renderReflectionStep(); return; }
     if(reflectionReviewGoals.length === 0){
       reflexionContent.innerHTML = `
         <div class="card">
@@ -3727,8 +3728,9 @@
       });
     }
     lines.push('');
-    lines.push('## Neu gesetzte Ziele für den nächsten Zeitraum');
-    if(newGoalsDraft.length === 0){
+    if(tf !== 'Tag') lines.push('## Neu gesetzte Ziele für den nächsten Zeitraum');
+    if(tf === 'Tag'){ /* abends werden keine Ziele mehr gesetzt */ }
+    else if(newGoalsDraft.length === 0){
       lines.push('Keine neuen Ziele gesetzt.');
     } else {
       newGoalsDraft.forEach(g=>{ lines.push(`- "${g.text}" (${g.kategorie}${g.prioritaet ? ', '+g.prioritaet : ''})`); });
@@ -3737,7 +3739,8 @@
       lines.push('');
       lines.push('## Abend-Journal-Einträge in diesem Zeitraum');
       context.journalEntries.forEach(e=>{
-        lines.push(`- Erfolge: ${e.erfolge.join('; ')} | Schwierig: ${e.schwierig} | Dankbarkeit: ${e.dankbarkeit.join('; ')} | Morgen besser: ${e.morgenBesser} | Schachzüge für morgen: ${e.schachzuege} | Körperlich/mental: ${e.koerperlichMental}`);
+        const parts = [['Erfolge', e.erfolge.join('; ')], ['Schwierig', e.schwierig], ['Dankbarkeit', e.dankbarkeit.join('; ')], ['Morgen besser', e.morgenBesser], ['Schachzüge für morgen', e.schachzuege], ['Körperlich/mental', e.koerperlichMental], ['Was hilft', e.tunBesser], ['Freitext', e.freitext]].filter(([, v])=>v && String(v).trim());
+        lines.push('- ' + (tf === 'Tag' ? '' : new Date(e.date).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' }) + ': ') + parts.map(([k, v])=>k + ': ' + v).join(' | '));
       });
     }
     if(context.workEntries.length > 0){
@@ -4648,7 +4651,7 @@
     tunBesser: "",
     freitext: ""
   };
-  const EVENING_STEPS = ['abschluss','erfolge','schwierig','dankbarkeit','morgen','schachzuege','koerperlich','freitext'];
+  const EVENING_STEPS = ['abschluss','erfolge','schwierig','dankbarkeit','morgen','freitext'];
   let eveningStepIndex = 0;
 
   function renderEveningStep(){
@@ -4681,7 +4684,7 @@
     } else if(key === 'dankbarkeit'){
       bodyHtml = `<div class="question">Wofür bin ich dankbar?</div><div class="hint">Mindestens 3.</div><div id="dankbarkeitList"></div>`;
     } else if(key === 'morgen'){
-      bodyHtml = `<div class="question">Was kann ich morgen besser machen?</div><textarea id="morgenInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.morgenBesser)}</textarea>`;
+      bodyHtml = `<div class="question">Was kann ich morgen besser machen?</div><textarea id="morgenInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.morgenBesser)}</textarea><div id="eveningCarryHost"></div>`;
     } else if(key === 'schachzuege'){
       bodyHtml = `<div class="question">Was sind die besten Schachzüge, die ich morgen in aktuell relevanten Bereichen meines Lebens tun kann?</div><textarea id="schachzuegeInput" placeholder="Deine Antwort ...">${escapeHtml(eveningData.schachzuege)}</textarea><div id="eveningCarryHost"></div>`;
     } else if(key === 'koerperlich'){
@@ -4711,7 +4714,7 @@
     if(key === 'erfolge') setupList('erfolgeList', eveningData.erfolge, 'Erfolg');
     if(key === 'dankbarkeit') setupList('dankbarkeitList', eveningData.dankbarkeit, 'Punkt');
     if(key === 'schwierig') document.getElementById('schwierigInput').addEventListener('input', e=>{ eveningData.schwierig = e.target.value; });
-    if(key === 'morgen') document.getElementById('morgenInput').addEventListener('input', e=>{ eveningData.morgenBesser = e.target.value; });
+    if(key === 'morgen'){ document.getElementById('morgenInput').addEventListener('input', e=>{ eveningData.morgenBesser = e.target.value; }); renderEveningCarryover(document.getElementById('eveningCarryHost')); }
     if(key === 'schachzuege'){ document.getElementById('schachzuegeInput').addEventListener('input', e=>{ eveningData.schachzuege = e.target.value; }); renderEveningCarryover(document.getElementById('eveningCarryHost')); }
     if(key === 'koerperlich'){
       document.getElementById('koerperlichInput').addEventListener('input', e=>{ eveningData.koerperlichMental = e.target.value; });
@@ -4772,8 +4775,8 @@
     try{
       await airtableCreate(TABLE_EVENING, fields);
       if(historyPanel.style.display !== 'none' && currentHistoryTab === 'tag') loadEveningJournal();
-      reflectionState.step = 2;
-      renderReflectionStep();
+      // Abends keine extra Ziele mehr: "Was kann ich morgen besser machen?" reicht. Direkt zum Coaching.
+      showCoachingScreen('Tag', getPeriodKey('Tag', addPeriod('Tag', getReflectionDate())), []);
     }catch(e){
       showSaveFailure(statusEl, saveEveningEntryAndContinue, formatEveningEntryText(entry));
       const btn = document.getElementById('eveningNextBtn');
