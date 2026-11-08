@@ -3668,8 +3668,9 @@
 
 
   // Daten aus allen Kongrow-Bereichen für das KI-Coaching (letzte N Tage)
-  function kongrowStatsText(nDays){
-    const L = []; const t = todayStr(); const from = shiftDay(t, -(nDays - 1));
+  function kongrowStatsText(nDays, endDay){
+    // Ende = letzter Tag des Reflexions-Zeitraums (nicht "heute": abends nach Mitternacht oder "Letzten" gewählt wäre sonst der falsche Tag)
+    const L = []; const t = endDay && endDay < todayStr() ? endDay : todayStr(); const from = shiftDay(t, -(nDays - 1));
     const inR = d=>d && d >= from && d <= t;
     const tryAdd = fn=>{ try{ fn(); }catch(e){} };
     L.push(`## Daten aus der App (letzte ${nDays} Tage, ${from} bis ${t})`);
@@ -3677,8 +3678,13 @@
       const dq = xpEntries.filter(e=>e.key.startsWith('dq:') && inR(e.key.slice(3))).length;
       const st = dailyStreakInfo();
       const per = {}; prioCache.forEach(p=>{ per[p.titel] = xpEntries.filter(e=>e.key.startsWith('prio:' + p.id + ':') && inR(e.key.split(':').pop())).length; });
-      L.push(`- Dailys: an ${dq} von ${nDays} Tagen alle 4 erledigt (Daily Quest). Streak aktuell ${st.cur}, Rekord ${Math.max(st.best, st.cur)}.`);
-      if(prioCache.length) L.push('- Dailys einzeln (Tage erledigt): ' + Object.entries(per).map(([k,v])=>`${k} ${v}/${nDays}`).join(', '));
+      if(nDays === 1){
+        const done = prioCache.filter(p=>xpEntries.some(e=>e.key === 'prio:' + p.id + ':' + t) || p.erledigtAm === t);
+        L.push(`- Dailys am ${t}: ${done.length} von ${prioCache.length} erledigt${prioCache.length ? ' (' + prioCache.map(p=>p.titel + (done.includes(p) ? ' ✓' : ' ✗')).join(', ') + ')' : ''}. Streak aktuell ${st.cur}, Rekord ${Math.max(st.best, st.cur)}.`);
+      } else {
+        L.push(`- Dailys: an ${dq} von ${nDays} Tagen alle ${prioCache.length} erledigt (Daily Quest). Streak aktuell ${st.cur}, Rekord ${Math.max(st.best, st.cur)}.`);
+        if(prioCache.length) L.push('- Dailys einzeln (an wie vielen Tagen erledigt): ' + Object.entries(per).map(([k,v])=>`${k} ${v}/${nDays}`).join(', '));
+      }
     });
     tryAdd(()=>{
       const tr = trainingsCache.filter(x=>inR(x.datum));
@@ -3764,12 +3770,9 @@
       });
     }
     lines.push('');
-    lines.push(kongrowStatsText({ Tag:1, Woche:7, Monat:30, Quartal:91, Jahr:365, '5 Jahre':365 }[tf] || 7));
+    { const pr = getPeriodRange(tf, getReflectionDate()); lines.push(kongrowStatsText({ Tag:1, Woche:7, Monat:30, Quartal:91, Jahr:365, '5 Jahre':365 }[tf] || 7, dayStr(new Date(pr.end - 1)))); }
     lines.push('');
-    lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Schließe deine Antwort danach mit genau diesen zwei Abschnitten ab, in dieser Reihenfolge, wortwörtlich mit diesen Überschriften, und nichts danach:');
-    lines.push('');
-    lines.push('## Mögliche Glaubenssätze für The Work');
-    lines.push('(2-4 Bullet-Punkte mit "-", als kurze Ich-Aussagen formuliert, die als limitierende Glaubenssätze aus dem oben Geschriebenen erkennbar sind und sich direkt mit The Work bearbeiten lassen, z.B. "- Ich bin nicht gut genug.")');
+    lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Verlass dich bei Zahlen (Dailys, Training usw.) nur auf die App-Daten oben. Keine Glaubenssätze und kein The Work. Schließe deine Antwort danach mit genau diesem Abschnitt ab, wortwörtlich mit dieser Überschrift, und nichts danach:');
     lines.push('');
     lines.push('## Impulsfragen');
     lines.push('1. ...');
@@ -3811,7 +3814,7 @@
       const prompt = buildCoachingPrompt(tf, nextPeriodKey, newGoalsDraft, context);
       const reportText = await callClaudeCoach(prompt);
       const questions = extractImpulseQuestions(reportText);
-      const candidateBeliefs = extractCandidateBeliefs(reportText);
+      const candidateBeliefs = [];   // The-Work-Glaubenssätze im Coaching abgeschaltet
 
       let saveNote = '';
       let coachingRecordId = null;
