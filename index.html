@@ -3664,7 +3664,15 @@
         .map(r=>mapWorkFieldsFromAirtable(r.fields))
         .filter(e=>{ const d = new Date(e.date); return d >= start && d < end; });
     }catch(e){ /* ignore */ }
-    return { journalEntries, workEntries };
+    // Letzter Bericht desselben Zeitrahmens: Impulsfragen + deine Antworten, damit der Coach daran anknüpft
+    let lastCoaching = null;
+    try{
+      const cr = (await airtableList(TABLE_COACHING, COACHING_BASE_ID)).map(r=>r.fields)
+        .filter(f=>f['Zeitrahmen'] === tf && f['Datum'] && f['Zeitraum-Kennung'] !== getPeriodKey(tf, getReflectionDate()) && new Date(f['Datum']) < end)
+        .sort((a, b)=>String(b['Datum']).localeCompare(String(a['Datum'])));
+      if(cr[0]) lastCoaching = { datum: cr[0]['Datum'], fragen: extractImpulseQuestions(cr[0]['Bericht'] || ''), antworten: cr[0]['Antworten'] || '' };
+    }catch(e){ /* ignore */ }
+    return { journalEntries, workEntries, lastCoaching };
   }
 
 
@@ -3696,14 +3704,7 @@
       if(g.length) L.push(`- Gewicht: ${g.length} Messungen, von ${fmtNum(g[0].kg)} auf ${fmtNum(g[g.length-1].kg)} kg.`);
       else L.push('- Gewicht: keine Messungen im Zeitraum.');
     });
-    tryAdd(()=>{
-      const plan = activePlan();
-      const days = ernCache.filter(x=>inR(x.datum));
-      const ok = xpEntries.filter(e=>e.key.startsWith('food:') && inR(e.key.slice(5))).length;
-      const ab = days.reduce((s,x)=>s + Object.keys(x.abw || {}).length, 0);
-      const w = days.filter(x=>x.wasser).map(x=>x.wasser);
-      L.push(`- Ernährung${plan ? ' (Plan „' + plan.name + '“)' : ''}: an ${ok} von ${nDays} Tagen alle Mahlzeiten nach Plan, ${ab} notierte Abweichungen${w.length ? ', Wasser Ø ' + fmtNum(w.reduce((a,b)=>a+b,0) / w.length) + ' l' : ''}. Tagtypen: ${days.map(x=>x.tagtyp).filter(Boolean).join(', ') || 'keine Angaben'}.`);
-    });
+    // Ernährung wird bewusst nicht mehr ans Coaching gegeben (wird nicht in der App getrackt)
     tryAdd(()=>{
       const cur = nofapCurrent(); const rel = nofapRuns.filter(r=>r.ende && inR(r.ende));
       L.push(`- NoFap: aktuell ${cur ? nofapDays(cur) : 0} bestätigte Tage, ${rel.length} Rückfälle im Zeitraum${rel.length ? ' (Auslöser: ' + rel.map(r=>r.ausloeser).filter(Boolean).join(' / ') + ')' : ''}.`);
@@ -3717,7 +3718,7 @@
       const xp = xpEntries.filter(e=>inR(e.datum)).reduce((s,e)=>s + (e.xp || 0), 0);
       L.push(`- XP im Zeitraum: ${xp}. Level ${xpLevelInfo(xpTotal()).level}.`);
     });
-    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Ernährung, Dailys und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
+    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Dailys und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
     return L.join('\n');
   }
 
@@ -3771,6 +3772,13 @@
       });
     }
     lines.push('');
+    if(context.lastCoaching && (context.lastCoaching.fragen.length || context.lastCoaching.antworten)){
+      const lc = context.lastCoaching;
+      lines.push('## Letztes Coaching (' + new Date(lc.datum).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit' }) + '): Impulsfragen und Antworten');
+      lines.push(lc.antworten && lc.antworten.trim() ? lc.antworten.trim() : 'Fragen: ' + lc.fragen.join(' / ') + '\n(nicht beantwortet)');
+      lines.push('Knüpf kurz daran an: Was zeigt sich in den Antworten, passt das heutige Verhalten dazu, hat sich etwas verändert? Wiederhole die alten Fragen nicht wörtlich.');
+      lines.push('');
+    }
     { const pr = getPeriodRange(tf, getReflectionDate()); lines.push(kongrowStatsText({ Tag:1, Woche:7, Monat:30, Quartal:91, Jahr:365, '5 Jahre':365 }[tf] || 7, dayStr(new Date(pr.end - 1)))); }
     lines.push('');
     lines.push('Gib eine ehrliche Einschätzung, benenne Muster und würdige Fortschritte. Verlass dich bei Zahlen (Dailys, Training usw.) nur auf die App-Daten oben. Keine Glaubenssätze und kein The Work. Schließe deine Antwort danach mit genau diesem Abschnitt ab, wortwörtlich mit dieser Überschrift, und nichts danach:');
@@ -3847,6 +3855,7 @@
       const answersHtml = questions.length === 3 ? `
         <div class="card">
           <div class="step-label">Deine Antworten auf die Impulsfragen</div>
+          <div class="hint" style="margin-top:-4px;">Optional. Wird automatisch gespeichert, der Coach greift deine Antworten beim nächsten Mal auf.</div>
           ${questions.map((q,i)=>`
             <div class="turn-title" style="margin-top:${i===0?'0':'16px'};">${escapeHtml(q)}</div>
             <textarea id="coachAnswer${i}" placeholder="Deine Antwort ..."></textarea>`).join('')}
@@ -3867,7 +3876,19 @@
         <div class="nav-row" style="justify-content:flex-end;">
           <button class="primary" id="coachingDoneBtn">Fertig</button>
         </div>`;
-      document.getElementById('coachingDoneBtn').onclick = closeReflexionOverlay;
+      // Antworten automatisch sichern (beim Verlassen eines Feldes und bei "Fertig"), Speichern-Knopf bleibt als Option
+      let lastSaved = '';
+      const autoSave = async ()=>{
+        if(!(questions.length === 3 && coachingRecordId)) return;
+        const vals = questions.map((q,i)=>(document.getElementById('coachAnswer'+i) || {}).value || '');
+        if(!vals.some(v=>v.trim())) return;
+        const combined = questions.map((q,i)=>q + '\n' + vals[i].trim()).join('\n\n');
+        if(combined === lastSaved) return; lastSaved = combined;
+        try{ await airtableFetch(TABLE_COACHING + '/' + coachingRecordId, { method:'PATCH', body: JSON.stringify({ fields:{ 'Antworten': combined } }) }, COACHING_BASE_ID);
+          const st = document.getElementById('coachAnswersStatus'); if(st) st.textContent = 'Automatisch gespeichert ✓ · fließt ins nächste Coaching ein'; }catch(e){ lastSaved = ''; }
+      };
+      questions.forEach((q,i)=>{ const ta = document.getElementById('coachAnswer'+i); if(ta) ta.addEventListener('blur', autoSave); });
+      document.getElementById('coachingDoneBtn').onclick = async ()=>{ await autoSave(); closeReflexionOverlay(); };
 
       candidateBeliefs.forEach((b,i)=>{
         const btn = document.getElementById('addBeliefBtn'+i);
