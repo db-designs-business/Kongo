@@ -365,7 +365,8 @@
     overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y;
   }
   @media (min-width:480px){ .modal-card{ max-height:80vh; max-height:80dvh; } }
-  .modal-overlay{ overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  .modal-overlay{ overscroll-behavior:contain; -webkit-overflow-scrolling:touch; cursor:pointer; }
+  .modal-overlay > *{ cursor:auto; }
   body.modal-open{ overflow:hidden; }
   #routinePausedBanner{ padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important; }
   pre, code{ white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -13084,6 +13085,34 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
       let was = p.style.display !== 'none';
       new MutationObserver(()=>{ const vis = p.style.display !== 'none'; if(vis && !was) panelIn(p); was = vis; }).observe(p, { attributes:true, attributeFilter:['style'] });
     });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+<script>
+/* Jedes Pop-up schließt beim Tippen außerhalb (auf den abgedunkelten Hintergrund).
+   Ausnahmen: laufende Abläufe, bei denen ein Fehltipp Fortschritt kosten würde. */
+(function(){
+  const SKIP = new Set(['workoutOverlay', 'reflexionOverlay', 'routineExecOverlay']);
+  const CLOSE_SEL = '.modal-close, .iv-close, .bs-close, .lesen-dash-close, .kg-ask-x, [data-close], [aria-label="Schließen"], button[id$="Close"], button[id$="CloseBtn"], button[id$="Cancel"], button[id$="CancelBtn"]';
+  const isOpen = el=>el.isConnected && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden';
+  function closeIt(ov){
+    const btn = [...ov.querySelectorAll(CLOSE_SEL)].find(b=>b.closest('.modal-overlay, .kg-ask') === ov && b.offsetParent !== null);
+    if(btn){ btn.click(); }
+    if(isOpen(ov)){ ov.style.display = 'none'; ov.classList.remove('show'); }
+    if(![...document.querySelectorAll('.modal-overlay, .kg-ask')].some(o=>o !== ov && isOpen(o))) document.body.style.overflow = '';
+  }
+  function wire(ov){
+    if(ov.__kgOutside || SKIP.has(ov.id)) return; ov.__kgOutside = true;
+    let downOnBg = false;
+    ov.addEventListener('pointerdown', e=>{ downOnBg = e.target === ov; });
+    // läuft nach den eigenen Klick-Handlern des Pop-ups: schon geschlossen? dann nichts tun
+    ov.addEventListener('click', e=>{ if(e.target !== ov || !downOnBg) return; downOnBg = false; setTimeout(()=>{ if(isOpen(ov)) closeIt(ov); }, 0); });
+  }
+  function scan(root){ (root.querySelectorAll ? root : document).querySelectorAll('.modal-overlay, .kg-ask').forEach(wire); if(root.classList && (root.classList.contains('modal-overlay') || root.classList.contains('kg-ask'))) wire(root); }
+  function init(){
+    scan(document);
+    new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType === 1) scan(n); }))).observe(document.body, { childList:true, subtree:true });
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
