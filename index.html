@@ -900,6 +900,7 @@
   .dh-text{ display:none; font-size:13.5px; line-height:1.45; color:var(--ink-soft); margin-top:6px; } .dh-item.open .dh-text{ display:block; }
   .dh-bar{ position:sticky; bottom:calc(10px + env(safe-area-inset-bottom)); margin-top:16px; display:flex; flex-direction:column; align-items:center; gap:6px; }
   .dh-bar .primary{ width:100%; min-height:54px; box-shadow:0 10px 30px rgba(0,0,0,.5); } .dh-bar .primary:disabled{ opacity:.55; }
+  .k-cd-skip{ display:block; margin:-2px 0 8px auto; font-size:13px; text-align:right; }
   .k-plan.k-cardio span{ color:var(--ink-soft); }
   .tip-week .cd span{ color:var(--forest); }
   .lesen-mic{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; width:100%; min-height:150px; margin:14px 0 6px; border-radius:22px; border:1px solid rgba(34,227,211,.45); background:radial-gradient(circle at 50% 40%, rgba(34,227,211,.18), rgba(34,227,211,.04)); color:var(--forest); font-size:16px; font-weight:700; }
@@ -11204,7 +11205,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       <div class="card">
         <div class="home-aufg-head"><div class="step-label" style="margin:0;">Training starten</div><button type="button" class="prio-edit-toggle" id="kPlansBtn">Pläne verwalten</button></div>
         <div class="k-plan-list">
-          ${(()=>{ const cn = cardioIsNext(); return `<button type="button" class="k-plan k-cardio ${cn ? 'next' : ''}" id="kCardioBtn"><b>🏃 Cardio & Dehnen${iv ? ' <em class="k-next">Läuft</em>' : cn ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>Intervalle · Cardio-Tracker · Dehnen</span></button>`; })()}
+          ${(()=>{ const cn = cardioIsNext(); return `<button type="button" class="k-plan k-cardio ${cn ? 'next' : ''}" id="kCardioBtn"><b>🏃 Cardio & Dehnen${iv ? ' <em class="k-next">Läuft</em>' : cn ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>Intervalle · Cardio-Tracker · Dehnen</span></button>${cn && !iv ? '<button type="button" class="aufg-link k-cd-skip" id="kCardioSkip">Überspringen, weiter zum Training ›</button>' : ''}`; })()}
           ${(()=>{ const nx = cardioIsNext() ? null : nextSplitPlan(); return plaeneCache.slice().sort((a,b)=>(a.tag || 99) - (b.tag || 99)).map(p=>`<button type="button" class="k-plan ${nx && nx.id === p.id ? 'next' : ''}" data-id="${p.id}"><b>${escapeHtml(p.name)}${nx && nx.id === p.id ? ' <em class="k-next">Als Nächstes</em>' : ''}</b><span>${p.uebungen.length} Übungen · ${escapeHtml(p.uebungen.slice(0,3).join(', '))}${p.uebungen.length > 3 ? ' …' : ''}</span></button>`).join(''); })()}
           <button type="button" class="k-plan empty" id="kFreeBtn"><b>+ Freies Training</b><span>Übungen spontan hinzufügen</span></button>
         </div>
@@ -11217,7 +11218,10 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     body.querySelector('#kTipsBtn').onclick = openTrainingTips;
     body.querySelector('#kFokusBtn').onclick = openFokusPicker;
     body.querySelector('#kFreeBtn').onclick = ()=>startWorkout(null);
-    body.querySelector('#kCardioBtn').onclick = openCardio;
+    body.querySelector('#kCardioBtn').onclick = ()=>openCardio();
+    const cs = body.querySelector('#kCardioSkip');
+    if(cs) cs.onclick = ()=>{ const id = trainingsCache[0] && trainingsCache[0].id; cardioSkipSet(id); renderKoerper();
+      kgUndoToast('Cardio & Dehnen übersprungen', ()=>{ cardioSkipSet(''); renderKoerper(); }); };
     body.querySelectorAll('.k-plan[data-id]').forEach(b=>b.onclick = ()=>startWorkout(plaeneCache.find(p=>p.id === b.dataset.id)));
     const hist = body.querySelector('#kHistory');
     if(trainingsCache.length){
@@ -11492,8 +11496,12 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   let ivCfg = (()=>{ try{ const s = JSON.parse(localStorage.getItem('kongrow_iv_cfg') || 'null'); if(s) return { cardio:Object.assign({}, IV_DEFAULT.cardio, s.cardio), dehnen:Object.assign({}, IV_DEFAULT.dehnen, s.dehnen), toene:Object.assign({}, IV_DEFAULT.toene, s.toene), modus:s.modus || 'cardio' }; }catch(e){} return JSON.parse(JSON.stringify(Object.assign({ modus:'cardio' }, IV_DEFAULT))); })();
   const ivSaveCfg = ()=>{ try{ localStorage.setItem('kongrow_iv_cfg', JSON.stringify(ivCfg)); }catch(e){} };
   let iv = null;   // laufender Timer
+  // Übersprungen: gemerkt wird das Krafttraining, nach dem Cardio ausgelassen wurde
+  const cardioSkipGet = ()=>{ try{ return localStorage.getItem('kongrow_cardio_skip') || ''; }catch(e){ return ''; } };
+  const cardioSkipSet = v=>{ try{ v ? localStorage.setItem('kongrow_cardio_skip', v) : localStorage.removeItem('kongrow_cardio_skip'); }catch(e){} };
   function cardioIsNext(){
     const last = trainingsCache[0]; if(!last || last.plan === IV_PLAN) return false;
+    if(cardioSkipGet() === last.id) return false;
     const split = plaeneCache.filter(p=>p.tag > 0);
     const lp = split.find(p=>p.name === last.plan); if(!lp) return false;
     const nx = nextSplitPlan();
