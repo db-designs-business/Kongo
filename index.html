@@ -1128,6 +1128,11 @@
   .uj-a{ width:100%; min-height:80px; font-size:14px; line-height:1.45; }
   .uj-pf{ margin-top:8px; padding:10px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft, rgba(255,255,255,.08)); }
   .uj-pf-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted, #8a9a9a); margin-bottom:6px; }
+  .uj-pf-check{ flex:0 0 auto; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line, rgba(255,255,255,.2)); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#04110F; }
+  .uj-pf-item.on .uj-pf-check{ background:var(--forest); border-color:var(--forest); }
+  .uj-pf-item.on .uj-pf-name{ color:var(--forest); font-weight:600; }
+  .uj-pf-free{ display:inline-block; margin-top:3px; color:var(--ink, inherit); font-weight:600; }
+  .uj-btn.uj-warn{ background:#F5B544 !important; border-color:#F5B544 !important; color:#1a1205 !important; }
   .uj-pf-head button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:2px 4px; }
   .uj-pf-item{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:0; border-top:1px solid var(--line-soft, rgba(255,255,255,.06)); padding:10px 4px; color:var(--ink, inherit); font-size:14px; }
   .uj-pf-item:first-of-type{ border-top:0; }
@@ -11258,7 +11263,20 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       row.querySelector('#ujTitleSave').onclick = async ()=>{ const v = inp.value.trim(); if(!v) return;
         try{ await kgApi('upwork.php?action=title', { id, title:v }); j.title = v; row.innerHTML = `<div class="modal-title uj-prop-title">${escapeHtml(v)}</div>`; kgUndoToast('Titel gespeichert ✓'); }catch(e){ kgUndoToast(e.message); } };
     };
-    card.querySelector('#ujPropCopy').onclick = ()=>{ save(); ujCopy(t.value, 'Proposal kopiert ✓'); };
+    const copyBtn = card.querySelector('#ujPropCopy');
+    copyBtn.onclick = ()=>{
+      save();
+      const n = t.value.split('[Portfolio link]').length - 1;
+      if(n && !copyBtn.dataset.armed){
+        copyBtn.dataset.armed = '1'; const label = copyBtn.textContent;
+        copyBtn.textContent = 'Trotzdem kopieren?'; copyBtn.classList.add('uj-warn');
+        kgUndoToast('⚠️ Noch ' + (n === 1 ? 'ein Platzhalter' : n + ' Platzhalter') + ' „[Portfolio link]“ im Text. Erst über „Portfolio +“ einsetzen.', null, 4500);
+        clearTimeout(copyBtn._t); copyBtn._t = setTimeout(()=>{ delete copyBtn.dataset.armed; copyBtn.textContent = label; copyBtn.classList.remove('uj-warn'); }, 4500);
+        return;
+      }
+      if(copyBtn.dataset.armed){ clearTimeout(copyBtn._t); delete copyBtn.dataset.armed; copyBtn.textContent = 'Proposal kopieren'; copyBtn.classList.remove('uj-warn'); }
+      ujCopy(t.value, n ? 'Kopiert, mit ' + n + ' offenem Platzhalter' + (n === 1 ? '' : 'n') : 'Proposal kopiert ✓');
+    };
     ujPortfolioWire(card, j, ()=>{ info.textContent = ''; clearTimeout(timer); timer = setTimeout(save, 600); });
     card.querySelectorAll('[data-qcopy]').forEach(b=>b.onclick = ()=>{ save(); ujCopy(card.querySelector('[data-qa="' + b.dataset.qcopy + '"]').value, 'Antwort ' + (+b.dataset.qcopy + 1) + ' kopiert ✓'); });
     const done = card.querySelector('#ujPropDone'); if(done) done.onclick = async ()=>{ await save(); closeErnModal(); ujSetStatus(id, 'beworben'); };
@@ -11280,34 +11298,69 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       if(hit >= 0){ used.add(hit); tags[hit] = m[1]; } });
     return tags;
   }
-  function ujPortfolioInsert(field, pos, url){
-    const v = field.value, ph = '[Portfolio link]';
-    // Platzhalter, in dem/an dem der Cursor steht, sonst Cursor-Stelle, sonst erster Platzhalter
-    let at = -1;
-    if(pos != null){ let k = v.indexOf(ph); while(k !== -1){ if(pos >= k && pos <= k + ph.length){ at = k; break; } k = v.indexOf(ph, k + 1); } }
-    let start, end;
-    if(at !== -1){ start = at; end = at + ph.length; }
-    else if(pos != null){ start = end = pos; }
-    else { const k = v.indexOf(ph); if(k !== -1){ start = k; end = k + ph.length; } else { start = end = v.length; } }
-    field.value = v.slice(0, start) + url + v.slice(end);
-    const c = start + url.length; field.focus(); try{ field.setSelectionRange(c, c); }catch(e){}
-    return c;
+  const UJ_PH = '[Portfolio link]';
+  // Link als eigenes "Wort" finden (nicht als Teil eines längeren Links)
+  function ujFindUrl(v, url){
+    if(!url) return -1;
+    const urlCh = /[A-Za-z0-9\/\-_.~%?=&#+:@]/;
+    let k = v.indexOf(url);
+    while(k !== -1){
+      const after = v.charAt(k + url.length), before = k ? v.charAt(k - 1) : '';
+      const afterOk = !after || !urlCh.test(after) || (/[.:]/.test(after) && !urlCh.test(v.charAt(k + url.length + 1) || ' '));
+      if(afterOk && (!before || !urlCh.test(before))) return k;
+      k = v.indexOf(url, k + 1);
+    }
+    return -1;
+  }
+  // 1) nächster freier Platzhalter (Proposal zuerst, dann Screening-Antworten, jeweils von oben)
+  // 2) kein Platzhalter mehr: an der Cursor-Stelle (letztes aktives Feld), sonst ans Ende des Proposals
+  function ujPortfolioInsert(fields, last, url){
+    for(const f of fields){ const k = f.value.indexOf(UJ_PH); if(k !== -1){ f.value = f.value.slice(0, k) + url + f.value.slice(k + UJ_PH.length); return { field:f, at:k, ph:true }; } }
+    let f = last && last.field && fields.includes(last.field) ? last.field : fields[0], at;
+    if(last && last.field === f && last.pos != null && last.pos <= f.value.length){ at = last.pos; f.value = f.value.slice(0, at) + url + f.value.slice(at); }
+    else { const sep = f.value && !/\s$/.test(f.value) ? '\n' : ''; at = f.value.length + sep.length; f.value = f.value + sep + url; }
+    return { field:f, at, ph:false };
+  }
+  // Link wieder herausnehmen: dort wird wieder der Platzhalter eingesetzt (bzw. nur entfernt, wenn er ohne Platzhalter eingefügt wurde)
+  function ujPortfolioRemove(fields, url, viaPh){
+    for(const f of fields){ const k = ujFindUrl(f.value, url); if(k !== -1){ const rep = viaPh === false ? '' : UJ_PH; f.value = f.value.slice(0, k) + rep + f.value.slice(k + url.length); return { field:f, at:k }; } }
+    return null;
   }
   function ujPortfolioWire(card, j, changed){
     const box = card.querySelector('#ujPf'), btn = card.querySelector('#ujPfBtn');
-    let field = card.querySelector('#ujPropText'), pos = null;
-    const track = e=>{ field = e.target; pos = e.target.selectionStart; };
-    card.querySelectorAll('#ujPropText, .uj-a').forEach(x=>['click','keyup','select','focus','input'].forEach(ev=>x.addEventListener(ev, track)));
+    const fields = ()=>[card.querySelector('#ujPropText'), ...card.querySelectorAll('.uj-a')].filter(Boolean);
+    let last = null;   // zuletzt aktives Feld + Cursor (nur fürs Einfügen ohne freien Platzhalter)
+    const viaPh = {};  // url -> wurde in einen Platzhalter gesetzt? (für "wieder rausnehmen")
+    const track = e=>{ last = { field:e.target, pos:e.target.selectionStart }; };
+    fields().forEach(x=>['click','keyup','select','focus','input'].forEach(ev=>x.addEventListener(ev, track)));
+    const inText = url=>!!url && fields().some(f=>ujFindUrl(f.value, url) !== -1);
+    const phCount = ()=>fields().reduce((n, f)=>n + (f.value.split(UJ_PH).length - 1), 0);
+    let cur = [];
+    const marks = ()=>{
+      box.querySelectorAll('[data-pfi]').forEach(b=>{ const it = cur[+b.dataset.pfi]; const on = !!(it && inText(it.url)); b.classList.toggle('on', on); const c = b.querySelector('.uj-pf-check'); if(c) c.textContent = on ? '✓' : ''; });
+      const h = box.querySelector('.uj-pf-free'); if(h){ const n = phCount(); h.textContent = n ? n + ' Platzhalter frei' : 'Kein Platzhalter mehr frei · fügt an der Cursor-Stelle ein'; }
+    };
+    fields().forEach(x=>x.addEventListener('input', ()=>{ if(!box.hidden) marks(); }));
     const list = items=>{
+      cur = items;
       const tags = ujPortfolioPicks(j.draft_notes, items);
       const tagged = items.map((it, i)=>({ it, i, tag: tags[i] || '' }));
       tagged.sort((a, b)=>(a.tag ? +a.tag : 99) - (b.tag ? +b.tag : 99) || a.i - b.i);
-      box.innerHTML = `<div class="uj-pf-head"><span>Antippen setzt den Link an der Cursor-Stelle ein</span><button type="button" data-pfedit>Links bearbeiten</button></div>`
-        + (items.length ? tagged.map(x=>`<button type="button" class="uj-pf-item${x.it.url ? '' : ' miss'}" data-pfi="${x.i}"><span class="uj-pf-name">${escapeHtml(x.it.name)}</span>${x.tag ? `<span class="uj-pf-tag">Vorschlag ${x.tag}</span>` : ''}${x.it.url ? '' : '<span class="uj-pf-miss">Link fehlt</span>'}</button>`).join('') : '<div class="hint">Noch keine Projekte. Tippe auf „Links bearbeiten“.</div>');
+      box.innerHTML = `<div class="uj-pf-head"><span>Antippen setzt den Link in den nächsten freien Platzhalter · nochmal antippen nimmt ihn raus<br><b class="uj-pf-free"></b></span><button type="button" data-pfedit>Links bearbeiten</button></div>`
+        + (items.length ? tagged.map(x=>`<button type="button" class="uj-pf-item${x.it.url ? '' : ' miss'}" data-pfi="${x.i}"><span class="uj-pf-check" aria-hidden="true"></span><span class="uj-pf-name">${escapeHtml(x.it.name)}</span>${x.tag ? `<span class="uj-pf-tag">Vorschlag ${x.tag}</span>` : ''}${x.it.url ? '' : '<span class="uj-pf-miss">Link fehlt</span>'}</button>`).join('') : '<div class="hint">Noch keine Projekte. Tippe auf „Links bearbeiten“.</div>');
       box.querySelector('[data-pfedit]').onclick = ()=>edit(items);
       box.querySelectorAll('[data-pfi]').forEach(b=>b.onclick = ()=>{ const it = items[+b.dataset.pfi];
         if(!it.url){ edit(items, +b.dataset.pfi); return; }
-        pos = ujPortfolioInsert(field, pos, it.url); changed(); kgUndoToast('Link eingefügt ✓'); });
+        if(inText(it.url)){
+          const r = ujPortfolioRemove(fields(), it.url, viaPh[it.url]); delete viaPh[it.url];
+          if(r){ last = { field:r.field, pos:r.at }; kgUndoToast('Link entfernt'); }
+        } else {
+          const r = ujPortfolioInsert(fields(), last, it.url); viaPh[it.url] = r.ph;
+          last = { field:r.field, pos:r.at + it.url.length };
+          kgUndoToast(r.ph ? 'Link eingesetzt ✓' : 'Kein Platzhalter mehr frei · an der Cursor-Stelle eingefügt');
+        }
+        changed(); marks(); });
+      marks();
     };
     const edit = (items, focusIdx)=>{
       const rows = items.map(it=>({ ...it }));
