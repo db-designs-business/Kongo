@@ -10,7 +10,8 @@ function uw_out(array $r): array {
   return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
     'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:'),
-    'draft' => $r['draft'] ?? '', 'draft_answers' => uw_answers_list((string)($r['draft_answers'] ?? '')), 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null];
+    'draft' => $r['draft'] ?? '', 'draft_answers' => uw_answers_list((string)($r['draft_answers'] ?? '')), 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null,
+    'boosted' => isset($r['boosted']) ? (bool)$r['boosted'] : null, 'connects' => isset($r['connects']) ? (int)$r['connects'] : null];
 }
 
 switch ($action) {
@@ -26,6 +27,11 @@ switch ($action) {
     $st = $db->prepare('SELECT * FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([$id, $uid]); $job = $st->fetch(PDO::FETCH_ASSOC);
     if (!$job) kg_json(['error' => ['message' => 'Job nicht gefunden']], 404);
     $db->prepare('UPDATE upwork_jobs SET status=?, updated=? WHERE id=? AND user_id=?')->execute([$s, gmdate('c'), $id, $uid]);
+    if ($s === 'beworben') {
+      $job['boosted'] = array_key_exists('boosted', $in) && $in['boosted'] !== null ? (int)!empty($in['boosted']) : null;
+      $job['connects'] = isset($in['connects']) && $in['connects'] !== null && $in['connects'] !== '' ? max(0, (int)$in['connects']) : null;
+      $db->prepare('UPDATE upwork_jobs SET boosted=?, connects=? WHERE id=?')->execute([$job['boosted'], $job['connects'], $id]);
+    } elseif ($job['status'] === 'beworben') $db->prepare('UPDATE upwork_jobs SET boosted=NULL, connects=NULL WHERE id=?')->execute([$id]);
     // Google Sheet: beworben → Zeile rein, „Doch nicht“ → Zeile raus
     $sheet = null;
     if (($s === 'beworben') !== ($job['status'] === 'beworben')) {
@@ -89,6 +95,9 @@ switch ($action) {
     $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,reason,updated) VALUES(?,?,?,?,?,?,?,?,?,'gemerkt',NULL,?)")
       ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
     kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false, 'status' => 'gemerkt']);
+
+  case 'remove_kpi_tabs':
+    kg_json(uw_sheet_remove_kpi_tabs($uid));
 
   case 'log':
     kg_json(['log' => kg_get($uid, 'upwork_log', [])]);

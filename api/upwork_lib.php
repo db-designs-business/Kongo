@@ -22,6 +22,7 @@ function uw_db(): PDO {
     $cols = array_column($db->query('PRAGMA table_info(upwork_jobs)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
     foreach (['draft', 'draft_answers', 'draft_notes', 'draft_ts'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c TEXT");
+    foreach (['boosted', 'connects'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c INTEGER");
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_deleted (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, job_key))');
     // Altlast aus dem ersten Parser: Links im Titel („Titel...: https://…“) entfernen
     foreach ($db->query("SELECT id, title FROM upwork_jobs WHERE title LIKE '%http%'")->fetchAll(PDO::FETCH_ASSOC) as $r) {
@@ -358,7 +359,7 @@ function uw_sheet_apply(int $uid, array $job, bool $on): array {
   $row = uw_sheet_find($c, $url, $hint ? (int)$hint : null);
   if ($row === null) return ['ok' => false, 'msg' => 'Sheet konnte nicht gelesen werden – nichts eingetragen'];
   if (!$on) {
-    if ($row) uw_sheet_put($c, [['B' . $row, [['']]], ['E' . $row . ':F' . $row, [['', '']]]]);
+    if ($row) uw_sheet_put($c, [['B' . $row, [['']]], ['D' . $row . ':G' . $row, [['', '', '', '']]]]);
     $db->prepare('DELETE FROM upwork_applied WHERE user_id=? AND job_key=?')->execute([$uid, $key]);
     return ['ok' => true, 'msg' => 'Aus dem Sheet entfernt'];
   }
@@ -372,6 +373,11 @@ function uw_sheet_apply(int $uid, array $job, bool $on): array {
     $date = (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('m.d.Y');
     if (!uw_sheet_put($c, [['B' . $row, [[$date]]], ['E' . $row . ':F' . $row, [[(string)$job['title'], $url]]]])) return ['ok' => false, 'msg' => 'Schreiben ins Sheet fehlgeschlagen'];
   }
+  // Boosted? (Spalte G, Dropdown Yes/No) und Connects spent (Spalte D, Summe)
+  $extra = [];
+  if (isset($job['boosted']) && $job['boosted'] !== null) $extra[] = ['G' . $row, [[(int)$job['boosted'] ? 'Yes' : 'No']]];
+  if (isset($job['connects']) && $job['connects'] !== null) $extra[] = ['D' . $row, [[(int)$job['connects']]]];
+  if ($extra) uw_sheet_put($c, $extra);
   $db->prepare('INSERT OR REPLACE INTO upwork_applied(user_id,job_key,url,title,budget,country,source,applied_at,sheet_row) VALUES(?,?,?,?,?,?,?,?,?)')
     ->execute([$uid, $key, $url, $job['title'], $job['budget'], $job['country'], str_starts_with((string)$job['msg_id'], 'manual:') ? 'Manuell' : 'Job-Alert', (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i'), $row]);
   return ['ok' => true, 'msg' => 'Im Sheet eingetragen ✓ (Zeile ' . $row . ')', 'row' => $row];
@@ -382,4 +388,20 @@ function uw_sheet_title(int $uid, string $jobKey, string $title): void {
   if (!$a) return; $c = uw_sheet_ctx($uid); if (!$c) return;
   $row = uw_sheet_find($c, (string)$a['url'], $a['sheet_row'] ? (int)$a['sheet_row'] : null);
   if ($row) uw_sheet_put($c, [['E' . $row, [[$title]]]]);   // nur wenn die Zeile sicher gefunden wurde
+}
+
+// Die 4 Blätter des alten KPI-Abgleichs aus dem verknüpften Sheet entfernen (nur genau diese Namen)
+function uw_sheet_remove_kpi_tabs(int $uid): array {
+  $sh = kg_get($uid, 'upwork_sheet'); if (empty($sh['id'])) return ['ok' => false, 'msg' => 'Kein Sheet verknüpft'];
+  $at = n_google_token($uid); if ($at === '') return ['ok' => false, 'msg' => 'Google nicht verbunden'];
+  $h = ['Authorization: Bearer ' . $at, 'Content-Type: application/json'];
+  $base = 'https://sheets.googleapis.com/v4/spreadsheets/' . rawurlencode($sh['id']);
+  $r = kg_http('GET', $base . '?fields=sheets.properties', $h);
+  if (($r['code'] ?? 0) !== 200) return ['ok' => false, 'msg' => 'Sheet nicht lesbar'];
+  $names = ['Upwork Übersicht', 'Upwork Tage', 'Upwork Wochen', 'Upwork Monate'];
+  $req = []; $gone = [];
+  foreach ($r['json']['sheets'] ?? [] as $x) if (in_array($x['properties']['title'] ?? '', $names, true)) { $req[] = ['deleteSheet' => ['sheetId' => $x['properties']['sheetId']]]; $gone[] = $x['properties']['title']; }
+  if (!$req) return ['ok' => true, 'deleted' => []];
+  $r = kg_http('POST', $base . ':batchUpdate', $h, json_encode(['requests' => $req]));
+  return ($r['code'] ?? 0) === 200 ? ['ok' => true, 'deleted' => $gone] : ['ok' => false, 'msg' => $r['json']['error']['message'] ?? 'Löschen fehlgeschlagen'];
 }

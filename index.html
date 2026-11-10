@@ -11035,7 +11035,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     catch(e){ up.syncMsg = e.message; }
     renderUpSheet(true);
   }
-  function upScheduleSync(){ clearTimeout(up.syncTimer); up.syncTimer = setTimeout(()=>upSync(false), 1500); }
+  // KPI-Abgleich ins Sheet ist abgeschaltet: die KPIs liegen auf dem Server, das Sheet bekommt nur noch die Bewerbungen (Upwork → Jobs → Beworben)
+  function upScheduleSync(){}
   async function renderUpSheet(skipFetch){
     let box = document.getElementById('upSheet'); if(!box) return;
     if(!skipFetch || up.sheet === undefined || !up.g){
@@ -11049,20 +11050,15 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       box.querySelector('#upGRe').onclick = async ()=>{ try{ localStorage.setItem('kongrow_after_google', 'upwork'); const j = await kgApi('google.php?action=connect', {}); location.href = j.url; }catch(e){ kgUndoToast(e.message); } }; return; }
     const msgLine = up.syncMsg ? `<div class="hint" style="margin:8px 0 0;">${escapeHtml(up.syncMsg)}</div>` : '';
     if(!up.sheet){
-      box.innerHTML = `<div class="hint" style="margin:0 0 10px;">Füge den Link zu deinem Sheet ein. Kongrow legt dort eigene Blätter an (Upwork Übersicht, Tage, Wochen, Monate) und lässt deine anderen Blätter in Ruhe.</div>
-        <div class="up-link-row"><input type="url" id="upSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..."><button type="button" class="primary" id="upSheetLink">Verknüpfen</button></div>
-        <button type="button" class="aufg-link" id="upSheetNew" style="margin-top:10px;">Oder neues Sheet anlegen</button>${msgLine}`;
-      box.querySelector('#upSheetLink').onclick = async ()=>{ try{ const j = await kgApi('google.php?action=sheet_link', { url: box.querySelector('#upSheetUrl').value }); up.sheet = j.sheet; upSync(true); }catch(e){ up.syncMsg = e.message; renderUpSheet(true); } };
-      box.querySelector('#upSheetNew').onclick = ()=>upSync(true);
+      box.innerHTML = `<div class="hint" style="margin:0 0 10px;">Füge den Link zu deinem Sheet ein. Wenn du in Kongrow einen Job als „Beworben“ abhakst, trägt Kongrow Datum, Titel, Link, Boosted? und Connects in die nächste freie Zeile des ersten Blatts ein. Sonst ändert Kongrow nichts am Sheet.</div>
+        <div class="up-link-row"><input type="url" id="upSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/..."><button type="button" class="primary" id="upSheetLink">Verknüpfen</button></div>${msgLine}`;
+      box.querySelector('#upSheetLink').onclick = async ()=>{ try{ const j = await kgApi('google.php?action=sheet_link', { url: box.querySelector('#upSheetUrl').value }); up.sheet = j.sheet; up.syncMsg = 'Verknüpft ✓'; renderUpSheet(true); }catch(e){ up.syncMsg = e.message; renderUpSheet(true); } };
       return;
     }
-    const when = up.sheet.synced ? new Date(up.sheet.synced).toLocaleString('de-DE', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'noch nie';
-    box.innerHTML = `<div class="up-sheet-row"><div><b>${escapeHtml(up.sheet.title || 'Kongrow · Upwork KPIs')}</b><small>Zuletzt abgeglichen: ${when}</small></div>
+    box.innerHTML = `<div class="up-sheet-row"><div><b>${escapeHtml(up.sheet.title || 'Google Sheet')}</b><small>Bewerbungen → nächste freie Zeile im ersten Blatt</small></div>
         <a class="ghost up-open" href="${escapeHtml(up.sheet.url)}" target="_blank" rel="noopener">Öffnen ↗</a></div>
-      <button type="button" class="ghost" id="upSyncNow" style="width:100%;margin-top:10px;">Jetzt synchronisieren</button>
       <button type="button" class="aufg-link" id="upSheetForget" style="margin-top:8px;">Anderes Sheet verknüpfen</button>${msgLine}
-      <div class="hint" style="margin:8px 0 0;">Die App ist die Quelle: Änderungen direkt im Sheet werden beim nächsten Abgleich überschrieben.</div>`;
-    box.querySelector('#upSyncNow').onclick = ()=>upSync(true);
+      <div class="hint" style="margin:8px 0 0;">Kongrow schreibt nur Date, Job Title, Link to Job, Boosted? und Connects spent. Deine anderen Spalten und Blätter bleiben unberührt. Die KPIs bleiben in Kongrow.</div>`;
     box.querySelector('#upSheetForget').onclick = async ()=>{ await kgApi('google.php?action=sheet_forget', {}).catch(()=>{}); up.sheet = null; up.syncMsg = ''; renderUpSheet(true); };
   }
   document.querySelectorAll('#upRange .aufg-tab').forEach(b=>b.onclick = ()=>{ up.range = b.dataset.v; try{ localStorage.setItem('kongrow_up_range', up.range); }catch(e){} renderUpwork(); });
@@ -11254,12 +11250,14 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     uj.busy = false; renderUpJobs();
   }
   // „Beworben“ zählt automatisch einen Proposal-KPI für heute (falls vorhanden)
-  async function ujBumpProposals(delta){
+  async function ujBumpProposals(delta, connectsDelta){
     try{
-      await upLoad(); const k = up.kpis.find(x=>x.id === 'proposals'); if(!k) return;
+      await upLoad(); const hasP = up.kpis.some(x=>x.id === 'proposals'), hasC = up.kpis.some(x=>x.id === 'connects');
+      if(!hasP && !(hasC && connectsDelta)) return;
       const d = todayStr(); const cur = up.entries.find(e=>e.datum === d);
-      if(cur){ cur.werte.proposals = Math.max(0, num(cur.werte.proposals || 0) + delta); await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Werte': JSON.stringify(cur.werte) } }) }); }
-      else if(delta > 0){ const werte = { proposals:delta }; const id = await airtableCreate(TABLE_UPWORK, { 'Datum': d, 'Werte': JSON.stringify(werte) }); up.entries.push({ id, datum:d, werte, notiz:'' }); up.entries.sort((a,b)=>a.datum.localeCompare(b.datum)); }
+      const apply = w=>{ if(hasP) w.proposals = Math.max(0, num(w.proposals || 0) + delta); if(hasC && connectsDelta) w.connects = Math.max(0, num(w.connects || 0) + connectsDelta); return w; };
+      if(cur){ apply(cur.werte); await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Werte': JSON.stringify(cur.werte) } }) }); }
+      else if(delta > 0){ const werte = apply({}); const id = await airtableCreate(TABLE_UPWORK, { 'Datum': d, 'Werte': JSON.stringify(werte) }); up.entries.push({ id, datum:d, werte, notiz:'' }); up.entries.sort((a,b)=>a.datum.localeCompare(b.datum)); }
       cacheDrop(TABLE_UPWORK); upScheduleSync();
     }catch(e){}
   }
@@ -11271,16 +11269,37 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const timer = setTimeout(async ()=>{ if(undone) return; try{ await kgApi('upwork.php?action=delete', { id }); }catch(e){ uj.jobs.splice(idx, 0, j); renderUpJobs(); kgUndoToast('Löschen fehlgeschlagen: ' + e.message); } }, 5200);
     kgUndoToast('Job gelöscht', ()=>{ undone = true; clearTimeout(timer); uj.jobs.splice(idx, 0, j); renderUpJobs(); });
   }
-  async function ujSetStatus(id, status){
+  // Vor „Beworben“: Geboostet? + Connects gesamt abfragen
+  function ujAskBid(id){
     const j = uj.jobs.find(x=>x.id === id); if(!j) return;
+    openErnModal(`<div class="modal-title">Beworben</div>
+      <div class="modal-sub">${escapeHtml(j.title)}</div>
+      <div class="step-label" style="margin-top:6px;">Geboostet?</div>
+      <div class="aufg-tabs" id="ujBoost" style="margin-bottom:12px;"><button type="button" class="aufg-tab" data-b="1">Ja</button><button type="button" class="aufg-tab active" data-b="0">Nein</button></div>
+      <div class="step-label">Connects gesamt (Bewerbung + Boost)</div>
+      <div class="up-stepper" style="margin-bottom:14px;"><button type="button" data-cd aria-label="weniger">−</button><input type="number" inputmode="numeric" min="0" id="ujConnects" placeholder="0"><button type="button" data-ci aria-label="mehr">+</button></div>
+      <button type="button" class="primary" id="ujBidOk" style="width:100%;">✓ Beworben speichern</button>`);
+    const card = ernModalCard(); let boosted = false;
+    card.querySelectorAll('#ujBoost .aufg-tab').forEach(b=>b.onclick = ()=>{ boosted = b.dataset.b === '1'; card.querySelectorAll('#ujBoost .aufg-tab').forEach(x=>x.classList.toggle('active', x === b)); });
+    const inp = card.querySelector('#ujConnects');
+    card.querySelector('[data-ci]').onclick = ()=>{ inp.value = num(inp.value || 0) + 1; };
+    card.querySelector('[data-cd]').onclick = ()=>{ inp.value = Math.max(0, num(inp.value || 0) - 1); };
+    card.querySelector('#ujBidOk').onclick = ()=>{ closeErnModal(); ujSetStatus(id, 'beworben', { boosted, connects: inp.value === '' ? null : Math.max(0, Math.round(num(inp.value))) }); };
+    setTimeout(()=>inp.focus(), 50);
+  }
+  async function ujSetStatus(id, status, extra){
+    const j = uj.jobs.find(x=>x.id === id); if(!j) return;
+    if(status === 'beworben' && !extra){ ujAskBid(id); return; }
     const prev = j.status; j.status = status; renderUpJobs();
     let r;
-    try{ r = await kgApi('upwork.php?action=status', { id, status }); }
+    try{ r = await kgApi('upwork.php?action=status', Object.assign({ id, status }, extra || {})); }
     catch(e){ j.status = prev; renderUpJobs(); kgUndoToast('Speichern fehlgeschlagen: ' + e.message); return; }
-    if(status === 'beworben') ujBumpProposals(1); else if(prev === 'beworben') ujBumpProposals(-1);
+    const prevConnects = j.connects || 0;
+    if(status === 'beworben'){ j.connects = extra && extra.connects != null ? extra.connects : null; ujBumpProposals(1, j.connects || 0); }
+    else if(prev === 'beworben'){ ujBumpProposals(-1, -prevConnects); j.connects = null; }
     const sh = r && r.sheet ? (r.sheet.ok ? ' · im Sheet ✓' : (r.sheet.msg === 'Kein Google Sheet verknüpft' ? '' : ' · Sheet: ' + r.sheet.msg)) : '';
-    const msg = status === 'beworben' ? 'Als beworben markiert · +1 Proposal' + sh : status === 'uebersprungen' ? 'Übersprungen' : status === 'gemerkt' ? 'Zurück unter „Gemerkt“' : 'Zurückgeholt';
-    kgUndoToast(msg, ()=>ujSetStatus(id, prev));
+    const msg = status === 'beworben' ? 'Beworben' + (j.connects ? ' · ' + j.connects + ' Connects' : '') + sh : status === 'uebersprungen' ? 'Übersprungen' : status === 'gemerkt' ? 'Zurück unter „Gemerkt“' : 'Zurückgeholt';
+    kgUndoToast(msg, ()=>ujSetStatus(id, prev, prev === 'beworben' ? { boosted: !!j.boosted, connects: prevConnects || null } : null));
   }
   function openUjFilter(){
     const s = uj.settings || { exclude:[], only_verified:false, min_rate:0, archive:true };
