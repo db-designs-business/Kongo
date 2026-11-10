@@ -1099,9 +1099,10 @@
   .uj-card.open .uj-more{ display:block; }
   .uj-reason{ font-size:12px; color:#ffb86b; margin-top:6px; }
   .uj-actions{ display:flex; gap:6px; margin-top:10px; }
-  .uj-btn{ flex:1 1 0; min-height:38px; padding:0 10px; border-radius:12px; font-size:13.5px; font-weight:600; display:flex; align-items:center; justify-content:center; text-decoration:none; white-space:nowrap;
+  .uj-btn{ flex:1 1 0; min-height:38px; padding:0 8px; border-radius:12px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; text-decoration:none; white-space:nowrap;
     background:rgba(255,255,255,.04); border:1px solid var(--line-soft, rgba(255,255,255,.1)); color:var(--ink); }
   .uj-btn.uj-open{ color:var(--forest) !important; }
+  .uj-btn.uj-ai{ color:#c9b8ff; border-color:rgba(201,184,255,.3); }
   .uj-btn.uj-yes{ background:var(--forest); border-color:var(--forest); color:#001a17; }
   .uj-btn.uj-x{ flex:0 0 42px; padding:0; color:var(--muted, #8a9a9a); font-size:15px; }
   .uj-filter textarea{ width:100%; min-height:130px; }
@@ -11097,9 +11098,10 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       if(j.spent) meta.push(escapeHtml(j.spent) + ' ausgegeben');
       if(j.rating) meta.push('★ ' + escapeHtml(j.rating));
       const open = j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Öffnen ↗</a>` : '';
-      const acts = uj.tab === 'neu' ? `${open}<button type="button" class="uj-btn uj-yes" data-st="beworben" data-id="${j.id}">✓ Beworben</button><button type="button" class="uj-btn uj-x" data-st="uebersprungen" data-id="${j.id}" aria-label="Überspringen">✕</button>`
+      const ai = j.url && uj.tab !== 'beworben' ? `<button type="button" class="uj-btn uj-ai" data-ai="${j.id}">Claude ✦</button>` : '';
+      const acts = uj.tab === 'neu' ? `${open}${ai}<button type="button" class="uj-btn uj-yes" data-st="beworben" data-id="${j.id}">✓ Beworben</button><button type="button" class="uj-btn uj-x" data-st="uebersprungen" data-id="${j.id}" aria-label="Überspringen">✕</button>`
         : uj.tab === 'beworben' ? `${open}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Doch nicht</button>`
-        : `${open}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Zurückholen</button>`;
+        : `${open}${ai}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Zurückholen</button>`;
       const more = [mo.rest.length ? escapeHtml(mo.rest.join(' · ')) : '', j.skills ? escapeHtml(j.skills) : ''].filter(Boolean);
       return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}" id="uj_${j.id}">
         <div class="uj-tap" data-tap="${j.id}">
@@ -11124,6 +11126,15 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     el.querySelector('#ujCheck').onclick = ujCheckNow;
     el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
     el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>t.closest('.uj-card').classList.toggle('open'));
+    el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
+  }
+  // Auftrag für Claude (mit offiziellem Upwork-Connector) kopieren und Claude öffnen
+  async function ujOpenClaude(id){
+    const j = uj.jobs.find(x=>x.id === id); if(!j || !j.url) return;
+    const prompt = `Nutze den Upwork-Connector und meinen Skill „Upwork-Proposals“.\n\nLies diesen Job vollständig (Beschreibung, Screening-Fragen, Kundeninfos): ${j.url}\nTitel: ${j.title}\n\nWähle mein passendes Template, schreib das Proposal und beantworte die Screening-Fragen. Reiche nichts bei Upwork ein, bevor ich es ausdrücklich bestätige.`;
+    let copied = false; try{ await navigator.clipboard.writeText(prompt); copied = true; }catch(e){}
+    window.open('https://claude.ai/new?q=' + encodeURIComponent(prompt), '_blank', 'noopener');
+    kgUndoToast(copied ? 'Auftrag kopiert ✓ Falls das Feld in Claude leer ist: einfach einfügen.' : 'Claude geöffnet', null, 5000);
   }
   async function ujCheckNow(){
     uj.busy = true; renderUpJobs();
