@@ -1098,6 +1098,8 @@
   .uj-more{ display:none; font-size:12px; color:var(--muted, #8a9a9a); margin-top:6px; line-height:1.45; }
   .uj-card.open .uj-title, .uj-card.open .uj-snip{ -webkit-line-clamp:unset; display:block; }
   .uj-card.open .uj-more{ display:block; }
+  .uj-del-row{ display:none; margin-top:8px; text-align:center; } .uj-del-row .aufg-link{ color:#ff8a8a; font-size:13px; }
+  .uj-card.open .uj-del-row{ display:block; }
   .uj-reason{ font-size:12px; color:#ffb86b; margin-top:6px; }
   .uj-actions{ display:flex; gap:6px; margin-top:10px; }
   .uj-btn{ flex:1 1 0; min-height:38px; padding:0 8px; border-radius:12px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; text-decoration:none; white-space:nowrap;
@@ -11114,7 +11116,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
           ${more.length ? `<div class="uj-more">${more.map(x=>`<div>${x}</div>`).join('')}</div>` : ''}
           ${uj.tab === 'aus' ? `<div class="uj-reason">${escapeHtml(j.status === 'uebersprungen' ? 'Von dir übersprungen' : (j.reason || 'Aussortiert'))}</div>` : ''}
         </div>
-        <div class="uj-actions">${acts}</div></div>`;
+        <div class="uj-actions">${acts}</div>
+        <div class="uj-del-row"><button type="button" class="aufg-link" data-del="${j.id}">Job ganz löschen</button></div></div>`;
     };
     const empty = uj.tab === 'gemerkt' ? 'Noch keine eigenen Jobs. Über „+ Job“ fügst du Links hinzu, die du selbst gefunden hast.' : uj.tab === 'neu' ? 'Keine neuen Jobs. Sobald ein Upwork-Alert in deinem Postfach landet, erscheint er hier und du bekommst eine Push-Nachricht.' : uj.tab === 'beworben' ? 'Noch keine Bewerbungen markiert.' : 'Nichts aussortiert.';
     el.innerHTML = `
@@ -11132,6 +11135,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
     el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>t.closest('.uj-card').classList.toggle('open'));
     el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
+    el.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>ujDelete(+b.dataset.del));
   }
   // Auftrag für Claude (mit offiziellem Upwork-Connector) kopieren und Claude öffnen
   async function ujOpenClaude(id, win){
@@ -11180,6 +11184,14 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       else if(delta > 0){ const werte = { proposals:delta }; const id = await airtableCreate(TABLE_UPWORK, { 'Datum': d, 'Werte': JSON.stringify(werte) }); up.entries.push({ id, datum:d, werte, notiz:'' }); up.entries.sort((a,b)=>a.datum.localeCompare(b.datum)); }
       cacheDrop(TABLE_UPWORK); upScheduleSync();
     }catch(e){}
+  }
+  // Endgültig löschen: sofort aus der Ansicht, auf dem Server erst nach 5 Sek. (Rückgängig möglich)
+  function ujDelete(id){
+    const idx = uj.jobs.findIndex(x=>x.id === id); if(idx < 0) return;
+    const j = uj.jobs[idx]; uj.jobs.splice(idx, 1); renderUpJobs();
+    let undone = false;
+    const timer = setTimeout(async ()=>{ if(undone) return; try{ await kgApi('upwork.php?action=delete', { id }); }catch(e){ uj.jobs.splice(idx, 0, j); renderUpJobs(); kgUndoToast('Löschen fehlgeschlagen: ' + e.message); } }, 5200);
+    kgUndoToast('Job gelöscht', ()=>{ undone = true; clearTimeout(timer); uj.jobs.splice(idx, 0, j); renderUpJobs(); });
   }
   async function ujSetStatus(id, status){
     const j = uj.jobs.find(x=>x.id === id); if(!j) return;

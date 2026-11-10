@@ -33,6 +33,10 @@ switch ($action) {
     uw_refilter($uid);
     kg_json(['ok' => true, 'settings' => uw_settings($uid)]);
 
+  case 'delete':
+    $db->prepare('DELETE FROM upwork_jobs WHERE id=? AND user_id=?')->execute([(int)($in['id'] ?? 0), $uid]);
+    kg_json(['ok' => true]);
+
   case 'add':
     // Job-Link manuell speichern (Kongrow ruft die Upwork-Seite dabei nicht ab)
     $url = trim((string)($in['url'] ?? ''));
