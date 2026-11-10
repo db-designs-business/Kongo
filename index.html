@@ -1122,6 +1122,20 @@
   .uj-qa{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line-soft, rgba(255,255,255,.08)); }
   .uj-q{ font-weight:600; font-size:14px; line-height:1.4; margin-bottom:6px; }
   .uj-a{ width:100%; min-height:80px; font-size:14px; line-height:1.45; }
+  .uj-pf{ margin-top:8px; padding:10px; border-radius:12px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft, rgba(255,255,255,.08)); }
+  .uj-pf-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted, #8a9a9a); margin-bottom:6px; }
+  .uj-pf-head button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:2px 4px; }
+  .uj-pf-item{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:0; border-top:1px solid var(--line-soft, rgba(255,255,255,.06)); padding:10px 4px; color:var(--ink, inherit); font-size:14px; }
+  .uj-pf-item:first-of-type{ border-top:0; }
+  .uj-pf-item .uj-pf-name{ flex:1; min-width:0; }
+  .uj-pf-item .uj-pf-tag{ flex:0 0 auto; font-size:11px; font-weight:700; color:var(--forest); border:1px solid currentColor; border-radius:8px; padding:1px 6px; }
+  .uj-pf-item.miss .uj-pf-name{ color:var(--muted, #8a9a9a); }
+  .uj-pf-item .uj-pf-miss{ flex:0 0 auto; font-size:11px; color:var(--muted, #8a9a9a); }
+  .uj-pf-row{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 0; align-items:center; border-top:1px solid var(--line-soft, rgba(255,255,255,.06)); }
+  .uj-pf-row:first-of-type{ border-top:0; }
+  .uj-pf-row input{ min-width:0; font-size:14px; }
+  .uj-pf-row .n{ flex:1 1 0; } .uj-pf-row .u{ flex:1 1 100%; order:3; }
+  .uj-pf-row button{ flex:0 0 auto; background:none; border:0; color:var(--muted, #8a9a9a); font-size:18px; padding:2px 8px; }
   .uj-filter textarea{ width:100%; min-height:130px; }
   .uj-filter .set-toggle{ margin-top:10px; }
   .uj-filter .set-toggle b, .uj-filter .set-toggle small{ white-space:normal; }
@@ -11191,6 +11205,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       ${j.draft_notes ? `<details class="uj-notes"><summary>Hinweise von Claude</summary><div class="uj-notes-body">${ujNotesHtml(j.draft_notes)}</div></details>` : ''}
       <div class="step-label" style="margin-top:10px;">Proposal</div>
       <textarea id="ujPropText" class="uj-prop-text">${escapeHtml(j.draft || '')}</textarea>
+      <div class="uj-actions"><button type="button" class="uj-btn" id="ujPfBtn">Portfolio +</button></div>
+      <div id="ujPf" class="uj-pf" hidden></div>
       <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Zur Job-Seite ↗</a>` : ''}</div>
       ${qa.length ? `<div class="step-label" style="margin-top:18px;">Screening-Fragen (${qa.length})</div>` + qa.map((x, i)=>`<div class="uj-qa">
           <div class="uj-q">${i + 1}. ${escapeHtml(x.question)}</div>
@@ -11215,10 +11231,78 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         try{ await kgApi('upwork.php?action=title', { id, title:v }); j.title = v; row.innerHTML = `<div class="modal-title uj-prop-title">${escapeHtml(v)}</div>`; kgUndoToast('Titel gespeichert ✓'); }catch(e){ kgUndoToast(e.message); } };
     };
     card.querySelector('#ujPropCopy').onclick = ()=>{ save(); ujCopy(t.value, 'Proposal kopiert ✓'); };
+    ujPortfolioWire(card, j, ()=>{ info.textContent = ''; clearTimeout(timer); timer = setTimeout(save, 600); });
     card.querySelectorAll('[data-qcopy]').forEach(b=>b.onclick = ()=>{ save(); ujCopy(card.querySelector('[data-qa="' + b.dataset.qcopy + '"]').value, 'Antwort ' + (+b.dataset.qcopy + 1) + ' kopiert ✓'); });
     const done = card.querySelector('#ujPropDone'); if(done) done.onclick = async ()=>{ await save(); closeErnModal(); ujSetStatus(id, 'beworben'); };
     card.querySelector('#ujPropAi').onclick = ()=>{ save(); ujOpenClaude(id); };
     card.querySelector('[data-x]').addEventListener('click', ()=>{ save(); renderUpJobs(); });
+  }
+  // Portfolio-Shortcut: Link an der Cursor-Stelle einsetzen bzw. den Platzhalter dort ersetzen
+  let ujPfItems = null;
+  async function ujPortfolioLoad(){ if(!ujPfItems){ const r = await kgApi('upwork.php?action=portfolio'); ujPfItems = r.items || []; } return ujPfItems; }
+  function ujPortfolioPicks(notes, items){
+    // Claudes Vorschläge aus den Hinweisen („Portfolio 1: …“) den Einträgen zuordnen: erst voller Name, dann ohne Klammer
+    const tags = {}, used = new Set();
+    const full = it=>it.name.toLowerCase().trim(), base = it=>full(it).replace(/\s*[(+].*$/, '').trim();
+    String(notes || '').split('\n').forEach(l=>{ const m = l.match(/^\s*Portfolio\s*(\d)\s*:\s*(.+)$/i); if(!m) return;
+      const p = m[2].toLowerCase().replace(/\s+/g, ' ');
+      let hit = items.findIndex((it, i)=>!used.has(i) && full(it) && p.startsWith(full(it)));
+      if(hit < 0){ const pb = p.replace(/\s*[(+].*$/, '').trim(); hit = items.findIndex((it, i)=>!used.has(i) && base(it) && base(it) === pb && (!/\(/.test(p) || p.includes(full(it).replace(/^[^(]*/, '')))); }
+      if(hit < 0){ const pb = p.replace(/\s*[(+].*$/, '').trim(); hit = items.findIndex((it, i)=>!used.has(i) && base(it) && base(it) === pb); }
+      if(hit >= 0){ used.add(hit); tags[hit] = m[1]; } });
+    return tags;
+  }
+  function ujPortfolioInsert(field, pos, url){
+    const v = field.value, ph = '[Portfolio link]';
+    // Platzhalter, in dem/an dem der Cursor steht, sonst Cursor-Stelle, sonst erster Platzhalter
+    let at = -1;
+    if(pos != null){ let k = v.indexOf(ph); while(k !== -1){ if(pos >= k && pos <= k + ph.length){ at = k; break; } k = v.indexOf(ph, k + 1); } }
+    let start, end;
+    if(at !== -1){ start = at; end = at + ph.length; }
+    else if(pos != null){ start = end = pos; }
+    else { const k = v.indexOf(ph); if(k !== -1){ start = k; end = k + ph.length; } else { start = end = v.length; } }
+    field.value = v.slice(0, start) + url + v.slice(end);
+    const c = start + url.length; field.focus(); try{ field.setSelectionRange(c, c); }catch(e){}
+    return c;
+  }
+  function ujPortfolioWire(card, j, changed){
+    const box = card.querySelector('#ujPf'), btn = card.querySelector('#ujPfBtn');
+    let field = card.querySelector('#ujPropText'), pos = null;
+    const track = e=>{ field = e.target; pos = e.target.selectionStart; };
+    card.querySelectorAll('#ujPropText, .uj-a').forEach(x=>['click','keyup','select','focus','input'].forEach(ev=>x.addEventListener(ev, track)));
+    const list = items=>{
+      const tags = ujPortfolioPicks(j.draft_notes, items);
+      const tagged = items.map((it, i)=>({ it, i, tag: tags[i] || '' }));
+      tagged.sort((a, b)=>(a.tag ? +a.tag : 99) - (b.tag ? +b.tag : 99) || a.i - b.i);
+      box.innerHTML = `<div class="uj-pf-head"><span>Antippen setzt den Link an der Cursor-Stelle ein</span><button type="button" data-pfedit>Links bearbeiten</button></div>`
+        + (items.length ? tagged.map(x=>`<button type="button" class="uj-pf-item${x.it.url ? '' : ' miss'}" data-pfi="${x.i}"><span class="uj-pf-name">${escapeHtml(x.it.name)}</span>${x.tag ? `<span class="uj-pf-tag">Vorschlag ${x.tag}</span>` : ''}${x.it.url ? '' : '<span class="uj-pf-miss">Link fehlt</span>'}</button>`).join('') : '<div class="hint">Noch keine Projekte. Tippe auf „Links bearbeiten“.</div>');
+      box.querySelector('[data-pfedit]').onclick = ()=>edit(items);
+      box.querySelectorAll('[data-pfi]').forEach(b=>b.onclick = ()=>{ const it = items[+b.dataset.pfi];
+        if(!it.url){ edit(items, +b.dataset.pfi); return; }
+        pos = ujPortfolioInsert(field, pos, it.url); changed(); kgUndoToast('Link eingefügt ✓'); });
+    };
+    const edit = (items, focusIdx)=>{
+      const rows = items.map(it=>({ ...it }));
+      const draw = ()=>{
+        box.innerHTML = `<div class="uj-pf-head"><span>Name und Link je Projekt</span></div>`
+          + rows.map((r, i)=>`<div class="uj-pf-row"><input type="text" class="n" data-n="${i}" value="${escapeHtml(r.name)}" placeholder="Name"><input type="url" class="u" data-u="${i}" value="${escapeHtml(r.url)}" placeholder="https://…" autocomplete="off"><button type="button" data-del="${i}" aria-label="Entfernen">×</button></div>`).join('')
+          + `<div class="uj-actions" style="margin-top:10px;"><button type="button" class="uj-btn" data-add>+ Projekt</button><button type="button" class="uj-btn uj-yes" data-save>Speichern</button></div>`;
+        box.querySelectorAll('[data-n]').forEach(x=>x.oninput = ()=>{ rows[+x.dataset.n].name = x.value; });
+        box.querySelectorAll('[data-u]').forEach(x=>x.oninput = ()=>{ rows[+x.dataset.u].url = x.value; });
+        box.querySelectorAll('[data-del]').forEach(x=>x.onclick = ()=>{ rows.splice(+x.dataset.del, 1); draw(); });
+        box.querySelector('[data-add]').onclick = ()=>{ rows.push({ name:'', url:'' }); draw(); const ins = box.querySelectorAll('[data-n]'); ins[ins.length - 1].focus(); };
+        box.querySelector('[data-save]').onclick = async ()=>{
+          try{ const r = await kgApi('upwork.php?action=portfolio_save', { items: rows }); ujPfItems = r.items || []; list(ujPfItems); kgUndoToast('Portfolio gespeichert ✓'); }
+          catch(e){ kgUndoToast('Speichern fehlgeschlagen: ' + e.message); } };
+        if(focusIdx != null){ const u = box.querySelector('[data-u="' + focusIdx + '"]'); if(u) u.focus(); focusIdx = null; }
+      };
+      draw();
+    };
+    btn.onclick = async ()=>{
+      if(!box.hidden){ box.hidden = true; return; }
+      box.hidden = false; box.innerHTML = '<div class="hint">Lade …</div>';
+      try{ list(await ujPortfolioLoad()); }catch(e){ box.innerHTML = '<div class="hint">Laden fehlgeschlagen: ' + escapeHtml(e.message) + '</div>'; }
+    };
   }
   // Job-Link manuell hinzufügen (z. B. am PC gefunden)
   function openUjAdd(){

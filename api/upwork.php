@@ -47,6 +47,24 @@ switch ($action) {
     uw_refilter($uid);
     kg_json(['ok' => true, 'settings' => uw_settings($uid)]);
 
+  case 'portfolio':
+    // Portfolio-Liste (Name + Link) für den Einfüge-Button im Proposal
+    $list = kg_get($uid, 'upwork_portfolio');
+    if (!is_array($list)) $list = array_map(fn($n) => ['name' => $n, 'url' => ''], UW_PORTFOLIO_DEFAULT);
+    kg_json(['ok' => true, 'items' => array_values($list)]);
+
+  case 'portfolio_save':
+    $items = [];
+    foreach ((array)($in['items'] ?? []) as $it) {
+      $n = mb_substr(trim((string)($it['name'] ?? '')), 0, 120); $u = mb_substr(trim((string)($it['url'] ?? '')), 0, 500);
+      if ($n === '' && $u === '') continue;
+      if ($u !== '' && !preg_match('~^https?://~i', $u)) $u = 'https://' . $u;
+      $items[] = ['name' => $n !== '' ? $n : $u, 'url' => $u];
+      if (count($items) >= 60) break;
+    }
+    kg_set($uid, 'upwork_portfolio', $items);
+    kg_json(['ok' => true, 'items' => $items]);
+
   case 'draft':
     // Entwurf in Kongrow bearbeiten
     $db->prepare('UPDATE upwork_jobs SET draft=?, draft_answers=?, draft_ts=?, updated=? WHERE id=? AND user_id=?')

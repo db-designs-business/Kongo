@@ -1,4 +1,12 @@
 <?php
+
+// Portfolio-Projekte aus dem Knowledge File (Links trägt Dominic in Kongrow ein)
+const UW_PORTFOLIO_DEFAULT = [
+  'Home care provider (local SEO)', 'Painting company (WordPress)', 'Intensive care provider (Webflow) + SEO case study',
+  'Tile consulting company (WordPress)', 'Beauty studio (local SEO)', 'Home care provider (WordPress)',
+  'Digital marketing agency (Framer)', 'Creative agency (Webflow)', 'Interior design company (Webflow)',
+  'Adult day care provider (WordPress)', 'WordPress website with animated hero',
+];
 // Upwork-Job-Alerts: liest die Alert-Mails aus dem verbundenen Gmail-Postfach, speichert die Jobs und filtert sie.
 // Kongrow spricht dabei nie mit Upwork selbst – es verarbeitet nur Mails im eigenen Postfach.
 // Bricht nie mit kg_json ab (wird auch vom Cronjob benutzt).
