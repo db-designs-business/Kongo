@@ -1083,7 +1083,7 @@
   .uj-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted, #8a9a9a); margin:0 2px 12px; }
   .uj-bar button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:8px 0; }
   .uj-bar-btns{ display:flex; gap:16px; }
-  .uj-tabs{ margin-bottom:12px; gap:2px; } .uj-tabs .aufg-tab{ font-size:12.5px; min-height:38px; padding:8px 2px; white-space:nowrap; }
+  .uj-tabs{ margin-bottom:12px; gap:2px; position:sticky; top:var(--kg-topbar-h, 64px); z-index:41; background:rgba(9,13,14,.97); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); } .uj-tabs .aufg-tab{ font-size:12.5px; min-height:38px; padding:8px 2px; white-space:nowrap; }
   .uj-card{ padding:12px 14px; margin-bottom:8px !important; }
   .uj-card.uj-hl{ border-color:rgba(34,227,211,.6) !important; box-shadow:0 0 0 1px rgba(34,227,211,.35), 0 0 24px rgba(34,227,211,.15); }
   .uj-tap{ cursor:pointer; }
@@ -1100,6 +1100,10 @@
   .uj-card.open .uj-more{ display:block; }
   .uj-del-row{ display:none; margin-top:8px; text-align:center; } .uj-del-row .aufg-link{ color:#ff8a8a; font-size:13px; }
   .uj-card.open .uj-del-row{ display:block; }
+  .uj-card > .uj-actions{ display:none; }
+  .uj-card.open > .uj-actions{ display:flex; }
+  .uj-chev{ flex:0 0 auto; color:var(--muted, #8a9a9a); font-size:12px; transition:transform .15s; margin-left:2px; }
+  .uj-card.open .uj-chev{ transform:rotate(180deg); }
   .uj-reason{ font-size:12px; color:#ffb86b; margin-top:6px; }
   .uj-actions{ display:flex; gap:6px; margin-top:10px; }
   .uj-btn{ flex:1 1 0; min-height:38px; padding:0 8px; border-radius:12px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; text-decoration:none; white-space:nowrap;
@@ -11079,7 +11083,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   document.getElementById('upKpiBtn').onclick = ()=>{ if(up.loaded) openUpKpis(); };
 
   /* ----- Upwork-Jobs aus den Alert-Mails (Server liest Gmail, Kongrow spricht nie direkt mit Upwork) ----- */
-  const uj = { loaded:false, jobs:[], settings:null, last:null, google:null, view:'jobs', tab:'neu', hl:null, busy:false };
+  const uj = { loaded:false, jobs:[], settings:null, last:null, google:null, view:'jobs', tab:'neu', hl:null, busy:false, openId:{}, pos:{} };
   try{ const v = localStorage.getItem('kongrow_up_view'); if(v === 'kpis' || v === 'jobs') uj.view = v; }catch(e){}
   async function upJobsLoad(force){
     if(uj.loaded && !force) return;
@@ -11134,9 +11138,10 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         : uj.tab === 'beworben' ? `${open}${j.draft ? ai : ''}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Doch nicht</button>`
         : `${open}${ai}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Zurückholen</button>`;
       const more = [mo.rest.length ? escapeHtml(mo.rest.join(' · ')) : '', j.skills ? escapeHtml(j.skills) : ''].filter(Boolean);
-      return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}" id="uj_${j.id}">
+      const isOpen = uj.openId[uj.tab] === j.id;
+      return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}${isOpen ? ' open' : ''}" id="uj_${j.id}">
         <div class="uj-tap" data-tap="${j.id}">
-          <div class="uj-top"><div class="uj-title">${escapeHtml(j.title)}</div><div class="uj-when">${ujAgo(j.received)}</div></div>
+          <div class="uj-top"><div class="uj-title">${escapeHtml(j.title)}</div><div class="uj-when">${ujAgo(j.received)}</div><span class="uj-chev" aria-hidden="true">▾</span></div>
           <div class="uj-meta">${meta.join('<i>·</i>')}</div>
           ${j.snippet ? `<div class="uj-snip">${escapeHtml(j.snippet)}</div>` : ''}
           ${more.length ? `<div class="uj-more">${more.map(x=>`<div>${x}</div>`).join('')}</div>` : ''}
@@ -11155,14 +11160,37 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         <button type="button" class="aufg-tab ${uj.tab === 'aus' ? 'active' : ''}" data-t="aus">Aus (${n('aus')})</button>
       </div>
       ${list.length ? list.map(card).join('') : `<div class="card"><div class="hint" style="margin:0;">${empty}</div></div>`}`;
-    el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); });
+    const tb = document.querySelector('.topbar'); if(tb && getComputedStyle(tb).position === 'sticky') document.documentElement.style.setProperty('--kg-topbar-h', (tb.offsetHeight + 4) + 'px');
+    el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ if(b.dataset.t === uj.tab) return; ujSavePos(el); uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); ujRestorePos(el); });
     el.querySelector('#ujCheck').onclick = ujCheckNow;
     el.querySelector('#ujAdd').onclick = openUjAdd;
     el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
-    el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>t.closest('.uj-card').classList.toggle('open'));
+    el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>{
+      const c = t.closest('.uj-card'), id = +t.dataset.tap, wasOpen = c.classList.contains('open');
+      el.querySelectorAll('.uj-card.open').forEach(x=>x.classList.remove('open'));
+      if(wasOpen){ delete uj.openId[uj.tab]; return; }
+      c.classList.add('open'); uj.openId[uj.tab] = id;
+      const r = c.getBoundingClientRect(); if(r.bottom > window.innerHeight - 20) c.scrollIntoView({ block:'nearest', behavior:'smooth' });
+    });
     el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
     el.querySelectorAll('[data-prop]').forEach(b=>b.onclick = ()=>openUjProposal(+b.dataset.prop));
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>ujDelete(+b.dataset.del));
+  }
+  // Scroll-Position pro Tab merken: oberste sichtbare Karte + Abstand zum Bildschirmrand
+  function ujScroller(el){ let n = el.parentElement; while(n && n !== document.body){ const o = getComputedStyle(n).overflowY; if((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight) return n; n = n.parentElement; } return document.scrollingElement || document.documentElement; }
+  function ujSavePos(el){
+    const cards = [...el.querySelectorAll('.uj-card')], tabs = el.querySelector('#ujTabs');
+    const topLine = tabs ? tabs.getBoundingClientRect().bottom : 0;
+    const c = cards.find(x=>x.getBoundingClientRect().bottom > topLine + 4);
+    uj.pos[uj.tab] = c ? { id:c.id, top:c.getBoundingClientRect().top } : null;
+  }
+  function ujRestorePos(el){
+    const p = uj.pos[uj.tab], tabs = el.querySelector('#ujTabs'); if(!tabs) return;
+    const sc = ujScroller(el), by = d=>{ if(sc === document.scrollingElement || sc === document.documentElement) window.scrollBy(0, d); else sc.scrollTop += d; };
+    const c = p && document.getElementById(p.id);
+    if(c){ by(c.getBoundingClientRect().top - p.top); return; }
+    // erster Besuch im Tab: Tabs oben im Blick behalten
+    const t = tabs.getBoundingClientRect().top; if(t < 0) by(t - 8);
   }
   // Auftrag für Claude (mit offiziellem Upwork-Connector) kopieren und Claude öffnen
   async function ujOpenClaude(id, win){
@@ -11319,7 +11347,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       const msgEl = card.querySelector('#ujAddMsg'); const btns = card.querySelectorAll('#ujAddSave,#ujAddAi'); btns.forEach(b=>b.disabled = true);
       try{
         const r = await kgApi('upwork.php?action=add', { url: card.querySelector('#ujAddUrl').value, title: card.querySelector('#ujAddTitle').value, note: card.querySelector('#ujAddNote').value });
-        await upJobsLoad(true); closeErnModal(); uj.view = 'jobs'; uj.tab = r.status === 'beworben' ? 'beworben' : 'gemerkt'; uj.hl = r.id; renderUpJobs();
+        await upJobsLoad(true); closeErnModal(); uj.view = 'jobs'; uj.tab = r.status === 'beworben' ? 'beworben' : 'gemerkt'; uj.hl = r.id; uj.openId[uj.tab] = r.id; renderUpJobs();
         if(toClaude) ujOpenClaude(r.id, win); else kgUndoToast(r.status === 'beworben' ? 'Auf diesen Job hast du dich schon beworben' : r.existing ? 'Job war schon da – jetzt unter „Gemerkt“ ✓' : 'Unter „Gemerkt“ gespeichert ✓');
       }catch(e){ if(win) try{ win.close(); }catch(_){} msgEl.textContent = e.message; btns.forEach(b=>b.disabled = false); }
     };
@@ -11427,6 +11455,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     try{ await upJobsLoad(true); }catch(e){}
     const j = jobId && uj.jobs.find(x=>x.id === jobId);
     if(j && !ujInTab(j, 'neu')) uj.tab = j.status === 'beworben' ? 'beworben' : j.status === 'gemerkt' ? 'gemerkt' : 'aus';
+    if(j) uj.openId[uj.tab] = jobId;
     switchTab('upwork');
     if(jobId) setTimeout(()=>{ const c = document.getElementById('uj_' + jobId); if(c) c.scrollIntoView({ behavior:'smooth', block:'center' }); if(showDraft && j && j.draft) openUjProposal(jobId); }, 200);
   }
