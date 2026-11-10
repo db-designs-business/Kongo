@@ -98,3 +98,19 @@ function kg_send(array $sub, array $message, array $vapid): int {
 function kg_subs_file(): string { kg_ensure_data_dir(); return KG_DATA_DIR . '/subscriptions.json'; }
 function kg_subs_load(): array { $f = kg_subs_file(); return file_exists($f) ? (json_decode(file_get_contents($f), true) ?: []) : []; }
 function kg_subs_save(array $subs): void { file_put_contents(kg_subs_file(), json_encode(array_values($subs), JSON_UNESCAPED_SLASHES), LOCK_EX); }
+
+// Mehrere Nachrichten an alle Geräte senden (abgelaufene Abos werden entfernt)
+function kg_push_all(array $messages): int {
+  $vapid = kg_vapid(); $keep = [];
+  foreach (kg_subs_load() as $s) {
+    $gone = false;
+    foreach ($messages as $msg) {
+      try { $code = kg_send($s, $msg, $vapid); } catch (Throwable $e) { $code = 0; }
+      echo date('c') . ' push "' . ($msg['title'] ?? '') . '" -> ' . parse_url($s['endpoint'], PHP_URL_HOST) . " : $code\n";
+      if ($code === 404 || $code === 410) { $gone = true; break; }
+    }
+    if (!$gone) $keep[] = $s;
+  }
+  kg_subs_save($keep);
+  return count($keep);
+}

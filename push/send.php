@@ -3,7 +3,8 @@
 //   php push/send.php morning    (5:30)
 //   php push/send.php evening    (20:30)
 //   php push/send.php test       (Testnachricht)
-//   php push/send.php slack      (alle 5 Min: neue Slack-Nachrichten)
+//   php push/send.php slack      (alle 5 Min: neue Slack-Nachrichten, E-Mails und Upwork-Jobs)
+//   php push/send.php upwork     (nur Upwork-Job-Alerts)
 require __DIR__ . '/lib.php';
 require_once __DIR__ . '/../api/lib.php';
 // Tägliche Datensicherung läuft mit dem Erinnerungs-Cronjob mit
@@ -23,12 +24,27 @@ $messages = [
 ];
 // Neue Slack-Nachrichten und E-Mails melden (Cronjob alle 5 Minuten: php push/send.php slack)
 $prefsAll = [];
-if (in_array($type, ['slack', 'morning', 'evening'], true)) {
+if (in_array($type, ['slack', 'upwork', 'morning', 'evening'], true)) {
   require_once __DIR__ . '/../api/notify_lib.php';
   kg_settings_init();
   foreach (kg_db()->query('SELECT id FROM users')->fetchAll(PDO::FETCH_COLUMN) as $u) $prefsAll[(int)$u] = n_prefs((int)$u);
 }
 if (($type === 'morning' || $type === 'evening') && $prefsAll && !array_filter($prefsAll, fn($p) => n_on($p, $type))) { echo date('c') . " $type: in den Einstellungen ausgeschaltet\n"; exit(0); }
+// Upwork-Job-Alerts aus Gmail übernehmen (vor der Mail-Prüfung, damit die Alerts nicht zusätzlich als E-Mail gemeldet werden)
+if ($type === 'slack' || $type === 'upwork') {
+  require_once __DIR__ . '/../api/upwork_lib.php';
+  $upMsgs = [];
+  foreach ($prefsAll as $u => $p) {
+    try {
+      $r = uw_fetch_new($u);
+      if ($r['error']) echo date('c') . ' upwork: ' . $r['error'] . "\n";
+      else echo date('c') . ' upwork: ' . count($r['new']) . ' neu, ' . $r['filtered'] . " aussortiert\n";
+      if ($r['new'] && n_on($p, 'upwork')) $upMsgs = array_merge($upMsgs, uw_push_messages($r['new']));
+    } catch (Throwable $e) { echo 'Upwork-Fehler: ' . $e->getMessage() . "\n"; }
+  }
+  if ($upMsgs) echo kg_push_all($upMsgs) . " Gerät(e) für Upwork benachrichtigt\n";
+  if ($type === 'upwork') exit(0);
+}
 if ($type === 'slack') {
   require_once __DIR__ . '/../api/slack_lib.php';
   $new = [];

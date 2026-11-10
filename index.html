@@ -1078,6 +1078,30 @@
   .up-kpi-row input{ flex:1; min-width:0; } .up-kpi-row select{ flex:0 0 96px; }
   .up-kpi-row button{ flex:0 0 40px; height:44px; padding:0; border-radius:10px; background:rgba(255,255,255,.05); border:1px solid var(--line-soft, rgba(255,255,255,.1)); color:var(--ink); }
   .up-kpi-row button:disabled{ opacity:.3; }
+  /* Upwork-Jobs aus den Alert-Mails */
+  #panelUpwork .aufg-head{ gap:8px; }
+  .uj-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted, #8a9a9a); margin:0 2px 12px; }
+  .uj-bar button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:8px 0; }
+  .uj-tabs{ margin-bottom:12px; } .uj-tabs .aufg-tab{ font-size:13px; min-height:38px; padding:8px 4px; }
+  .uj-card{ padding:16px; }
+  .uj-card.uj-hl{ border-color:rgba(34,227,211,.6) !important; box-shadow:0 0 0 1px rgba(34,227,211,.35), 0 0 24px rgba(34,227,211,.15); }
+  .uj-title{ font-weight:700; font-size:16px; line-height:1.3; overflow-wrap:anywhere; }
+  .uj-meta{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .uj-meta span{ font-size:12.5px; padding:4px 9px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid var(--line-soft, rgba(255,255,255,.08)); color:var(--ink-soft); white-space:nowrap; }
+  .uj-meta .uj-ok{ color:var(--forest); border-color:rgba(34,227,211,.35); }
+  .uj-meta .uj-warn{ color:#ffb86b; border-color:rgba(255,184,107,.35); }
+  .uj-snip{ font-size:14px; line-height:1.45; color:var(--ink-soft); margin-top:10px; overflow-wrap:anywhere; }
+  .uj-skills{ font-size:12.5px; color:var(--muted, #8a9a9a); margin-top:6px; }
+  .uj-when{ font-size:12px; color:var(--muted, #8a9a9a); margin-top:8px; }
+  .uj-reason{ font-size:12.5px; color:#ffb86b; margin-top:8px; }
+  .uj-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .uj-actions > *{ flex:1 1 auto; min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; text-decoration:none; }
+  .uj-actions .up-open{ flex-basis:100%; }
+  .uj-filter textarea{ width:100%; min-height:130px; }
+  .uj-filter .set-toggle{ margin-top:10px; }
+  .uj-filter .set-toggle b, .uj-filter .set-toggle small{ white-space:normal; }
+  .uj-filter .set-toggle{ border-top:1px solid var(--line-soft); }
+
   @media (min-width:700px){ .up-form{ grid-template-columns:repeat(3, 1fr); } }
 
   /* Zeitraster (Google-Kalender-Ansicht) */
@@ -2093,13 +2117,20 @@
   </div>
 
   <div id="panelUpwork" style="display:none;">
-    <div class="aufg-head"><h1>Upwork</h1><button type="button" class="prio-edit-toggle" id="upKpiBtn">KPIs ✎</button></div>
-    <div class="aufg-tabs" id="upRange">
-      <button type="button" class="aufg-tab active" data-v="woche">Woche</button>
-      <button type="button" class="aufg-tab" data-v="monat">Monat</button>
-      <button type="button" class="aufg-tab" data-v="gesamt">Gesamt</button>
+    <div class="aufg-head"><h1>Upwork</h1><button type="button" class="prio-edit-toggle" id="upFilterBtn">Filter ✎</button><button type="button" class="prio-edit-toggle" id="upKpiBtn" style="display:none;">KPIs ✎</button></div>
+    <div class="aufg-tabs" id="upView">
+      <button type="button" class="aufg-tab active" data-v="jobs">Jobs</button>
+      <button type="button" class="aufg-tab" data-v="kpis">KPIs</button>
     </div>
-    <div id="upBody"><div class="loading">Lade ...</div></div>
+    <div id="upJobsView"><div id="upJobs"><div class="loading">Lade ...</div></div></div>
+    <div id="upKpiView" style="display:none;">
+      <div class="aufg-tabs" id="upRange">
+        <button type="button" class="aufg-tab active" data-v="woche">Woche</button>
+        <button type="button" class="aufg-tab" data-v="monat">Monat</button>
+        <button type="button" class="aufg-tab" data-v="gesamt">Gesamt</button>
+      </div>
+      <div id="upBody"><div class="loading">Lade ...</div></div>
+    </div>
   </div>
 
   <div id="panelLesen" style="display:none;">
@@ -3213,7 +3244,7 @@
     const el = document.getElementById('notifyList');
     let j; try{ j = await fetch('api/notify.php', { credentials:'same-origin', cache:'no-store' }).then(r=>r.json()); }catch(e){ el.innerHTML = '<div class="hint">Konnte nicht geladen werden.</div>'; return; }
     const src = j.sources || []; const groups = [...new Set(src.map(x=>x.group))];
-    const ico = { Erinnerungen:'🔔', 'E-Mail':'✉️', Slack:'💬' };
+    const ico = { Erinnerungen:'🔔', Upwork:'💼', 'E-Mail':'✉️', Slack:'💬' };
     const label = x=>x.src && window.kgMsgLabel ? window.kgMsgLabel(x.src, x.account) : x.name;
     el.innerHTML = groups.map(g=>`<div class="set-group">${ico[g] || ''} ${escapeHtml(g)}</div><div class="set-list">${src.filter(x=>x.group === g).map(x=>`
       <label class="set-toggle"><span><b>${escapeHtml(label(x))}</b>${x.sub || (x.src && label(x) !== x.name) ? `<small>${escapeHtml(x.sub || x.name)}</small>` : ''}</span>
@@ -10443,7 +10474,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(key === 'home'){ renderHomeTermine(); renderHomeLesen(); }
     if(typeof keepAwake === 'function'){ if(key === 'lesen' && lesenReadStart) keepAwake(true); else if(!activeWorkout) keepAwake(false); }
     if(key === 'fortschritt') renderFortschritt();
-    if(key === 'upwork') renderUpwork();
+    if(key === 'upwork'){ renderUpwork(); renderUpJobs(); }
     curTab = key; try{ sessionStorage.setItem('kg_tab', key); }catch(e){}
     showSwipeHints(key);
   };
@@ -10461,14 +10492,14 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       aufgaben: [], ziele: [],
       koerper: [loadKoerper],
       fortschritt: [loadKoerper],
-      upwork: [()=>{ up.loaded = false; return upLoad(true); }],
+      upwork: [()=>{ up.loaded = false; return upLoad(true); }, ()=>upJobsLoad(true)],
       routinen: [loadRoutines, loadHabits, loadRoutineLog],
       reflexion: [loadEveningJournal, loadWeeklyJournal, ()=>refreshReflDone(true)],
       lesen: [loadLesen], worksheets: [loadWorksheets], affirmationen: [loadAffirmationen], wutjournal: [loadWutjournal],
       satzergaenzung: [loadSatzergaenzungHistorie], sprechuebung: [loadSprechuebungHistorie], work: [loadWorkJournal]
     };
     await run(base.concat(perTab[curTab] || []));
-    try{ if(curTab === 'fortschritt') renderFortschritt(); if(curTab === 'upwork') renderUpwork(); if(curTab === 'aufgaben'){ renderAufgaben(); } renderHomeAufgaben(); }catch(e){}
+    try{ if(curTab === 'fortschritt') renderFortschritt(); if(curTab === 'upwork'){ renderUpwork(); renderUpJobs(); } if(curTab === 'aufgaben'){ renderAufgaben(); } renderHomeAufgaben(); }catch(e){}
   };
   authReady.then(()=>{ let t = null; try{ t = sessionStorage.getItem('kg_restore_tab'); sessionStorage.removeItem('kg_restore_tab'); }catch(e){} if(t && panels[t] && t !== 'home') setTimeout(()=>switchTab(t), 300); });
   // Einmalige Hinweise auf Wischgesten
@@ -11012,6 +11043,129 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   document.querySelectorAll('#upRange .aufg-tab').forEach(b=>b.onclick = ()=>{ up.range = b.dataset.v; try{ localStorage.setItem('kongrow_up_range', up.range); }catch(e){} renderUpwork(); });
   document.getElementById('upKpiBtn').onclick = ()=>{ if(up.loaded) openUpKpis(); };
 
+  /* ----- Upwork-Jobs aus den Alert-Mails (Server liest Gmail, Kongrow spricht nie direkt mit Upwork) ----- */
+  const uj = { loaded:false, jobs:[], settings:null, last:null, google:null, view:'jobs', tab:'neu', hl:null, busy:false };
+  try{ const v = localStorage.getItem('kongrow_up_view'); if(v === 'kpis' || v === 'jobs') uj.view = v; }catch(e){}
+  async function upJobsLoad(force){
+    if(uj.loaded && !force) return;
+    const j = await kgApi('upwork.php?action=list');
+    uj.jobs = j.jobs || []; uj.settings = j.settings; uj.last = j.last; uj.google = j.google; uj.loaded = true;
+  }
+  function upShowView(){
+    document.querySelectorAll('#upView .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === uj.view));
+    document.getElementById('upJobsView').style.display = uj.view === 'jobs' ? '' : 'none';
+    document.getElementById('upKpiView').style.display = uj.view === 'kpis' ? '' : 'none';
+    document.getElementById('upFilterBtn').style.display = uj.view === 'jobs' ? '' : 'none';
+    document.getElementById('upKpiBtn').style.display = uj.view === 'kpis' ? '' : 'none';
+  }
+  function ujAgo(iso){
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if(m < 1) return 'gerade eben'; if(m < 60) return 'vor ' + m + ' Min.';
+    const h = Math.round(m / 60); if(h < 24) return 'vor ' + h + ' Std.';
+    return new Date(iso).toLocaleDateString('de-DE', { weekday:'short', day:'numeric', month:'short' });
+  }
+  const ujInTab = (j, t)=>t === 'neu' ? (j.status === 'neu' || j.status === 'interessant') : t === 'beworben' ? j.status === 'beworben' : (j.status === 'gefiltert' || j.status === 'uebersprungen');
+  function renderUpJobs(){
+    upShowView();
+    const el = document.getElementById('upJobs'); if(!el) return;
+    if(!uj.loaded){ el.innerHTML = '<div class="loading">Lade ...</div>'; upJobsLoad().then(renderUpJobs).catch(e=>{ el.innerHTML = '<div class="card"><div class="empty">Konnte nicht laden: ' + escapeHtml(e.message) + '</div></div>'; }); return; }
+    if(uj.google && !uj.google.connected){
+      el.innerHTML = '<div class="card"><div class="step-label">Job-Alerts</div><div class="hint" style="margin:0 0 12px;">Verbinde das Google-Konto, an das Upwork die Job-Alerts schickt. Kongrow holt die Alerts dann alle 5 Minuten ab und meldet sich per Push.</div><button type="button" class="ghost" id="ujConn" style="width:100%;">Google verbinden</button></div>';
+      el.querySelector('#ujConn').onclick = ()=>openConnections(); return;
+    }
+    const n = t=>uj.jobs.filter(j=>ujInTab(j, t)).length;
+    const list = uj.jobs.filter(j=>ujInTab(j, uj.tab));
+    const last = uj.last && uj.last.ts ? 'Zuletzt geprüft ' + ujAgo(new Date(uj.last.ts * 1000).toISOString()) + (uj.last.error ? ' · ' + uj.last.error : '') : 'Noch nicht geprüft';
+    const card = j=>{
+      const meta = [];
+      if(j.budget || j.kind) meta.push(`<span>${escapeHtml((j.kind === 'Stundensatz' ? 'Std. ' : j.kind === 'Festpreis' ? 'Fix ' : '') + (j.budget || ''))}</span>`);
+      if(j.verified === true) meta.push('<span class="uj-ok">✓ Zahlung verifiziert</span>'); else if(j.verified === false) meta.push('<span class="uj-warn">Zahlung nicht verifiziert</span>');
+      if(j.spent) meta.push(`<span>${escapeHtml(j.spent)} ausgegeben</span>`);
+      if(j.country) meta.push(`<span>${escapeHtml(j.country)}</span>`);
+      const open = j.url ? `<a class="ghost up-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Auf Upwork öffnen ↗</a>` : '';
+      const acts = uj.tab === 'neu' ? `${open}<button type="button" class="primary" data-st="beworben" data-id="${j.id}">Beworben ✓</button><button type="button" class="ghost" data-st="uebersprungen" data-id="${j.id}">Überspringen</button>`
+        : uj.tab === 'beworben' ? `${open}<button type="button" class="ghost" data-st="neu" data-id="${j.id}">Doch nicht beworben</button>`
+        : `${open}<button type="button" class="ghost" data-st="neu" data-id="${j.id}">Zurückholen</button>`;
+      return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}" id="uj_${j.id}">
+        <div class="uj-title">${escapeHtml(j.title)}</div>
+        ${meta.length ? `<div class="uj-meta">${meta.join('')}</div>` : ''}
+        ${j.snippet ? `<div class="uj-snip">${escapeHtml(j.snippet)}</div>` : ''}
+        ${j.skills ? `<div class="uj-skills">${escapeHtml(j.skills)}</div>` : ''}
+        ${uj.tab === 'aus' ? `<div class="uj-reason">${escapeHtml(j.status === 'uebersprungen' ? 'Von dir übersprungen' : (j.reason || 'Aussortiert'))}</div>` : ''}
+        <div class="uj-when">${ujAgo(j.received)}</div>
+        <div class="uj-actions">${acts}</div></div>`;
+    };
+    const empty = uj.tab === 'neu' ? 'Keine neuen Jobs. Sobald ein Upwork-Alert in deinem Postfach landet, erscheint er hier und du bekommst eine Push-Nachricht.' : uj.tab === 'beworben' ? 'Noch keine Bewerbungen markiert.' : 'Nichts aussortiert.';
+    el.innerHTML = `
+      <div class="uj-bar"><span>${escapeHtml(last)}</span><button type="button" id="ujCheck" ${uj.busy ? 'disabled' : ''}>${uj.busy ? 'Prüfe ...' : 'Jetzt prüfen'}</button></div>
+      <div class="aufg-tabs uj-tabs" id="ujTabs">
+        <button type="button" class="aufg-tab ${uj.tab === 'neu' ? 'active' : ''}" data-t="neu">Neu (${n('neu')})</button>
+        <button type="button" class="aufg-tab ${uj.tab === 'beworben' ? 'active' : ''}" data-t="beworben">Beworben (${n('beworben')})</button>
+        <button type="button" class="aufg-tab ${uj.tab === 'aus' ? 'active' : ''}" data-t="aus">Aussortiert (${n('aus')})</button>
+      </div>
+      ${list.length ? list.map(card).join('') : `<div class="card"><div class="hint" style="margin:0;">${empty}</div></div>`}`;
+    el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); });
+    el.querySelector('#ujCheck').onclick = ujCheckNow;
+    el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
+  }
+  async function ujCheckNow(){
+    uj.busy = true; renderUpJobs();
+    try{ const r = await kgApi('upwork.php?action=check', {}); await upJobsLoad(true); kgUndoToast(r.new || r.filtered ? (r.new + ' neu' + (r.filtered ? ', ' + r.filtered + ' aussortiert' : '')) : 'Keine neuen Job-Alerts'); }
+    catch(e){ kgUndoToast(e.message); try{ await upJobsLoad(true); }catch(_){} }
+    uj.busy = false; renderUpJobs();
+  }
+  // „Beworben“ zählt automatisch einen Proposal-KPI für heute (falls vorhanden)
+  async function ujBumpProposals(delta){
+    try{
+      await upLoad(); const k = up.kpis.find(x=>x.id === 'proposals'); if(!k) return;
+      const d = todayStr(); const cur = up.entries.find(e=>e.datum === d);
+      if(cur){ cur.werte.proposals = Math.max(0, num(cur.werte.proposals || 0) + delta); await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Werte': JSON.stringify(cur.werte) } }) }); }
+      else if(delta > 0){ const werte = { proposals:delta }; const id = await airtableCreate(TABLE_UPWORK, { 'Datum': d, 'Werte': JSON.stringify(werte) }); up.entries.push({ id, datum:d, werte, notiz:'' }); up.entries.sort((a,b)=>a.datum.localeCompare(b.datum)); }
+      cacheDrop(TABLE_UPWORK); upScheduleSync();
+    }catch(e){}
+  }
+  async function ujSetStatus(id, status){
+    const j = uj.jobs.find(x=>x.id === id); if(!j) return;
+    const prev = j.status; j.status = status; renderUpJobs();
+    try{ await kgApi('upwork.php?action=status', { id, status }); }
+    catch(e){ j.status = prev; renderUpJobs(); kgUndoToast('Speichern fehlgeschlagen: ' + e.message); return; }
+    if(status === 'beworben') ujBumpProposals(1); else if(prev === 'beworben') ujBumpProposals(-1);
+    const msg = status === 'beworben' ? 'Als beworben markiert · +1 Proposal' : status === 'uebersprungen' ? 'Übersprungen' : 'Zurückgeholt';
+    kgUndoToast(msg, ()=>ujSetStatus(id, prev));
+  }
+  function openUjFilter(){
+    const s = uj.settings || { exclude:[], only_verified:false, min_rate:0, archive:true };
+    openErnModal(`<div class="modal-title">Job-Filter</div>
+      <div class="modal-sub">Jobs, die eines dieser Wörter im Titel, im Textanfang oder in den Skills haben, landen ohne Push-Nachricht unter „Aussortiert“. Ein Wort oder Begriff pro Zeile.</div>
+      <div class="uj-filter">
+        <textarea id="ujExclude" placeholder="z. B.&#10;Bing Ads&#10;Shopify&#10;Logo Design">${escapeHtml((s.exclude || []).join('\n'))}</textarea>
+        <label class="set-toggle" style="padding-left:0;padding-right:0;"><span><b>Nur verifizierte Zahlung</b><small>Kunden ohne verifizierte Zahlungsmethode aussortieren</small></span><input type="checkbox" role="switch" id="ujVerified" ${s.only_verified ? 'checked' : ''}><i></i></label>
+        <label class="set-toggle" style="padding-left:0;padding-right:0;"><span><b>Mindest-Stundensatz ($)</b><small>Stundenjobs, deren Obergrenze darunter liegt</small></span><input type="number" inputmode="decimal" min="0" id="ujMinRate" value="${s.min_rate || ''}" placeholder="0" style="position:static;opacity:1;width:90px;height:auto;"></label>
+        <label class="set-toggle" style="padding-left:0;padding-right:0;"><span><b>Posteingang sauber halten</b><small>Alert-Mails nach dem Abholen in den Ordner „Upwork-Jobs“ verschieben</small></span><input type="checkbox" role="switch" id="ujArchive" ${s.archive ? 'checked' : ''}><i></i></label>
+      </div>
+      <button type="button" class="primary" id="ujFilterSave" style="width:100%;margin-top:14px;">Speichern</button>`);
+    const card = ernModalCard();
+    card.querySelector('#ujFilterSave').onclick = async ()=>{
+      const btn = card.querySelector('#ujFilterSave'); btn.disabled = true;
+      try{
+        const body = { exclude: card.querySelector('#ujExclude').value.split('\n'), only_verified: card.querySelector('#ujVerified').checked, min_rate: num(card.querySelector('#ujMinRate').value || 0), archive: card.querySelector('#ujArchive').checked };
+        await kgApi('upwork.php?action=settings', body); closeErnModal(); await upJobsLoad(true); renderUpJobs(); kgUndoToast('Filter gespeichert ✓');
+      }catch(e){ btn.disabled = false; kgUndoToast('Speichern fehlgeschlagen: ' + e.message); }
+    };
+  }
+  document.querySelectorAll('#upView .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.view = b.dataset.v; try{ localStorage.setItem('kongrow_up_view', uj.view); }catch(e){} upShowView(); if(uj.view === 'jobs') renderUpJobs(); else renderUpwork(); });
+  document.getElementById('upFilterBtn').onclick = ()=>{ if(uj.loaded) openUjFilter(); };
+  // Aus der Push-Nachricht geöffnet: Job hervorheben
+  async function ujOpenFromPush(jobId){
+    uj.view = 'jobs'; uj.tab = 'neu'; uj.hl = jobId || null;
+    try{ await upJobsLoad(true); }catch(e){}
+    const j = jobId && uj.jobs.find(x=>x.id === jobId);
+    if(j && !ujInTab(j, 'neu')) uj.tab = j.status === 'beworben' ? 'beworben' : 'aus';
+    switchTab('upwork');
+    if(jobId) setTimeout(()=>{ const c = document.getElementById('uj_' + jobId); if(c) c.scrollIntoView({ behavior:'smooth', block:'center' }); }, 200);
+  }
+
+
   // Aus einer Benachrichtigung geöffnet: passende Reflexion starten
   (function(){
     const params = new URLSearchParams(location.search);
@@ -11030,6 +11184,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
+      else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null); }
       else if(open === 'nachrichten' || open === 'slack' || open === 'mail'){
         switchTab('nachrichten');
         if(open === 'mail'){

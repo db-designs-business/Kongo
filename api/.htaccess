@@ -1,4 +1,4 @@
-<FilesMatch "^(lib)\.php$">
+<FilesMatch "^(lib|[a-z]+_lib)\.php$">
   Require all denied
 </FilesMatch>
 <IfModule mod_headers.c>
