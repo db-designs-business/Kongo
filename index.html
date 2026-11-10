@@ -1133,6 +1133,9 @@
   .uj-pf-item.on .uj-pf-name{ color:var(--forest); font-weight:600; }
   .uj-pf-free{ display:inline-block; margin-top:3px; color:var(--ink, inherit); font-weight:600; }
   .uj-btn.uj-warn{ background:#F5B544 !important; border-color:#F5B544 !important; color:#1a1205 !important; }
+  .up-head-btns{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .uj-pf-row button:disabled{ opacity:.3; }
+  .uj-pf-open{ flex:1 1 100%; order:4; font-size:12.5px; color:var(--forest); text-decoration:none; }
   .uj-pf-head button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:2px 4px; }
   .uj-pf-item{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:0; border-top:1px solid var(--line-soft, rgba(255,255,255,.06)); padding:10px 4px; color:var(--ink, inherit); font-size:14px; }
   .uj-pf-item:first-of-type{ border-top:0; }
@@ -2165,7 +2168,7 @@
   </div>
 
   <div id="panelUpwork" style="display:none;">
-    <div class="aufg-head"><h1>Upwork</h1><button type="button" class="prio-edit-toggle" id="upFilterBtn">Filter ✎</button><button type="button" class="prio-edit-toggle" id="upKpiBtn" style="display:none;">KPIs ✎</button></div>
+    <div class="aufg-head"><h1>Upwork</h1><div class="up-head-btns"><button type="button" class="prio-edit-toggle" id="upPfBtn">Portfolio ✎</button><button type="button" class="prio-edit-toggle" id="upFilterBtn">Filter ✎</button><button type="button" class="prio-edit-toggle" id="upKpiBtn" style="display:none;">KPIs ✎</button></div></div>
     <div class="aufg-tabs" id="upView">
       <button type="button" class="aufg-tab active" data-v="jobs">Jobs</button>
       <button type="button" class="aufg-tab" data-v="kpis">KPIs</button>
@@ -11100,6 +11103,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     document.getElementById('upJobsView').style.display = uj.view === 'jobs' ? '' : 'none';
     document.getElementById('upKpiView').style.display = uj.view === 'kpis' ? '' : 'none';
     document.getElementById('upFilterBtn').style.display = uj.view === 'jobs' ? '' : 'none';
+    document.getElementById('upPfBtn').style.display = uj.view === 'jobs' ? '' : 'none';
     document.getElementById('upKpiBtn').style.display = uj.view === 'kpis' ? '' : 'none';
   }
   function ujAgo(iso){
@@ -11326,6 +11330,36 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     for(const f of fields){ const k = ujFindUrl(f.value, url); if(k !== -1){ const rep = viaPh === false ? '' : UJ_PH; f.value = f.value.slice(0, k) + rep + f.value.slice(k + url.length); return { field:f, at:k }; } }
     return null;
   }
+  // Portfolio-Liste bearbeiten (wird im Proposal und auf der eigenen Portfolio-Seite genutzt)
+  function ujPfEditor(box, items, onSaved, focusIdx, opts){
+    opts = opts || {};
+    const rows = items.map(it=>({ ...it }));
+    const draw = ()=>{
+      box.innerHTML = `<div class="uj-pf-head"><span>${opts.hint || 'Name und Link je Projekt'}</span></div>`
+        + (rows.length ? '' : '<div class="hint" style="margin:6px 0;">Noch keine Projekte.</div>')
+        + rows.map((r, i)=>`<div class="uj-pf-row"><input type="text" class="n" data-n="${i}" value="${escapeHtml(r.name)}" placeholder="Name, z. B. IBU Aktiv">${opts.reorder ? `<button type="button" data-up="${i}" aria-label="Nach oben" ${i ? '' : 'disabled'}>↑</button>` : ''}<button type="button" data-del="${i}" aria-label="Entfernen">×</button><input type="url" class="u" data-u="${i}" value="${escapeHtml(r.url)}" placeholder="https://…" autocomplete="off">${opts.reorder && r.url ? `<a class="uj-pf-open" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">Link testen ↗</a>` : ''}</div>`).join('')
+        + `<div class="uj-actions" style="margin-top:10px;"><button type="button" class="uj-btn" data-add>+ Projekt</button><button type="button" class="uj-btn uj-yes" data-save>Speichern</button></div>`;
+      box.querySelectorAll('[data-n]').forEach(x=>x.oninput = ()=>{ rows[+x.dataset.n].name = x.value; });
+      box.querySelectorAll('[data-u]').forEach(x=>x.oninput = ()=>{ rows[+x.dataset.u].url = x.value; });
+      box.querySelectorAll('[data-del]').forEach(x=>x.onclick = ()=>{ rows.splice(+x.dataset.del, 1); draw(); });
+      box.querySelectorAll('[data-up]').forEach(x=>x.onclick = ()=>{ const i = +x.dataset.up; if(i < 1) return; [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; draw(); });
+      box.querySelector('[data-add]').onclick = ()=>{ rows.push({ name:'', url:'' }); draw(); const ins = box.querySelectorAll('[data-n]'); ins[ins.length - 1].focus(); };
+      box.querySelector('[data-save]').onclick = async ()=>{
+        const clean = rows.map(r=>({ name:String(r.name || '').trim(), url:String(r.url || '').trim() })).filter(r=>r.name || r.url);
+        try{ const r = await kgApi('upwork.php?action=portfolio_save', { items: clean }); ujPfItems = r.items || []; kgUndoToast('Portfolio gespeichert ✓'); onSaved(ujPfItems); }
+        catch(e){ kgUndoToast('Speichern fehlgeschlagen: ' + e.message); } };
+      if(focusIdx != null){ const u = box.querySelector('[data-u="' + focusIdx + '"]'); if(u) u.focus(); focusIdx = null; }
+    };
+    draw();
+  }
+  async function openUjPortfolio(){
+    openErnModal(`<div class="modal-title">Mein Portfolio</div>
+      <div class="modal-sub">Deine Projekte mit Link. Im Proposal-Entwurf setzt du sie über „Portfolio +“ mit einem Tipp ein. Tipp: Nenn die Projekte so, wie Claude sie in den Hinweisen nennt, dann werden sie automatisch vorgeschlagen.</div>
+      <div id="ujPfPage" class="uj-pf" style="margin-top:12px;"><div class="hint">Lade …</div></div>`);
+    const box = ernModalCard().querySelector('#ujPfPage');
+    try{ const items = await ujPortfolioLoad(); ujPfEditor(box, items, saved=>ujPfEditor(box, saved, null, null, { reorder:true, hint:'Gespeichert ✓ · Reihenfolge = Reihenfolge in der Liste' }), null, { reorder:true, hint:'Reihenfolge = Reihenfolge in der Liste' }); }
+    catch(e){ box.innerHTML = '<div class="hint">Laden fehlgeschlagen: ' + escapeHtml(e.message) + '</div>'; }
+  }
   function ujPortfolioWire(card, j, changed){
     const box = card.querySelector('#ujPf'), btn = card.querySelector('#ujPfBtn');
     const fields = ()=>[card.querySelector('#ujPropText'), ...card.querySelectorAll('.uj-a')].filter(Boolean);
@@ -11362,23 +11396,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         changed(); marks(); });
       marks();
     };
-    const edit = (items, focusIdx)=>{
-      const rows = items.map(it=>({ ...it }));
-      const draw = ()=>{
-        box.innerHTML = `<div class="uj-pf-head"><span>Name und Link je Projekt</span></div>`
-          + rows.map((r, i)=>`<div class="uj-pf-row"><input type="text" class="n" data-n="${i}" value="${escapeHtml(r.name)}" placeholder="Name"><input type="url" class="u" data-u="${i}" value="${escapeHtml(r.url)}" placeholder="https://…" autocomplete="off"><button type="button" data-del="${i}" aria-label="Entfernen">×</button></div>`).join('')
-          + `<div class="uj-actions" style="margin-top:10px;"><button type="button" class="uj-btn" data-add>+ Projekt</button><button type="button" class="uj-btn uj-yes" data-save>Speichern</button></div>`;
-        box.querySelectorAll('[data-n]').forEach(x=>x.oninput = ()=>{ rows[+x.dataset.n].name = x.value; });
-        box.querySelectorAll('[data-u]').forEach(x=>x.oninput = ()=>{ rows[+x.dataset.u].url = x.value; });
-        box.querySelectorAll('[data-del]').forEach(x=>x.onclick = ()=>{ rows.splice(+x.dataset.del, 1); draw(); });
-        box.querySelector('[data-add]').onclick = ()=>{ rows.push({ name:'', url:'' }); draw(); const ins = box.querySelectorAll('[data-n]'); ins[ins.length - 1].focus(); };
-        box.querySelector('[data-save]').onclick = async ()=>{
-          try{ const r = await kgApi('upwork.php?action=portfolio_save', { items: rows }); ujPfItems = r.items || []; list(ujPfItems); kgUndoToast('Portfolio gespeichert ✓'); }
-          catch(e){ kgUndoToast('Speichern fehlgeschlagen: ' + e.message); } };
-        if(focusIdx != null){ const u = box.querySelector('[data-u="' + focusIdx + '"]'); if(u) u.focus(); focusIdx = null; }
-      };
-      draw();
-    };
+    const edit = (items, focusIdx)=>ujPfEditor(box, items, saved=>list(saved), focusIdx);
     btn.onclick = async ()=>{
       if(!box.hidden){ box.hidden = true; return; }
       box.hidden = false; box.innerHTML = '<div class="hint">Lade …</div>';
@@ -11502,6 +11520,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   }
   document.querySelectorAll('#upView .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.view = b.dataset.v; try{ localStorage.setItem('kongrow_up_view', uj.view); }catch(e){} upShowView(); if(uj.view === 'jobs') renderUpJobs(); else renderUpwork(); });
   document.getElementById('upFilterBtn').onclick = ()=>{ if(uj.loaded) openUjFilter(); };
+  document.getElementById('upPfBtn').onclick = ()=>openUjPortfolio();
   // Aus der Push-Nachricht geöffnet: Job hervorheben
   async function ujOpenFromPush(jobId, showDraft){
     uj.view = 'jobs'; uj.tab = 'neu'; uj.hl = jobId || null;
