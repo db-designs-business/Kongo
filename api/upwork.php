@@ -33,6 +33,16 @@ switch ($action) {
     uw_refilter($uid);
     kg_json(['ok' => true, 'settings' => uw_settings($uid)]);
 
+  case 'test_push':
+    // Push-Nachrichten für die aktuell offenen Jobs schicken (zum Testen)
+    require_once __DIR__ . '/../push/lib.php';
+    $st = $db->prepare("SELECT * FROM upwork_jobs WHERE user_id=? AND status IN ('neu','interessant') ORDER BY received DESC LIMIT 3"); $st->execute([$uid]);
+    $jobs = $st->fetchAll(PDO::FETCH_ASSOC);
+    if (!$jobs) kg_json(['error' => ['message' => 'Keine offenen Jobs zum Testen.']], 409);
+    foreach ($jobs as &$j) $j['id'] = (int)$j['id']; unset($j);
+    ob_start(); $devices = kg_push_all(uw_push_messages($jobs)); ob_end_clean();
+    kg_json(['ok' => true, 'jobs' => count($jobs), 'devices' => $devices]);
+
   case 'check':
     $r = uw_fetch_new($uid);
     if ($r['error']) kg_json(['error' => ['message' => $r['error']]], 409);

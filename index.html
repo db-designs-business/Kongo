@@ -11160,8 +11160,10 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         <label class="set-toggle" style="padding-left:0;padding-right:0;"><span><b>Mindest-Stundensatz ($)</b><small>Stundenjobs, deren Obergrenze darunter liegt</small></span><input type="number" inputmode="decimal" min="0" id="ujMinRate" value="${s.min_rate || ''}" placeholder="0" style="position:static;opacity:1;width:90px;height:auto;"></label>
         <label class="set-toggle" style="padding-left:0;padding-right:0;"><span><b>Posteingang sauber halten</b><small>Alert-Mails nach dem Abholen in den Ordner „Upwork-Jobs“ verschieben</small></span><input type="checkbox" role="switch" id="ujArchive" ${s.archive ? 'checked' : ''}><i></i></label>
       </div>
-      <button type="button" class="primary" id="ujFilterSave" style="width:100%;margin-top:14px;">Speichern</button>`);
+      <button type="button" class="primary" id="ujFilterSave" style="width:100%;margin-top:14px;">Speichern</button>
+      <button type="button" class="aufg-link" id="ujTestPush" style="margin-top:12px;">Test-Push für offene Jobs senden</button>`);
     const card = ernModalCard();
+    card.querySelector('#ujTestPush').onclick = async ()=>{ try{ const r = await kgApi('upwork.php?action=test_push', {}); kgUndoToast(r.jobs + ' Test-Push' + (r.jobs > 1 ? 's' : '') + ' an ' + r.devices + ' Gerät' + (r.devices === 1 ? '' : 'e') + ' gesendet'); }catch(e){ kgUndoToast(e.message); } };
     card.querySelector('#ujFilterSave').onclick = async ()=>{
       const btn = card.querySelector('#ujFilterSave'); btn.disabled = true;
       try{
