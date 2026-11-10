@@ -21,6 +21,7 @@ function uw_db(): PDO {
     try { $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS uw_jobkey ON upwork_jobs(user_id, job_key) WHERE job_key IS NOT NULL'); } catch (Throwable $e) {}
     $cols = array_column($db->query('PRAGMA table_info(upwork_jobs)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
+    $db->exec('CREATE TABLE IF NOT EXISTS upwork_deleted (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, job_key))');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
   }
   return $db;
@@ -186,7 +187,11 @@ function uw_label_id(int $uid, string $at): ?string {
 }
 
 // Neue Alert-Mails verarbeiten. Liefert ['new' => [Jobs, die durch den Filter kamen], 'filtered' => n, 'error' => ?string]
-function uw_fetch_new(int $uid): array {
+function uw_log(int $uid, string $line): void {
+  $l = kg_get($uid, 'upwork_log', []); $l[] = date('d.m. H:i:s') . ' ' . $line; kg_set($uid, 'upwork_log', array_slice($l, -40));
+}
+// $deep = true (manuell „Jetzt prüfen“): auch schon gesehene Alert-Mails erneut auslesen und fehlende Jobs nachtragen
+function uw_fetch_new(int $uid, bool $deep = false): array {
   $res = ['new' => [], 'filtered' => 0, 'error' => null];
   $at = n_google_token($uid);
   if ($at === '') { $res['error'] = 'Google ist nicht verbunden.'; uw_note($uid, $res); return $res; }
@@ -201,7 +206,7 @@ function uw_fetch_new(int $uid): array {
   $r = kg_http('GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages?' . http_build_query(['maxResults' => 25, 'q' => 'from:upwork.com newer_than:2d -in:trash']), $auth);
   if (($r['code'] ?? 0) >= 400 || ($r['code'] ?? 0) === 0) { $res['error'] = 'Gmail: ' . (($r['json']['error']['message'] ?? '') ?: ('Fehler ' . $r['code'])); uw_note($uid, $res); return $res; }
   $ids = array_map(fn($m) => $m['id'], $r['json']['messages'] ?? []);
-  if ($ids) {
+  if ($ids && !$deep) {
     $in = implode(',', array_fill(0, count($ids), '?'));
     $st = $db->prepare("SELECT msg_id FROM upwork_seen WHERE user_id=? AND msg_id IN ($in)"); $st->execute(array_merge([$uid], $ids));
     $ids = array_values(array_diff($ids, $st->fetchAll(PDO::FETCH_COLUMN)));
@@ -224,13 +229,17 @@ function uw_fetch_new(int $uid): array {
     $received = gmdate('c', (int)(($m['internalDate'] ?? 0) / 1000) ?: time());
     foreach ($jobs as $n => $j) {
       // gleicher Job schon aus einer anderen Mail da?
-      if ($j['job_key']) { $d = $db->prepare('SELECT 1 FROM upwork_jobs WHERE user_id=? AND job_key=?'); $d->execute([$uid, $j['job_key']]); if ($d->fetchColumn()) continue; }
+      if ($j['job_key']) {
+        $d = $db->prepare('SELECT 1 FROM upwork_jobs WHERE user_id=? AND job_key=? UNION SELECT 1 FROM upwork_deleted WHERE user_id=? AND job_key=?'); $d->execute([$uid, $j['job_key'], $uid, $j['job_key']]);
+        if ($d->fetchColumn()) continue;   // schon da oder von dir gelöscht
+      } elseif ($deep) { $d = $db->prepare('SELECT 1 FROM upwork_jobs WHERE user_id=? AND msg_id=?'); $d->execute([$uid, $n ? $id . '#' . $n : $id]); if ($d->fetchColumn()) continue; }
       $reason = uw_filter_reason($j, $s);
       $ins->execute([$uid, $n ? $id . '#' . $n : $id, $j['job_key'], $j['url'], $j['title'], $j['kind'], $j['budget'], $j['rate_min'], $j['rate_max'], $j['snippet'], $j['skills'],
         $j['verified'], $j['spent'], $j['country'], $j['rating'] ?? '', $received, $reason ? 'gefiltert' : 'neu', $reason, gmdate('c')]);
       if ($ins->rowCount() < 1) continue;
       $j['id'] = (int)$db->lastInsertId();
       if ($reason) $res['filtered']++; else $res['new'][] = $j;
+      uw_log($uid, ($deep ? 'nachgetragen: ' : 'neu: ') . mb_substr($j['title'], 0, 60) . ($reason ? ' (aussortiert: ' . $reason . ')' : ''));
     }
     // Mail als gelesen markieren und (falls eingestellt) aus dem Posteingang in das Label „Upwork-Jobs“ verschieben
     $mod = ['removeLabelIds' => ['UNREAD']];
@@ -247,6 +256,7 @@ function uw_fetch_new(int $uid): array {
   return $res;
 }
 function uw_note(int $uid, array $res): void {
+  if ($res['error']) uw_log($uid, 'Fehler: ' . $res['error']);
   kg_set($uid, 'upwork_last', ['ts' => time(), 'new' => count($res['new']), 'filtered' => $res['filtered'], 'error' => $res['error']]);
 }
 // Datensparsam: nicht beworbene Jobs nach 14 Tagen löschen, beworbene nach 120 Tagen
@@ -256,6 +266,7 @@ function uw_cleanup(int $uid): void {
   $db->prepare("DELETE FROM upwork_jobs WHERE user_id=? AND status='gemerkt' AND received < ?")->execute([$uid, gmdate('c', time() - 45 * 86400)]);
   $db->prepare("DELETE FROM upwork_jobs WHERE user_id=? AND received < ?")->execute([$uid, gmdate('c', time() - 120 * 86400)]);
   $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND ts < ?')->execute([$uid, time() - 7 * 86400]);
+  $db->prepare('DELETE FROM upwork_deleted WHERE user_id=? AND ts < ?')->execute([$uid, time() - 30 * 86400]);
 }
 
 // Push-Nachrichten für neue Jobs

@@ -34,6 +34,12 @@ switch ($action) {
     kg_json(['ok' => true, 'settings' => uw_settings($uid)]);
 
   case 'delete':
+    // merken, damit derselbe Job nicht aus einer Alert-Mail zurückkommt
+    $st = $db->prepare('SELECT job_key, title FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)($in['id'] ?? 0), $uid]);
+    if ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+      if ($row['job_key']) $db->prepare('INSERT OR REPLACE INTO upwork_deleted(user_id,job_key,ts) VALUES(?,?,?)')->execute([$uid, $row['job_key'], time()]);
+      uw_log($uid, 'gelöscht: ' . mb_substr($row['title'], 0, 60));
+    }
     $db->prepare('DELETE FROM upwork_jobs WHERE id=? AND user_id=?')->execute([(int)($in['id'] ?? 0), $uid]);
     kg_json(['ok' => true]);
 
@@ -42,6 +48,7 @@ switch ($action) {
     $url = trim((string)($in['url'] ?? ''));
     if (!preg_match('#^https?://([a-z0-9-]+\.)?upwork\.com/#i', $url) || !preg_match('/(~0[0-9a-z]{10,})/i', $url, $m)) kg_json(['error' => ['message' => 'Das sieht nicht nach einem Upwork-Job-Link aus. Er muss eine Job-ID wie ~02… enthalten.']], 400);
     $key = $m[1]; $clean = 'https://www.upwork.com/jobs/' . $key;
+    $db->prepare('DELETE FROM upwork_deleted WHERE user_id=? AND job_key=?')->execute([$uid, $key]);
     $title = mb_substr(trim((string)($in['title'] ?? '')), 0, 200); $note = mb_substr(trim((string)($in['note'] ?? '')), 0, 1000);
     $st = $db->prepare('SELECT id, status FROM upwork_jobs WHERE user_id=? AND job_key=?'); $st->execute([$uid, $key]);
     if ($row = $st->fetch(PDO::FETCH_ASSOC)) {
@@ -55,6 +62,9 @@ switch ($action) {
       ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
     kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false, 'status' => 'gemerkt']);
 
+  case 'log':
+    kg_json(['log' => kg_get($uid, 'upwork_log', [])]);
+
   case 'test_push':
     // Push-Nachrichten für die aktuell offenen Jobs schicken (zum Testen)
     require_once __DIR__ . '/../push/lib.php';
@@ -66,7 +76,7 @@ switch ($action) {
     kg_json(['ok' => true, 'jobs' => count($jobs), 'devices' => $devices]);
 
   case 'check':
-    $r = uw_fetch_new($uid);
+    $r = uw_fetch_new($uid, true);
     if ($r['error']) kg_json(['error' => ['message' => $r['error']]], 409);
     kg_json(['ok' => true, 'new' => count($r['new']), 'filtered' => $r['filtered']]);
 }
