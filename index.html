@@ -13598,6 +13598,23 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
+<script>
+/* Desktop: F5 / Strg+R / ⌘+R lädt nur den aktuellen Bereich neu (wie Pull-to-Refresh), ohne Neustart der App.
+   Strg+Shift+R bzw. ⌘+Shift+R bleibt der echte Neustart (z. B. nach einem Update). */
+(function(){
+  let busy = false;
+  document.addEventListener('keydown', async e=>{
+    const isF5 = e.key === 'F5' && !e.shiftKey && !e.ctrlKey && !e.metaKey;
+    const isR = (e.key === 'r' || e.key === 'R') && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey;
+    if(!(isF5 || isR) || typeof window.kgRefreshCurrent !== 'function') return;
+    e.preventDefault();
+    if(busy) return; busy = true;
+    try{ await window.kgRefreshCurrent(); if(window.kgUndoToast) window.kgUndoToast('Aktualisiert ✓', null, 1500); }
+    catch(err){ location.reload(); }
+    finally{ busy = false; }
+  });
+})();
+</script>
 
 </body>
 </html>
