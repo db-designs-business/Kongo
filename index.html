@@ -11140,7 +11140,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   // Auftrag für Claude (mit offiziellem Upwork-Connector) kopieren und Claude öffnen
   async function ujOpenClaude(id, win){
     const j = uj.jobs.find(x=>x.id === id); if(!j || !j.url) return;
-    const prompt = `Nutze den Upwork-Connector und meinen Skill „Upwork-Proposals“.\n\nLies diesen Job vollständig (Beschreibung, Screening-Fragen, Kundeninfos): ${j.url}\nTitel: ${j.title}\n\nWähle mein passendes Template, schreib das Proposal und beantworte die Screening-Fragen. Reiche nichts bei Upwork ein, bevor ich es ausdrücklich bestätige.`;
+    const prompt = `Nutze den Upwork-Connector und meinen Skill „Upwork-Proposals“.\n\nLies diesen Job vollständig (Beschreibung, Screening-Fragen, Kundeninfos): ${j.url}\nTitel: ${j.title}\n\nWähle mein passendes Template, schreib das Proposal und beantworte die Screening-Fragen. Nur als Entwurf – ich reiche selbst auf Upwork ein.`;
     let copied = false; try{ await navigator.clipboard.writeText(prompt); copied = true; }catch(e){}
     const target = 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
     if(win && !win.closed) win.location.href = target; else window.open(target, '_blank', 'noopener');
