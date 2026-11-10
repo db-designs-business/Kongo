@@ -30,6 +30,8 @@ function uw_db(): PDO {
     }
     // Bewerbungs-Log fürs Google Sheet (bleibt dauerhaft, auch wenn der Job aus der Liste gelöscht wird)
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_applied (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, url TEXT, title TEXT, budget TEXT, country TEXT, source TEXT, applied_at TEXT NOT NULL, PRIMARY KEY(user_id, job_key))');
+    $ac = array_column($db->query('PRAGMA table_info(upwork_applied)')->fetchAll(PDO::FETCH_ASSOC), 'name');
+    if (!in_array('sheet_row', $ac, true)) $db->exec('ALTER TABLE upwork_applied ADD COLUMN sheet_row INTEGER');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
   }
   return $db;
@@ -308,39 +310,76 @@ function uw_answers_json($in): string {
   return $list ? json_encode(array_slice($list, 0, 20), JSON_UNESCAPED_UNICODE) : '';
 }
 
-/* ---------- Google Sheet: Blatt „Upwork Bewerbungen“ ---------- */
-const UW_SHEET_TAB = 'Upwork Bewerbungen';
-// Job als beworben vormerken bzw. wieder entfernen
-function uw_applied_set(int $uid, array $job, bool $on): void {
-  $db = uw_db(); $key = (string)($job['job_key'] ?: ('id' . $job['id']));
-  if ($on) $db->prepare('INSERT OR IGNORE INTO upwork_applied(user_id,job_key,url,title,budget,country,source,applied_at) VALUES(?,?,?,?,?,?,?,?)')
-    ->execute([$uid, $key, $job['url'], $job['title'], $job['budget'], $job['country'], str_starts_with((string)$job['msg_id'], 'manual:') ? 'Manuell' : 'Job-Alert', (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i')]);
-  else $db->prepare('DELETE FROM upwork_applied WHERE user_id=? AND job_key=?')->execute([$uid, $key]);
-}
-// Blatt komplett aus dem Log neu schreiben. Liefert ['ok'=>bool,'msg'=>string]
-function uw_sheet_sync(int $uid): array {
-  $sh = kg_get($uid, 'upwork_sheet');
-  if (empty($sh['id'])) return ['ok' => false, 'msg' => 'Kein Google Sheet verknüpft'];
-  $at = n_google_token($uid); if ($at === '') return ['ok' => false, 'msg' => 'Google nicht verbunden'];
+/* ---------- Google Sheet: Bewerbung unten an Dominics eigene Liste anhängen ----------
+   Ziel ist das erste Blatt des verknüpften Sheets (bei Dominic „Sheet1“) mit den Spalten
+   B = Date (Text im Format MM.DD.YYYY, wie seine bisherigen Einträge), E = Job Title, F = Link to Job.
+   Alle anderen Spalten (Connects, Boosted?, Dropdowns …) bleiben unberührt. Bestehende Zeilen werden nie überschrieben. */
+function uw_sheet_ctx(int $uid): ?array {
+  $sh = kg_get($uid, 'upwork_sheet'); if (empty($sh['id'])) return null;
+  $at = n_google_token($uid); if ($at === '') return null;
   $h = ['Authorization: Bearer ' . $at, 'Content-Type: application/json'];
   $base = 'https://sheets.googleapis.com/v4/spreadsheets/' . rawurlencode($sh['id']);
   $r = kg_http('GET', $base . '?fields=sheets.properties', $h);
-  if (($r['code'] ?? 0) >= 400 || ($r['code'] ?? 0) === 0) return ['ok' => false, 'msg' => 'Sheet nicht erreichbar (' . ($r['json']['error']['message'] ?? $r['code']) . ')'];
-  $sid = null; foreach (($r['json']['sheets'] ?? []) as $x) if (($x['properties']['title'] ?? '') === UW_SHEET_TAB) $sid = $x['properties']['sheetId'];
-  if ($sid === null) {
-    $r = kg_http('POST', $base . ':batchUpdate', $h, json_encode(['requests' => [['addSheet' => ['properties' => ['title' => UW_SHEET_TAB, 'gridProperties' => ['frozenRowCount' => 1]]]]]]));
-    if (($r['code'] ?? 0) >= 400) return ['ok' => false, 'msg' => 'Blatt konnte nicht angelegt werden'];
-    $sid = $r['json']['replies'][0]['addSheet']['properties']['sheetId'] ?? null;
+  if (($r['code'] ?? 0) >= 400 || ($r['code'] ?? 0) === 0) return null;
+  $props = array_map(fn($x) => $x['properties'] ?? [], $r['json']['sheets'] ?? []);
+  usort($props, fn($a, $b) => ($a['index'] ?? 0) <=> ($b['index'] ?? 0));
+  $want = kg_get($uid, 'upwork_apply_sheet');   // gespeicherte sheetId, falls das Blatt umbenannt wird
+  $tab = null; foreach ($props as $p) if ($want !== null && (int)($p['sheetId'] ?? -1) === (int)$want) $tab = $p;
+  if (!$tab) $tab = $props[0] ?? null; if (!$tab) return null;
+  if ($want === null) kg_set($uid, 'upwork_apply_sheet', (int)$tab['sheetId']);
+  return ['h' => $h, 'base' => $base, 'q' => "'" . str_replace("'", "''", $tab['title']) . "'"];
+}
+// Liefert die Werte oder null, wenn das Lesen fehlgeschlagen ist (dann wird nichts geschrieben)
+function uw_sheet_get(array $c, string $range): ?array {
+  $r = kg_http('GET', $c['base'] . '/values/' . rawurlencode($c['q'] . '!' . $range), $c['h']);
+  if (($r['code'] ?? 0) !== 200 || !is_array($r['json']) || !isset($r['json']['range'])) return null;
+  return $r['json']['values'] ?? [];
+}
+function uw_sheet_put(array $c, array $data): bool {
+  $r = kg_http('POST', $c['base'] . '/values:batchUpdate', $c['h'], json_encode(['valueInputOption' => 'RAW',
+    'data' => array_map(fn($d) => ['range' => $c['q'] . '!' . $d[0], 'values' => $d[1]], $data)], JSON_UNESCAPED_UNICODE));
+  return ($r['code'] ?? 0) > 0 && $r['code'] < 400;
+}
+// Zeile finden, in der Kongrow diesen Job eingetragen hat (Spalte F = Link)
+// Liefert die Zeilennummer, 0 = nicht gefunden, null = Sheet nicht lesbar
+function uw_sheet_find(array $c, string $url, ?int $hint): ?int {
+  if ($hint) { $v = uw_sheet_get($c, 'F' . $hint); if ($v !== null && ($v[0][0] ?? '') === $url) return $hint; }
+  $all = uw_sheet_get($c, 'F1:F5000'); if ($all === null) return null;
+  foreach ($all as $i => $row) if (($row[0] ?? '') === $url) return $i + 1;
+  return 0;
+}
+// Beworben: Zeile anhängen bzw. „Doch nicht“: Datum/Titel/Link dieser Zeile leeren. Liefert ['ok','msg']
+function uw_sheet_apply(int $uid, array $job, bool $on): array {
+  if (empty(kg_get($uid, 'upwork_sheet')['id'])) return ['ok' => false, 'msg' => 'Kein Google Sheet verknüpft'];
+  $c = uw_sheet_ctx($uid); if (!$c) return ['ok' => false, 'msg' => 'Sheet nicht erreichbar'];
+  $db = uw_db(); $key = (string)($job['job_key'] ?: ('id' . $job['id']));
+  $url = (string)($job['url'] ?: ''); if ($url === '') return ['ok' => false, 'msg' => 'Job ohne Link'];
+  $st = $db->prepare('SELECT sheet_row FROM upwork_applied WHERE user_id=? AND job_key=?'); $st->execute([$uid, $key]); $hint = $st->fetchColumn() ?: null;
+  $row = uw_sheet_find($c, $url, $hint ? (int)$hint : null);
+  if ($row === null) return ['ok' => false, 'msg' => 'Sheet konnte nicht gelesen werden – nichts eingetragen'];
+  if (!$on) {
+    if ($row) uw_sheet_put($c, [['B' . $row, [['']]], ['E' . $row . ':F' . $row, [['', '']]]]);
+    $db->prepare('DELETE FROM upwork_applied WHERE user_id=? AND job_key=?')->execute([$uid, $key]);
+    return ['ok' => true, 'msg' => 'Aus dem Sheet entfernt'];
   }
-  $st = uw_db()->prepare('SELECT * FROM upwork_applied WHERE user_id=? ORDER BY applied_at'); $st->execute([$uid]);
-  $rows = [['Datum', 'Job', 'URL', 'Budget', 'Land', 'Quelle']];
-  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $a) $rows[] = [$a['applied_at'], (string)$a['title'], (string)$a['url'], (string)$a['budget'], (string)$a['country'], (string)$a['source']];
-  $range = rawurlencode("'" . UW_SHEET_TAB . "'!A:F");
-  kg_http('POST', $base . '/values/' . $range . ':clear', $h, '{}');
-  $r = kg_http('PUT', $base . '/values/' . rawurlencode("'" . UW_SHEET_TAB . "'!A1") . '?valueInputOption=RAW', $h, json_encode(['values' => $rows], JSON_UNESCAPED_UNICODE));
-  if (($r['code'] ?? 0) >= 400) return ['ok' => false, 'msg' => 'Schreiben ins Sheet fehlgeschlagen'];
-  if ($sid !== null) kg_http('POST', $base . ':batchUpdate', $h, json_encode(['requests' => [
-    ['repeatCell' => ['range' => ['sheetId' => $sid, 'startRowIndex' => 0, 'endRowIndex' => 1], 'cell' => ['userEnteredFormat' => ['textFormat' => ['bold' => true], 'backgroundColor' => ['red' => 0.88, 'green' => 0.97, 'blue' => 0.96]]], 'fields' => 'userEnteredFormat(textFormat,backgroundColor)']],
-    ['autoResizeDimensions' => ['dimensions' => ['sheetId' => $sid, 'dimension' => 'COLUMNS', 'startIndex' => 0, 'endIndex' => 6]]]]]));
-  return ['ok' => true, 'msg' => 'Im Sheet eingetragen ✓', 'rows' => count($rows) - 1];
+  if (!$row) {
+    // nächste freie Zeile = unter dem letzten Eintrag in den Spalten B bis F
+    $vals = uw_sheet_get($c, 'B1:F5000');
+    if ($vals === null) return ['ok' => false, 'msg' => 'Sheet konnte nicht gelesen werden – nichts eingetragen'];
+    $last = 0; foreach ($vals as $i => $r) if (implode('', array_map(fn($x) => trim((string)$x), $r)) !== '') $last = $i + 1;
+    if ($last === 0) return ['ok' => false, 'msg' => 'Sheet wirkt leer – zur Sicherheit nichts eingetragen'];
+    $row = $last + 1;
+    $date = (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('m.d.Y');
+    if (!uw_sheet_put($c, [['B' . $row, [[$date]]], ['E' . $row . ':F' . $row, [[(string)$job['title'], $url]]]])) return ['ok' => false, 'msg' => 'Schreiben ins Sheet fehlgeschlagen'];
+  }
+  $db->prepare('INSERT OR REPLACE INTO upwork_applied(user_id,job_key,url,title,budget,country,source,applied_at,sheet_row) VALUES(?,?,?,?,?,?,?,?,?)')
+    ->execute([$uid, $key, $url, $job['title'], $job['budget'], $job['country'], str_starts_with((string)$job['msg_id'], 'manual:') ? 'Manuell' : 'Job-Alert', (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i'), $row]);
+  return ['ok' => true, 'msg' => 'Im Sheet eingetragen ✓ (Zeile ' . $row . ')', 'row' => $row];
+}
+// Titel im Sheet nachziehen (z. B. vollständiger Titel aus Claudes Entwurf)
+function uw_sheet_title(int $uid, string $jobKey, string $title): void {
+  $st = uw_db()->prepare('SELECT url, sheet_row FROM upwork_applied WHERE user_id=? AND job_key=?'); $st->execute([$uid, $jobKey]); $a = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$a) return; $c = uw_sheet_ctx($uid); if (!$c) return;
+  $row = uw_sheet_find($c, (string)$a['url'], $a['sheet_row'] ? (int)$a['sheet_row'] : null);
+  if ($row) uw_sheet_put($c, [['E' . $row, [[$title]]]]);   // nur wenn die Zeile sicher gefunden wurde
 }

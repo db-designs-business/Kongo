@@ -28,9 +28,8 @@ switch ($action) {
     $db->prepare('UPDATE upwork_jobs SET status=?, updated=? WHERE id=? AND user_id=?')->execute([$s, gmdate('c'), $id, $uid]);
     // Google Sheet: beworben → Zeile rein, „Doch nicht“ → Zeile raus
     $sheet = null;
-    if ($s === 'beworben' || $job['status'] === 'beworben') {
-      uw_applied_set($uid, $job, $s === 'beworben');
-      try { $sheet = uw_sheet_sync($uid); } catch (Throwable $e) { $sheet = ['ok' => false, 'msg' => 'Sheet-Fehler']; }
+    if (($s === 'beworben') !== ($job['status'] === 'beworben')) {
+      try { $sheet = uw_sheet_apply($uid, $job, $s === 'beworben'); } catch (Throwable $e) { $sheet = ['ok' => false, 'msg' => 'Sheet-Fehler']; }
     }
     kg_json(['ok' => true, 'sheet' => $sheet]);
 
@@ -53,7 +52,7 @@ switch ($action) {
     if ($t === '') kg_json(['error' => ['message' => 'Titel fehlt']], 400);
     $st = $db->prepare('SELECT job_key FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)($in['id'] ?? 0), $uid]); $jk = $st->fetchColumn();
     $db->prepare('UPDATE upwork_jobs SET title=?, updated=? WHERE id=? AND user_id=?')->execute([$t, gmdate('c'), (int)($in['id'] ?? 0), $uid]);
-    if ($jk) { $db->prepare('UPDATE upwork_applied SET title=? WHERE user_id=? AND job_key=?')->execute([$t, $uid, $jk]); try { uw_sheet_sync($uid); } catch (Throwable $e) {} }
+    if ($jk) { $db->prepare('UPDATE upwork_applied SET title=? WHERE user_id=? AND job_key=?')->execute([$t, $uid, $jk]); try { uw_sheet_title($uid, $jk, $t); } catch (Throwable $e) {} }
     kg_json(['ok' => true]);
 
   case 'mcp_key':
@@ -90,9 +89,6 @@ switch ($action) {
     $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,reason,updated) VALUES(?,?,?,?,?,?,?,?,?,'gemerkt',NULL,?)")
       ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
     kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false, 'status' => 'gemerkt']);
-
-  case 'sheet_sync':
-    kg_json(uw_sheet_sync($uid));
 
   case 'log':
     kg_json(['log' => kg_get($uid, 'upwork_log', [])]);

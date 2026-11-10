@@ -76,7 +76,7 @@ function mcp_call(int $uid, string $name, array $a): array {
     $newStatus = in_array($row['status'], ['uebersprungen', 'gefiltert'], true) ? 'gemerkt' : $row['status'];
     $db->prepare('UPDATE upwork_jobs SET draft=?, draft_answers=?, draft_notes=?, draft_ts=?, status=?, updated=?' . ($better ? ', title=?' : '') . ' WHERE id=?')
       ->execute(array_merge([$text, $ans, $notes, $now, $newStatus, $now], $better ? [$title] : [], [$id]));
-    if ($better) $db->prepare('UPDATE upwork_applied SET title=? WHERE user_id=? AND job_key=?')->execute([$title, $uid, $jk]);
+    if ($better) { $db->prepare('UPDATE upwork_applied SET title=? WHERE user_id=? AND job_key=?')->execute([$title, $uid, $jk]); try { uw_sheet_title($uid, $jk, $title); } catch (Throwable $e) {} }
     $jobTitle = $better ? $title : $row['title'];
   } else {
     $db->prepare('DELETE FROM upwork_deleted WHERE user_id=? AND job_key=?')->execute([$uid, $jk]);
