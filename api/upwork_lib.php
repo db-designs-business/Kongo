@@ -17,6 +17,8 @@ function uw_db(): PDO {
       kind TEXT, budget TEXT, rate_min REAL, rate_max REAL, snippet TEXT, skills TEXT, verified INTEGER, spent TEXT, country TEXT,
       received TEXT NOT NULL, status TEXT NOT NULL, reason TEXT, updated TEXT, UNIQUE(user_id, msg_id))');
     $db->exec('CREATE INDEX IF NOT EXISTS uw_status ON upwork_jobs(user_id, status, received)');
+    // jeder Job nur einmal pro Nutzer (egal ob aus Alert-Mail oder manuell)
+    try { $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS uw_jobkey ON upwork_jobs(user_id, job_key) WHERE job_key IS NOT NULL'); } catch (Throwable $e) {}
     $cols = array_column($db->query('PRAGMA table_info(upwork_jobs)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
@@ -250,7 +252,8 @@ function uw_note(int $uid, array $res): void {
 // Datensparsam: nicht beworbene Jobs nach 14 Tagen löschen, beworbene nach 120 Tagen
 function uw_cleanup(int $uid): void {
   $db = uw_db();
-  $db->prepare("DELETE FROM upwork_jobs WHERE user_id=? AND status<>'beworben' AND received < ?")->execute([$uid, gmdate('c', time() - 14 * 86400)]);
+  $db->prepare("DELETE FROM upwork_jobs WHERE user_id=? AND status NOT IN ('beworben','gemerkt') AND received < ?")->execute([$uid, gmdate('c', time() - 14 * 86400)]);
+  $db->prepare("DELETE FROM upwork_jobs WHERE user_id=? AND status='gemerkt' AND received < ?")->execute([$uid, gmdate('c', time() - 45 * 86400)]);
   $db->prepare("DELETE FROM upwork_jobs WHERE user_id=? AND received < ?")->execute([$uid, gmdate('c', time() - 120 * 86400)]);
   $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND ts < ?')->execute([$uid, time() - 7 * 86400]);
 }

@@ -9,7 +9,7 @@ $db = uw_db();
 function uw_out(array $r): array {
   return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
-    'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason']];
+    'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:')];
 }
 
 switch ($action) {
@@ -21,7 +21,7 @@ switch ($action) {
 
   case 'status':
     $id = (int)($in['id'] ?? 0); $s = (string)($in['status'] ?? '');
-    if (!in_array($s, ['neu', 'interessant', 'beworben', 'uebersprungen'], true)) kg_json(['error' => ['message' => 'Unbekannter Status']], 400);
+    if (!in_array($s, ['neu', 'gemerkt', 'beworben', 'uebersprungen'], true)) kg_json(['error' => ['message' => 'Unbekannter Status']], 400);
     $db->prepare('UPDATE upwork_jobs SET status=?, updated=? WHERE id=? AND user_id=?')->execute([$s, gmdate('c'), $id, $uid]);
     kg_json(['ok' => true]);
 
@@ -41,19 +41,20 @@ switch ($action) {
     $title = mb_substr(trim((string)($in['title'] ?? '')), 0, 200); $note = mb_substr(trim((string)($in['note'] ?? '')), 0, 1000);
     $st = $db->prepare('SELECT id, status FROM upwork_jobs WHERE user_id=? AND job_key=?'); $st->execute([$uid, $key]);
     if ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-      if (in_array($row['status'], ['uebersprungen', 'gefiltert'], true)) $db->prepare("UPDATE upwork_jobs SET status='neu', reason=NULL, updated=? WHERE id=?")->execute([gmdate('c'), $row['id']]);
+      // schon vorhanden: nicht doppelt anlegen, aber auf die Merkliste holen (außer schon beworben)
+      if ($row['status'] !== 'beworben') $db->prepare("UPDATE upwork_jobs SET status='gemerkt', reason=NULL, updated=? WHERE id=?")->execute([gmdate('c'), $row['id']]);
       if ($title !== '') $db->prepare('UPDATE upwork_jobs SET title=? WHERE id=?')->execute([$title, $row['id']]);
       if ($note !== '') $db->prepare('UPDATE upwork_jobs SET snippet=? WHERE id=?')->execute([$note, $row['id']]);
-      kg_json(['ok' => true, 'id' => (int)$row['id'], 'existing' => true]);
+      kg_json(['ok' => true, 'id' => (int)$row['id'], 'existing' => true, 'status' => $row['status'] === 'beworben' ? 'beworben' : 'gemerkt']);
     }
-    $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,reason,updated) VALUES(?,?,?,?,?,?,?,?,?,'neu',NULL,?)")
+    $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,reason,updated) VALUES(?,?,?,?,?,?,?,?,?,'gemerkt',NULL,?)")
       ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
-    kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false]);
+    kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false, 'status' => 'gemerkt']);
 
   case 'test_push':
     // Push-Nachrichten für die aktuell offenen Jobs schicken (zum Testen)
     require_once __DIR__ . '/../push/lib.php';
-    $st = $db->prepare("SELECT * FROM upwork_jobs WHERE user_id=? AND status IN ('neu','interessant') ORDER BY received DESC LIMIT 3"); $st->execute([$uid]);
+    $st = $db->prepare("SELECT * FROM upwork_jobs WHERE user_id=? AND status IN ('neu','gemerkt') ORDER BY received DESC LIMIT 3"); $st->execute([$uid]);
     $jobs = $st->fetchAll(PDO::FETCH_ASSOC);
     if (!$jobs) kg_json(['error' => ['message' => 'Keine offenen Jobs zum Testen.']], 409);
     foreach ($jobs as &$j) $j['id'] = (int)$j['id']; unset($j);

@@ -1083,7 +1083,7 @@
   .uj-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted, #8a9a9a); margin:0 2px 12px; }
   .uj-bar button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:8px 0; }
   .uj-bar-btns{ display:flex; gap:16px; }
-  .uj-tabs{ margin-bottom:12px; } .uj-tabs .aufg-tab{ font-size:13px; min-height:38px; padding:8px 4px; }
+  .uj-tabs{ margin-bottom:12px; gap:2px; } .uj-tabs .aufg-tab{ font-size:12.5px; min-height:38px; padding:8px 2px; white-space:nowrap; }
   .uj-card{ padding:12px 14px; margin-bottom:8px !important; }
   .uj-card.uj-hl{ border-color:rgba(34,227,211,.6) !important; box-shadow:0 0 0 1px rgba(34,227,211,.35), 0 0 24px rgba(34,227,211,.15); }
   .uj-tap{ cursor:pointer; }
@@ -11073,7 +11073,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const h = Math.round(m / 60); if(h < 24) return 'vor ' + h + ' Std.';
     return new Date(iso).toLocaleDateString('de-DE', { weekday:'short', day:'numeric', month:'short' });
   }
-  const ujInTab = (j, t)=>t === 'neu' ? (j.status === 'neu' || j.status === 'interessant') : t === 'beworben' ? j.status === 'beworben' : (j.status === 'gefiltert' || j.status === 'uebersprungen');
+  const ujInTab = (j, t)=>t === 'neu' ? j.status === 'neu' : t === 'gemerkt' ? j.status === 'gemerkt' : t === 'beworben' ? j.status === 'beworben' : (j.status === 'gefiltert' || j.status === 'uebersprungen');
+  const ujHome = j=>j.manual ? 'gemerkt' : 'neu';   // wohin ein Job zurückgeht
   function renderUpJobs(){
     upShowView();
     const el = document.getElementById('upJobs'); if(!el) return;
@@ -11101,9 +11102,9 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       if(j.rating) meta.push('★ ' + escapeHtml(j.rating));
       const open = j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Öffnen ↗</a>` : '';
       const ai = j.url && uj.tab !== 'beworben' ? `<button type="button" class="uj-btn uj-ai" data-ai="${j.id}">Claude ✦</button>` : '';
-      const acts = uj.tab === 'neu' ? `${open}${ai}<button type="button" class="uj-btn uj-yes" data-st="beworben" data-id="${j.id}">✓ Beworben</button><button type="button" class="uj-btn uj-x" data-st="uebersprungen" data-id="${j.id}" aria-label="Überspringen">✕</button>`
-        : uj.tab === 'beworben' ? `${open}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Doch nicht</button>`
-        : `${open}${ai}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Zurückholen</button>`;
+      const acts = (uj.tab === 'neu' || uj.tab === 'gemerkt') ? `${open}${ai}<button type="button" class="uj-btn uj-yes" data-st="beworben" data-id="${j.id}">✓ Beworben</button><button type="button" class="uj-btn uj-x" data-st="uebersprungen" data-id="${j.id}" aria-label="Überspringen">✕</button>`
+        : uj.tab === 'beworben' ? `${open}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Doch nicht</button>`
+        : `${open}${ai}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Zurückholen</button>`;
       const more = [mo.rest.length ? escapeHtml(mo.rest.join(' · ')) : '', j.skills ? escapeHtml(j.skills) : ''].filter(Boolean);
       return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}" id="uj_${j.id}">
         <div class="uj-tap" data-tap="${j.id}">
@@ -11115,13 +11116,14 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         </div>
         <div class="uj-actions">${acts}</div></div>`;
     };
-    const empty = uj.tab === 'neu' ? 'Keine neuen Jobs. Sobald ein Upwork-Alert in deinem Postfach landet, erscheint er hier und du bekommst eine Push-Nachricht.' : uj.tab === 'beworben' ? 'Noch keine Bewerbungen markiert.' : 'Nichts aussortiert.';
+    const empty = uj.tab === 'gemerkt' ? 'Noch keine eigenen Jobs. Über „+ Job“ fügst du Links hinzu, die du selbst gefunden hast.' : uj.tab === 'neu' ? 'Keine neuen Jobs. Sobald ein Upwork-Alert in deinem Postfach landet, erscheint er hier und du bekommst eine Push-Nachricht.' : uj.tab === 'beworben' ? 'Noch keine Bewerbungen markiert.' : 'Nichts aussortiert.';
     el.innerHTML = `
       <div class="uj-bar"><span>${escapeHtml(last)}</span><span class="uj-bar-btns"><button type="button" id="ujAdd">+ Job</button><button type="button" id="ujCheck" ${uj.busy ? 'disabled' : ''}>${uj.busy ? 'Prüfe ...' : 'Jetzt prüfen'}</button></span></div>
       <div class="aufg-tabs uj-tabs" id="ujTabs">
         <button type="button" class="aufg-tab ${uj.tab === 'neu' ? 'active' : ''}" data-t="neu">Neu (${n('neu')})</button>
+        <button type="button" class="aufg-tab ${uj.tab === 'gemerkt' ? 'active' : ''}" data-t="gemerkt">Gemerkt (${n('gemerkt')})</button>
         <button type="button" class="aufg-tab ${uj.tab === 'beworben' ? 'active' : ''}" data-t="beworben">Beworben (${n('beworben')})</button>
-        <button type="button" class="aufg-tab ${uj.tab === 'aus' ? 'active' : ''}" data-t="aus">Aussortiert (${n('aus')})</button>
+        <button type="button" class="aufg-tab ${uj.tab === 'aus' ? 'active' : ''}" data-t="aus">Aus (${n('aus')})</button>
       </div>
       ${list.length ? list.map(card).join('') : `<div class="card"><div class="hint" style="margin:0;">${empty}</div></div>`}`;
     el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); });
@@ -11155,8 +11157,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       const msgEl = card.querySelector('#ujAddMsg'); const btns = card.querySelectorAll('#ujAddSave,#ujAddAi'); btns.forEach(b=>b.disabled = true);
       try{
         const r = await kgApi('upwork.php?action=add', { url: card.querySelector('#ujAddUrl').value, title: card.querySelector('#ujAddTitle').value, note: card.querySelector('#ujAddNote').value });
-        await upJobsLoad(true); closeErnModal(); uj.view = 'jobs'; uj.tab = 'neu'; uj.hl = r.id; renderUpJobs();
-        if(toClaude) ujOpenClaude(r.id, win); else kgUndoToast(r.existing ? 'Job war schon in der Liste ✓' : 'Job gespeichert ✓');
+        await upJobsLoad(true); closeErnModal(); uj.view = 'jobs'; uj.tab = r.status === 'beworben' ? 'beworben' : 'gemerkt'; uj.hl = r.id; renderUpJobs();
+        if(toClaude) ujOpenClaude(r.id, win); else kgUndoToast(r.status === 'beworben' ? 'Auf diesen Job hast du dich schon beworben' : r.existing ? 'Job war schon da – jetzt unter „Gemerkt“ ✓' : 'Unter „Gemerkt“ gespeichert ✓');
       }catch(e){ if(win) try{ win.close(); }catch(_){} msgEl.textContent = e.message; btns.forEach(b=>b.disabled = false); }
     };
     card.querySelector('#ujAddSave').onclick = ()=>go(false);
@@ -11185,7 +11187,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     try{ await kgApi('upwork.php?action=status', { id, status }); }
     catch(e){ j.status = prev; renderUpJobs(); kgUndoToast('Speichern fehlgeschlagen: ' + e.message); return; }
     if(status === 'beworben') ujBumpProposals(1); else if(prev === 'beworben') ujBumpProposals(-1);
-    const msg = status === 'beworben' ? 'Als beworben markiert · +1 Proposal' : status === 'uebersprungen' ? 'Übersprungen' : 'Zurückgeholt';
+    const msg = status === 'beworben' ? 'Als beworben markiert · +1 Proposal' : status === 'uebersprungen' ? 'Übersprungen' : status === 'gemerkt' ? 'Zurück unter „Gemerkt“' : 'Zurückgeholt';
     kgUndoToast(msg, ()=>ujSetStatus(id, prev));
   }
   function openUjFilter(){
@@ -11217,7 +11219,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     uj.view = 'jobs'; uj.tab = 'neu'; uj.hl = jobId || null;
     try{ await upJobsLoad(true); }catch(e){}
     const j = jobId && uj.jobs.find(x=>x.id === jobId);
-    if(j && !ujInTab(j, 'neu')) uj.tab = j.status === 'beworben' ? 'beworben' : 'aus';
+    if(j && !ujInTab(j, 'neu')) uj.tab = j.status === 'beworben' ? 'beworben' : j.status === 'gemerkt' ? 'gemerkt' : 'aus';
     switchTab('upwork');
     if(jobId) setTimeout(()=>{ const c = document.getElementById('uj_' + jobId); if(c) c.scrollIntoView({ behavior:'smooth', block:'center' }); }, 200);
   }
