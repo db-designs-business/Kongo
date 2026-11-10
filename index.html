@@ -1109,7 +1109,13 @@
   .uj-btn.uj-yes{ background:var(--forest); border-color:var(--forest); color:#001a17; }
   .uj-btn.uj-x{ flex:0 0 42px; padding:0; color:var(--muted, #8a9a9a); font-size:15px; }
   .uj-prop-text{ width:100%; min-height:300px; font-size:14px; line-height:1.45; }
-  .uj-prop-ans{ width:100%; min-height:90px; font-size:14px; line-height:1.45; }
+  .uj-prop-title{ font-size:17px !important; line-height:1.3; padding-right:36px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .uj-notes{ margin-top:6px; font-size:13px; color:var(--muted, #8a9a9a); }
+  .uj-notes summary{ cursor:pointer; color:var(--forest); font-weight:600; font-size:13px; padding:4px 0; }
+  .uj-notes div{ white-space:pre-wrap; line-height:1.45; margin-top:4px; }
+  .uj-qa{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line-soft, rgba(255,255,255,.08)); }
+  .uj-q{ font-weight:600; font-size:14px; line-height:1.4; margin-bottom:6px; }
+  .uj-a{ width:100%; min-height:80px; font-size:14px; line-height:1.45; }
   .uj-filter textarea{ width:100%; min-height:130px; }
   .uj-filter .set-toggle{ margin-top:10px; }
   .uj-filter .set-toggle b, .uj-filter .set-toggle small{ white-space:normal; }
@@ -11162,24 +11168,29 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   }
   function openUjProposal(id){
     const j = uj.jobs.find(x=>x.id === id); if(!j) return;
-    openErnModal(`<div class="modal-title">${escapeHtml(j.title)}</div>
-      ${j.draft_notes ? `<div class="modal-sub">${escapeHtml(j.draft_notes)}</div>` : ''}
-      <div class="step-label" style="margin-top:6px;">Proposal</div>
+    const qa = Array.isArray(j.draft_answers) ? j.draft_answers.map(x=>({ question:x.question || '', answer:x.answer || '' })) : [];
+    openErnModal(`<div class="modal-title uj-prop-title">${escapeHtml(j.title)}</div>
+      ${j.draft_notes ? `<details class="uj-notes"><summary>Hinweise von Claude</summary><div>${escapeHtml(j.draft_notes)}</div></details>` : ''}
+      <div class="step-label" style="margin-top:10px;">Proposal</div>
       <textarea id="ujPropText" class="uj-prop-text">${escapeHtml(j.draft || '')}</textarea>
       <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Zur Job-Seite ↗</a>` : ''}</div>
-      <div class="step-label" style="margin-top:16px;">Screening-Fragen</div>
-      <textarea id="ujPropAns" class="uj-prop-ans" placeholder="Keine Screening-Antworten">${escapeHtml(j.draft_answers || '')}</textarea>
-      ${j.draft_answers ? '<div class="uj-actions"><button type="button" class="uj-btn" id="ujAnsCopy">Antworten kopieren</button></div>' : ''}
+      ${qa.length ? `<div class="step-label" style="margin-top:18px;">Screening-Fragen (${qa.length})</div>` + qa.map((x, i)=>`<div class="uj-qa">
+          <div class="uj-q">${i + 1}. ${escapeHtml(x.question)}</div>
+          <textarea class="uj-a" data-qa="${i}">${escapeHtml(x.answer)}</textarea>
+          <div class="uj-actions" style="margin-top:6px;"><button type="button" class="uj-btn" data-qcopy="${i}">Antwort ${i + 1} kopieren</button></div></div>`).join('') : ''}
       <div class="hint" id="ujPropSaved" style="margin:10px 0 0;min-height:1em;"></div>
       <div class="uj-actions" style="margin-top:6px;">${j.status !== 'beworben' ? `<button type="button" class="uj-btn uj-yes" id="ujPropDone">✓ Beworben</button>` : ''}<button type="button" class="uj-btn uj-ai" id="ujPropAi">Neu von Claude</button></div>`);
     const card = ernModalCard();
-    const t = card.querySelector('#ujPropText'), a = card.querySelector('#ujPropAns'), info = card.querySelector('#ujPropSaved');
+    const t = card.querySelector('#ujPropText'), info = card.querySelector('#ujPropSaved');
+    const cur = ()=>qa.map((x, i)=>({ question:x.question, answer: card.querySelector('[data-qa="' + i + '"]').value }));
     let timer = null;
-    const save = async ()=>{ clearTimeout(timer); if(t.value === (j.draft || '') && a.value === (j.draft_answers || '')) return;
-      try{ await kgApi('upwork.php?action=draft', { id, draft:t.value, answers:a.value }); j.draft = t.value; j.draft_answers = a.value; info.textContent = 'Änderungen gespeichert ✓'; }catch(e){ info.textContent = 'Speichern fehlgeschlagen: ' + e.message; } };
-    [t, a].forEach(x=>{ x.oninput = ()=>{ info.textContent = ''; clearTimeout(timer); timer = setTimeout(save, 900); }; x.onblur = save; });
+    const save = async ()=>{ clearTimeout(timer);
+      const answers = cur();
+      if(t.value === (j.draft || '') && JSON.stringify(answers) === JSON.stringify(j.draft_answers || [])) return;
+      try{ await kgApi('upwork.php?action=draft', { id, draft:t.value, answers }); j.draft = t.value; j.draft_answers = answers; info.textContent = 'Änderungen gespeichert ✓'; }catch(e){ info.textContent = 'Speichern fehlgeschlagen: ' + e.message; } };
+    card.querySelectorAll('#ujPropText, .uj-a').forEach(x=>{ x.oninput = ()=>{ info.textContent = ''; clearTimeout(timer); timer = setTimeout(save, 900); }; x.onblur = save; });
     card.querySelector('#ujPropCopy').onclick = ()=>{ save(); ujCopy(t.value, 'Proposal kopiert ✓'); };
-    const ac = card.querySelector('#ujAnsCopy'); if(ac) ac.onclick = ()=>ujCopy(a.value, 'Antworten kopiert ✓');
+    card.querySelectorAll('[data-qcopy]').forEach(b=>b.onclick = ()=>{ save(); ujCopy(card.querySelector('[data-qa="' + b.dataset.qcopy + '"]').value, 'Antwort ' + (+b.dataset.qcopy + 1) + ' kopiert ✓'); });
     const done = card.querySelector('#ujPropDone'); if(done) done.onclick = async ()=>{ await save(); closeErnModal(); ujSetStatus(id, 'beworben'); };
     card.querySelector('#ujPropAi').onclick = ()=>{ save(); ujOpenClaude(id); };
     card.querySelector('[data-x]').addEventListener('click', ()=>{ save(); renderUpJobs(); });

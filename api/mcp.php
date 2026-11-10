@@ -31,9 +31,10 @@ const MCP_TOOLS = [
     'inputSchema' => ['type' => 'object', 'properties' => [
       'job_url' => ['type' => 'string', 'description' => 'Link zum Upwork-Job (muss die Job-ID ~0… enthalten)'],
       'proposal' => ['type' => 'string', 'description' => 'Der vollständige Proposal-Text, genau so wie er eingefügt werden soll'],
-      'screening_answers' => ['type' => 'string', 'description' => 'Optional: Antworten auf die Screening-Fragen, jeweils „Frage“ und darunter die Antwort'],
+      'screening_answers' => ['type' => 'array', 'description' => 'Optional: die Screening-Fragen des Jobs mit Antwort, eine pro Eintrag', 'items' => ['type' => 'object', 'properties' => [
+        'question' => ['type' => 'string', 'description' => 'Die Frage genau wie im Job'], 'answer' => ['type' => 'string', 'description' => 'Die Antwort']], 'required' => ['question', 'answer']]],
       'title' => ['type' => 'string', 'description' => 'Optional: Job-Titel'],
-      'notes' => ['type' => 'string', 'description' => 'Optional: kurze Hinweise für Dominic, z. B. gewähltes Template, offene Platzhalter, Budget'],
+      'notes' => ['type' => 'string', 'description' => 'Optional: sehr kurze Hinweise für Dominic (max. 2–3 Stichpunkte), z. B. gewähltes Template, offene Platzhalter'],
     ], 'required' => ['job_url', 'proposal']],
   ],
   [
@@ -55,13 +56,14 @@ function mcp_call(int $uid, string $name, array $a): array {
     $st = $db->prepare('SELECT title, draft, draft_answers, draft_ts FROM upwork_jobs WHERE user_id=? AND job_key=?'); $st->execute([$uid, $jk]);
     $r = $st->fetch(PDO::FETCH_ASSOC);
     if (!$r || ($r['draft'] ?? '') === '') return mcp_text('Zu diesem Job gibt es in Kongrow noch keinen Entwurf.');
-    return mcp_text("Job: {$r['title']}\nStand: {$r['draft_ts']}\n\n--- Proposal ---\n{$r['draft']}" . (($r['draft_answers'] ?? '') !== '' ? "\n\n--- Screening-Antworten ---\n{$r['draft_answers']}" : ''));
+    $qa = ''; foreach (uw_answers_list((string)($r['draft_answers'] ?? '')) as $x) $qa .= "\n\nFrage: {$x['question']}\nAntwort: {$x['answer']}";
+    return mcp_text("Job: {$r['title']}\nStand: {$r['draft_ts']}\n\n--- Proposal ---\n{$r['draft']}" . ($qa !== '' ? "\n\n--- Screening-Antworten ---" . $qa : ''));
   }
   if ($name !== 'save_proposal_draft') return mcp_text('Unbekanntes Werkzeug: ' . $name, true);
   $text = trim((string)($a['proposal'] ?? ''));
   if ($text === '') return mcp_text('Der Proposal-Text fehlt.', true);
   $text = mb_substr($text, 0, 6000);
-  $ans = mb_substr(trim((string)($a['screening_answers'] ?? '')), 0, 6000);
+  $ans = uw_answers_json($a['screening_answers'] ?? null);
   $notes = mb_substr(trim((string)($a['notes'] ?? '')), 0, 1000);
   $title = mb_substr(trim((string)($a['title'] ?? '')), 0, 200);
   $now = gmdate('c');

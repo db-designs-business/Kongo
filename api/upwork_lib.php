@@ -276,3 +276,27 @@ function uw_push_messages(array $jobs): array {
   if (count($jobs) <= 3) return array_map(fn($j) => ['title' => '💼 ' . $j['title'], 'body' => $line($j) ?: 'Neuer Upwork-Job', 'url' => './?open=upwork&job=' . $j['id'], 'tag' => 'upwork-' . $j['id']], $jobs);
   return [['title' => '💼 ' . count($jobs) . ' neue Upwork-Jobs', 'body' => implode("\n", array_map(fn($j) => $j['title'], array_slice($jobs, 0, 4))), 'url' => './?open=upwork', 'tag' => 'upwork']];
 }
+
+/* ---------- Screening-Antworten: als JSON-Liste [{question, answer}] gespeichert ---------- */
+// Alte Freitext-Fassung („Frage“ / darunter Antwort, Leerzeile dazwischen) in Paare zerlegen
+function uw_answers_list(string $stored): array {
+  $stored = trim($stored); if ($stored === '') return [];
+  $j = json_decode($stored, true);
+  if (is_array($j)) return array_values(array_filter(array_map(fn($x) => ['question' => trim((string)($x['question'] ?? '')), 'answer' => (string)($x['answer'] ?? '')], $j), fn($x) => $x['question'] !== '' || trim($x['answer']) !== ''));
+  $out = [];
+  foreach (preg_split('/\n\s*\n/', str_replace("\r", '', $stored)) as $block) {
+    $lines = array_values(array_filter(array_map('trim', explode("\n", $block)), 'strlen')); if (!$lines) continue;
+    $q = preg_replace('/^(q|f|frage|question)\s*[:.)]\s*/i', '', array_shift($lines));
+    $a = preg_replace('/^(a|antwort|answer)\s*[:.)]\s*/i', '', implode("\n", $lines));
+    $out[] = ['question' => $q, 'answer' => $a];
+  }
+  return $out;
+}
+// Eingabe (Liste oder Text) als JSON-Liste speichern
+function uw_answers_json($in): string {
+  if (is_string($in)) $list = uw_answers_list($in);
+  elseif (is_array($in)) $list = uw_answers_list(json_encode($in, JSON_UNESCAPED_UNICODE));
+  else $list = [];
+  foreach ($list as &$x) { $x['question'] = mb_substr($x['question'], 0, 1000); $x['answer'] = mb_substr($x['answer'], 0, 5000); } unset($x);
+  return $list ? json_encode(array_slice($list, 0, 20), JSON_UNESCAPED_UNICODE) : '';
+}

@@ -10,7 +10,7 @@ function uw_out(array $r): array {
   return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
     'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:'),
-    'draft' => $r['draft'] ?? '', 'draft_answers' => $r['draft_answers'] ?? '', 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null];
+    'draft' => $r['draft'] ?? '', 'draft_answers' => uw_answers_list((string)($r['draft_answers'] ?? '')), 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null];
 }
 
 switch ($action) {
@@ -37,7 +37,7 @@ switch ($action) {
   case 'draft':
     // Entwurf in Kongrow bearbeiten
     $db->prepare('UPDATE upwork_jobs SET draft=?, draft_answers=?, draft_ts=?, updated=? WHERE id=? AND user_id=?')
-      ->execute([mb_substr((string)($in['draft'] ?? ''), 0, 6000), mb_substr((string)($in['answers'] ?? ''), 0, 6000), gmdate('c'), gmdate('c'), (int)($in['id'] ?? 0), $uid]);
+      ->execute([mb_substr((string)($in['draft'] ?? ''), 0, 6000), uw_answers_json($in['answers'] ?? null), gmdate('c'), gmdate('c'), (int)($in['id'] ?? 0), $uid]);
     kg_json(['ok' => true]);
 
   case 'mcp_key':
