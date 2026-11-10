@@ -23,8 +23,16 @@ switch ($action) {
   case 'status':
     $id = (int)($in['id'] ?? 0); $s = (string)($in['status'] ?? '');
     if (!in_array($s, ['neu', 'gemerkt', 'beworben', 'uebersprungen'], true)) kg_json(['error' => ['message' => 'Unbekannter Status']], 400);
+    $st = $db->prepare('SELECT * FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([$id, $uid]); $job = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$job) kg_json(['error' => ['message' => 'Job nicht gefunden']], 404);
     $db->prepare('UPDATE upwork_jobs SET status=?, updated=? WHERE id=? AND user_id=?')->execute([$s, gmdate('c'), $id, $uid]);
-    kg_json(['ok' => true]);
+    // Google Sheet: beworben → Zeile rein, „Doch nicht“ → Zeile raus
+    $sheet = null;
+    if ($s === 'beworben' || $job['status'] === 'beworben') {
+      uw_applied_set($uid, $job, $s === 'beworben');
+      try { $sheet = uw_sheet_sync($uid); } catch (Throwable $e) { $sheet = ['ok' => false, 'msg' => 'Sheet-Fehler']; }
+    }
+    kg_json(['ok' => true, 'sheet' => $sheet]);
 
   case 'settings':
     $words = $in['exclude'] ?? [];
@@ -74,6 +82,9 @@ switch ($action) {
     $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,reason,updated) VALUES(?,?,?,?,?,?,?,?,?,'gemerkt',NULL,?)")
       ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
     kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false, 'status' => 'gemerkt']);
+
+  case 'sheet_sync':
+    kg_json(uw_sheet_sync($uid));
 
   case 'log':
     kg_json(['log' => kg_get($uid, 'upwork_log', [])]);

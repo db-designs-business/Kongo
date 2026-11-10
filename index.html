@@ -11264,10 +11264,12 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   async function ujSetStatus(id, status){
     const j = uj.jobs.find(x=>x.id === id); if(!j) return;
     const prev = j.status; j.status = status; renderUpJobs();
-    try{ await kgApi('upwork.php?action=status', { id, status }); }
+    let r;
+    try{ r = await kgApi('upwork.php?action=status', { id, status }); }
     catch(e){ j.status = prev; renderUpJobs(); kgUndoToast('Speichern fehlgeschlagen: ' + e.message); return; }
     if(status === 'beworben') ujBumpProposals(1); else if(prev === 'beworben') ujBumpProposals(-1);
-    const msg = status === 'beworben' ? 'Als beworben markiert · +1 Proposal' : status === 'uebersprungen' ? 'Übersprungen' : status === 'gemerkt' ? 'Zurück unter „Gemerkt“' : 'Zurückgeholt';
+    const sh = r && r.sheet ? (r.sheet.ok ? ' · im Sheet ✓' : (r.sheet.msg === 'Kein Google Sheet verknüpft' ? '' : ' · Sheet: ' + r.sheet.msg)) : '';
+    const msg = status === 'beworben' ? 'Als beworben markiert · +1 Proposal' + sh : status === 'uebersprungen' ? 'Übersprungen' : status === 'gemerkt' ? 'Zurück unter „Gemerkt“' : 'Zurückgeholt';
     kgUndoToast(msg, ()=>ujSetStatus(id, prev));
   }
   function openUjFilter(){

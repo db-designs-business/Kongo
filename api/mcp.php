@@ -33,7 +33,7 @@ const MCP_TOOLS = [
       'proposal' => ['type' => 'string', 'description' => 'Der vollständige Proposal-Text, genau so wie er eingefügt werden soll'],
       'screening_answers' => ['type' => 'array', 'description' => 'Optional: die Screening-Fragen des Jobs mit Antwort, eine pro Eintrag', 'items' => ['type' => 'object', 'properties' => [
         'question' => ['type' => 'string', 'description' => 'Die Frage genau wie im Job'], 'answer' => ['type' => 'string', 'description' => 'Die Antwort']], 'required' => ['question', 'answer']]],
-      'title' => ['type' => 'string', 'description' => 'Optional: Job-Titel'],
+      'title' => ['type' => 'string', 'description' => 'Der vollständige Job-Titel, genau wie auf Upwork (ersetzt abgeschnittene Titel aus der Alert-Mail)'],
       'notes' => ['type' => 'string', 'description' => 'Optional: sehr kurze Hinweise für Dominic (max. 2–3 Stichpunkte), z. B. gewähltes Template, offene Platzhalter'],
     ], 'required' => ['job_url', 'proposal']],
   ],
@@ -70,10 +70,14 @@ function mcp_call(int $uid, string $name, array $a): array {
   $st = $db->prepare('SELECT id, title, status FROM upwork_jobs WHERE user_id=? AND job_key=?'); $st->execute([$uid, $jk]);
   if ($row = $st->fetch(PDO::FETCH_ASSOC)) {
     $id = (int)$row['id'];
+    // vollständigen Titel übernehmen, wenn bisher nur ein Platzhalter oder ein abgeschnittener Titel aus der Alert-Mail da ist
+    $cut = rtrim((string)preg_replace('/(…|\.\.\.)\s*$/u', '', (string)$row['title']));
+    $better = $title !== '' && (str_starts_with((string)$row['title'], 'Upwork-Job ') || ($cut !== $row['title'] && mb_stripos($title, $cut) === 0));
     $newStatus = in_array($row['status'], ['uebersprungen', 'gefiltert'], true) ? 'gemerkt' : $row['status'];
-    $db->prepare('UPDATE upwork_jobs SET draft=?, draft_answers=?, draft_notes=?, draft_ts=?, status=?, updated=?' . ($title !== '' && str_starts_with((string)$row['title'], 'Upwork-Job ') ? ', title=?' : '') . ' WHERE id=?')
-      ->execute(array_merge([$text, $ans, $notes, $now, $newStatus, $now], $title !== '' && str_starts_with((string)$row['title'], 'Upwork-Job ') ? [$title] : [], [$id]));
-    $jobTitle = $title !== '' && str_starts_with((string)$row['title'], 'Upwork-Job ') ? $title : $row['title'];
+    $db->prepare('UPDATE upwork_jobs SET draft=?, draft_answers=?, draft_notes=?, draft_ts=?, status=?, updated=?' . ($better ? ', title=?' : '') . ' WHERE id=?')
+      ->execute(array_merge([$text, $ans, $notes, $now, $newStatus, $now], $better ? [$title] : [], [$id]));
+    if ($better) $db->prepare('UPDATE upwork_applied SET title=? WHERE user_id=? AND job_key=?')->execute([$title, $uid, $jk]);
+    $jobTitle = $better ? $title : $row['title'];
   } else {
     $db->prepare('DELETE FROM upwork_deleted WHERE user_id=? AND job_key=?')->execute([$uid, $jk]);
     $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,updated,draft,draft_answers,draft_notes,draft_ts) VALUES(?,?,?,?,?,'Manuell','','',?,'gemerkt',?,?,?,?,?)")

@@ -23,6 +23,8 @@ function uw_db(): PDO {
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
     foreach (['draft', 'draft_answers', 'draft_notes', 'draft_ts'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c TEXT");
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_deleted (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, job_key))');
+    // Bewerbungs-Log fürs Google Sheet (bleibt dauerhaft, auch wenn der Job aus der Liste gelöscht wird)
+    $db->exec('CREATE TABLE IF NOT EXISTS upwork_applied (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, url TEXT, title TEXT, budget TEXT, country TEXT, source TEXT, applied_at TEXT NOT NULL, PRIMARY KEY(user_id, job_key))');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
   }
   return $db;
@@ -299,4 +301,41 @@ function uw_answers_json($in): string {
   else $list = [];
   foreach ($list as &$x) { $x['question'] = mb_substr($x['question'], 0, 1000); $x['answer'] = mb_substr($x['answer'], 0, 5000); } unset($x);
   return $list ? json_encode(array_slice($list, 0, 20), JSON_UNESCAPED_UNICODE) : '';
+}
+
+/* ---------- Google Sheet: Blatt „Upwork Bewerbungen“ ---------- */
+const UW_SHEET_TAB = 'Upwork Bewerbungen';
+// Job als beworben vormerken bzw. wieder entfernen
+function uw_applied_set(int $uid, array $job, bool $on): void {
+  $db = uw_db(); $key = (string)($job['job_key'] ?: ('id' . $job['id']));
+  if ($on) $db->prepare('INSERT OR IGNORE INTO upwork_applied(user_id,job_key,url,title,budget,country,source,applied_at) VALUES(?,?,?,?,?,?,?,?)')
+    ->execute([$uid, $key, $job['url'], $job['title'], $job['budget'], $job['country'], str_starts_with((string)$job['msg_id'], 'manual:') ? 'Manuell' : 'Job-Alert', (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d H:i')]);
+  else $db->prepare('DELETE FROM upwork_applied WHERE user_id=? AND job_key=?')->execute([$uid, $key]);
+}
+// Blatt komplett aus dem Log neu schreiben. Liefert ['ok'=>bool,'msg'=>string]
+function uw_sheet_sync(int $uid): array {
+  $sh = kg_get($uid, 'upwork_sheet');
+  if (empty($sh['id'])) return ['ok' => false, 'msg' => 'Kein Google Sheet verknüpft'];
+  $at = n_google_token($uid); if ($at === '') return ['ok' => false, 'msg' => 'Google nicht verbunden'];
+  $h = ['Authorization: Bearer ' . $at, 'Content-Type: application/json'];
+  $base = 'https://sheets.googleapis.com/v4/spreadsheets/' . rawurlencode($sh['id']);
+  $r = kg_http('GET', $base . '?fields=sheets.properties', $h);
+  if (($r['code'] ?? 0) >= 400 || ($r['code'] ?? 0) === 0) return ['ok' => false, 'msg' => 'Sheet nicht erreichbar (' . ($r['json']['error']['message'] ?? $r['code']) . ')'];
+  $sid = null; foreach (($r['json']['sheets'] ?? []) as $x) if (($x['properties']['title'] ?? '') === UW_SHEET_TAB) $sid = $x['properties']['sheetId'];
+  if ($sid === null) {
+    $r = kg_http('POST', $base . ':batchUpdate', $h, json_encode(['requests' => [['addSheet' => ['properties' => ['title' => UW_SHEET_TAB, 'gridProperties' => ['frozenRowCount' => 1]]]]]]));
+    if (($r['code'] ?? 0) >= 400) return ['ok' => false, 'msg' => 'Blatt konnte nicht angelegt werden'];
+    $sid = $r['json']['replies'][0]['addSheet']['properties']['sheetId'] ?? null;
+  }
+  $st = uw_db()->prepare('SELECT * FROM upwork_applied WHERE user_id=? ORDER BY applied_at'); $st->execute([$uid]);
+  $rows = [['Datum', 'Job', 'URL', 'Budget', 'Land', 'Quelle']];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $a) $rows[] = [$a['applied_at'], (string)$a['title'], (string)$a['url'], (string)$a['budget'], (string)$a['country'], (string)$a['source']];
+  $range = rawurlencode("'" . UW_SHEET_TAB . "'!A:F");
+  kg_http('POST', $base . '/values/' . $range . ':clear', $h, '{}');
+  $r = kg_http('PUT', $base . '/values/' . rawurlencode("'" . UW_SHEET_TAB . "'!A1") . '?valueInputOption=RAW', $h, json_encode(['values' => $rows], JSON_UNESCAPED_UNICODE));
+  if (($r['code'] ?? 0) >= 400) return ['ok' => false, 'msg' => 'Schreiben ins Sheet fehlgeschlagen'];
+  if ($sid !== null) kg_http('POST', $base . ':batchUpdate', $h, json_encode(['requests' => [
+    ['repeatCell' => ['range' => ['sheetId' => $sid, 'startRowIndex' => 0, 'endRowIndex' => 1], 'cell' => ['userEnteredFormat' => ['textFormat' => ['bold' => true], 'backgroundColor' => ['red' => 0.88, 'green' => 0.97, 'blue' => 0.96]]], 'fields' => 'userEnteredFormat(textFormat,backgroundColor)']],
+    ['autoResizeDimensions' => ['dimensions' => ['sheetId' => $sid, 'dimension' => 'COLUMNS', 'startIndex' => 0, 'endIndex' => 6]]]]]));
+  return ['ok' => true, 'msg' => 'Im Sheet eingetragen ✓', 'rows' => count($rows) - 1];
 }
