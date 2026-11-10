@@ -8,12 +8,15 @@ const KG_SESSION_DAYS = 180;
 const KG_COOKIE = 'kg_sess';
 
 function kg_data_dir(): string {
+  // Liegt die Datenbank schon in api/data, wird immer dieser Ordner benutzt – von der Website UND vom Cronjob.
+  // (Die Website darf auf dem Server nicht außerhalb von httpdocs schreiben, der Cronjob schon; sonst würden beide verschiedene Datenbanken nehmen.)
+  $inside = __DIR__ . '/data';
+  if (file_exists($inside . '/kongrow.sqlite')) return $inside;
   // Bevorzugt außerhalb des Web-Verzeichnisses (httpdocs), sonst api/data (per .htaccess gesperrt)
   $outside = dirname(__DIR__, 2) . '/kongrow-private';
   if (is_dir($outside) || @mkdir($outside, 0700, true)) {
     if (is_writable($outside)) return $outside;
   }
-  $inside = __DIR__ . '/data';
   if (!is_dir($inside)) @mkdir($inside, 0700, true);
   return $inside;
 }
