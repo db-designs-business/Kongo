@@ -23,6 +23,11 @@ function uw_db(): PDO {
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
     foreach (['draft', 'draft_answers', 'draft_notes', 'draft_ts'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c TEXT");
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_deleted (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, job_key))');
+    // Altlast aus dem ersten Parser: Links im Titel („Titel...: https://…“) entfernen
+    foreach ($db->query("SELECT id, title FROM upwork_jobs WHERE title LIKE '%http%'")->fetchAll(PDO::FETCH_ASSOC) as $r) {
+      $t = trim((string)preg_replace(['#\s*:?\s*<?https?://\S*>?#i', '/\s*:\s*$/'], ['', ''], $r['title']));
+      if ($t !== '' && $t !== $r['title']) $db->prepare('UPDATE upwork_jobs SET title=? WHERE id=?')->execute([$t, $r['id']]);
+    }
     // Bewerbungs-Log fürs Google Sheet (bleibt dauerhaft, auch wenn der Job aus der Liste gelöscht wird)
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_applied (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, url TEXT, title TEXT, budget TEXT, country TEXT, source TEXT, applied_at TEXT NOT NULL, PRIMARY KEY(user_id, job_key))');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');

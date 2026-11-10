@@ -48,6 +48,14 @@ switch ($action) {
       ->execute([mb_substr((string)($in['draft'] ?? ''), 0, 6000), uw_answers_json($in['answers'] ?? null), gmdate('c'), gmdate('c'), (int)($in['id'] ?? 0), $uid]);
     kg_json(['ok' => true]);
 
+  case 'title':
+    $t = mb_substr(trim((string)($in['title'] ?? '')), 0, 200);
+    if ($t === '') kg_json(['error' => ['message' => 'Titel fehlt']], 400);
+    $st = $db->prepare('SELECT job_key FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)($in['id'] ?? 0), $uid]); $jk = $st->fetchColumn();
+    $db->prepare('UPDATE upwork_jobs SET title=?, updated=? WHERE id=? AND user_id=?')->execute([$t, gmdate('c'), (int)($in['id'] ?? 0), $uid]);
+    if ($jk) { $db->prepare('UPDATE upwork_applied SET title=? WHERE user_id=? AND job_key=?')->execute([$t, $uid, $jk]); try { uw_sheet_sync($uid); } catch (Throwable $e) {} }
+    kg_json(['ok' => true]);
+
   case 'mcp_key':
     // Adresse für den Kongrow-Connector in Claude (Schlüssel wird bei Bedarf erzeugt oder neu erzeugt)
     $k = kg_get($uid, 'mcp_key');
