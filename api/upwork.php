@@ -33,6 +33,23 @@ switch ($action) {
     uw_refilter($uid);
     kg_json(['ok' => true, 'settings' => uw_settings($uid)]);
 
+  case 'add':
+    // Job-Link manuell speichern (Kongrow ruft die Upwork-Seite dabei nicht ab)
+    $url = trim((string)($in['url'] ?? ''));
+    if (!preg_match('#^https?://([a-z0-9-]+\.)?upwork\.com/#i', $url) || !preg_match('/(~0[0-9a-z]{10,})/i', $url, $m)) kg_json(['error' => ['message' => 'Das sieht nicht nach einem Upwork-Job-Link aus. Er muss eine Job-ID wie ~02… enthalten.']], 400);
+    $key = $m[1]; $clean = 'https://www.upwork.com/jobs/' . $key;
+    $title = mb_substr(trim((string)($in['title'] ?? '')), 0, 200); $note = mb_substr(trim((string)($in['note'] ?? '')), 0, 1000);
+    $st = $db->prepare('SELECT id, status FROM upwork_jobs WHERE user_id=? AND job_key=?'); $st->execute([$uid, $key]);
+    if ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+      if (in_array($row['status'], ['uebersprungen', 'gefiltert'], true)) $db->prepare("UPDATE upwork_jobs SET status='neu', reason=NULL, updated=? WHERE id=?")->execute([gmdate('c'), $row['id']]);
+      if ($title !== '') $db->prepare('UPDATE upwork_jobs SET title=? WHERE id=?')->execute([$title, $row['id']]);
+      if ($note !== '') $db->prepare('UPDATE upwork_jobs SET snippet=? WHERE id=?')->execute([$note, $row['id']]);
+      kg_json(['ok' => true, 'id' => (int)$row['id'], 'existing' => true]);
+    }
+    $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,reason,updated) VALUES(?,?,?,?,?,?,?,?,?,'neu',NULL,?)")
+      ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
+    kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false]);
+
   case 'test_push':
     // Push-Nachrichten für die aktuell offenen Jobs schicken (zum Testen)
     require_once __DIR__ . '/../push/lib.php';

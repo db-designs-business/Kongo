@@ -1082,6 +1082,7 @@
   #panelUpwork .aufg-head{ gap:8px; }
   .uj-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted, #8a9a9a); margin:0 2px 12px; }
   .uj-bar button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:8px 0; }
+  .uj-bar-btns{ display:flex; gap:16px; }
   .uj-tabs{ margin-bottom:12px; } .uj-tabs .aufg-tab{ font-size:13px; min-height:38px; padding:8px 4px; }
   .uj-card{ padding:12px 14px; margin-bottom:8px !important; }
   .uj-card.uj-hl{ border-color:rgba(34,227,211,.6) !important; box-shadow:0 0 0 1px rgba(34,227,211,.35), 0 0 24px rgba(34,227,211,.15); }
@@ -11087,6 +11088,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const money = j=>{
       const parts = String(j.budget || '').split(' · ');
       const m = parts.find(x=>x.includes('$'));
+      if(j.kind === 'Manuell' && !m) return { v:'Manuell gespeichert', rest: parts.filter(Boolean) };
       const v = m ? m.replace(/\.00\b/g, '').replace(/\s*-\s*/, '–') + (j.kind === 'Stundensatz' ? '/h' : ' fix') : (j.kind === 'Stundensatz' ? 'Stundenbasis' : 'Festpreis');
       return { v, rest: parts.filter(x=>x !== m) };
     };
@@ -11115,7 +11117,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     };
     const empty = uj.tab === 'neu' ? 'Keine neuen Jobs. Sobald ein Upwork-Alert in deinem Postfach landet, erscheint er hier und du bekommst eine Push-Nachricht.' : uj.tab === 'beworben' ? 'Noch keine Bewerbungen markiert.' : 'Nichts aussortiert.';
     el.innerHTML = `
-      <div class="uj-bar"><span>${escapeHtml(last)}</span><button type="button" id="ujCheck" ${uj.busy ? 'disabled' : ''}>${uj.busy ? 'Prüfe ...' : 'Jetzt prüfen'}</button></div>
+      <div class="uj-bar"><span>${escapeHtml(last)}</span><span class="uj-bar-btns"><button type="button" id="ujAdd">+ Job</button><button type="button" id="ujCheck" ${uj.busy ? 'disabled' : ''}>${uj.busy ? 'Prüfe ...' : 'Jetzt prüfen'}</button></span></div>
       <div class="aufg-tabs uj-tabs" id="ujTabs">
         <button type="button" class="aufg-tab ${uj.tab === 'neu' ? 'active' : ''}" data-t="neu">Neu (${n('neu')})</button>
         <button type="button" class="aufg-tab ${uj.tab === 'beworben' ? 'active' : ''}" data-t="beworben">Beworben (${n('beworben')})</button>
@@ -11124,17 +11126,42 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       ${list.length ? list.map(card).join('') : `<div class="card"><div class="hint" style="margin:0;">${empty}</div></div>`}`;
     el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); });
     el.querySelector('#ujCheck').onclick = ujCheckNow;
+    el.querySelector('#ujAdd').onclick = openUjAdd;
     el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
     el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>t.closest('.uj-card').classList.toggle('open'));
     el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
   }
   // Auftrag für Claude (mit offiziellem Upwork-Connector) kopieren und Claude öffnen
-  async function ujOpenClaude(id){
+  async function ujOpenClaude(id, win){
     const j = uj.jobs.find(x=>x.id === id); if(!j || !j.url) return;
     const prompt = `Nutze den Upwork-Connector und meinen Skill „Upwork-Proposals“.\n\nLies diesen Job vollständig (Beschreibung, Screening-Fragen, Kundeninfos): ${j.url}\nTitel: ${j.title}\n\nWähle mein passendes Template, schreib das Proposal und beantworte die Screening-Fragen. Reiche nichts bei Upwork ein, bevor ich es ausdrücklich bestätige.`;
     let copied = false; try{ await navigator.clipboard.writeText(prompt); copied = true; }catch(e){}
-    window.open('https://claude.ai/new?q=' + encodeURIComponent(prompt), '_blank', 'noopener');
+    const target = 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
+    if(win && !win.closed) win.location.href = target; else window.open(target, '_blank', 'noopener');
     kgUndoToast(copied ? 'Auftrag kopiert ✓ Falls das Feld in Claude leer ist: einfach einfügen.' : 'Claude geöffnet', null, 5000);
+  }
+  // Job-Link manuell hinzufügen (z. B. am PC gefunden)
+  function openUjAdd(){
+    openErnModal(`<div class="modal-title">Job hinzufügen</div>
+      <div class="modal-sub">Füge den Link zu einem Upwork-Job ein, den du selbst gefunden hast. Kongrow ruft die Seite nicht ab – Titel und Notiz sind optional.</div>
+      <input type="url" id="ujAddUrl" placeholder="https://www.upwork.com/jobs/~02…" autocomplete="off">
+      <input type="text" id="ujAddTitle" placeholder="Titel (optional)" style="margin-top:10px;">
+      <textarea id="ujAddNote" placeholder="Notiz, z. B. warum der Job passt (optional)" style="margin-top:10px;min-height:80px;width:100%;"></textarea>
+      <div class="hint" id="ujAddMsg" style="margin:8px 0 0;min-height:1em;"></div>
+      <div class="uj-actions" style="margin-top:12px;"><button type="button" class="uj-btn" id="ujAddSave">Auf Liste speichern</button><button type="button" class="uj-btn uj-yes" id="ujAddAi">Direkt an Claude ✦</button></div>`);
+    const card = ernModalCard();
+    const go = async toClaude=>{
+      const win = toClaude ? window.open('about:blank', '_blank') : null;   // direkt beim Klick öffnen, sonst blockiert der Browser
+      const msgEl = card.querySelector('#ujAddMsg'); const btns = card.querySelectorAll('#ujAddSave,#ujAddAi'); btns.forEach(b=>b.disabled = true);
+      try{
+        const r = await kgApi('upwork.php?action=add', { url: card.querySelector('#ujAddUrl').value, title: card.querySelector('#ujAddTitle').value, note: card.querySelector('#ujAddNote').value });
+        await upJobsLoad(true); closeErnModal(); uj.view = 'jobs'; uj.tab = 'neu'; uj.hl = r.id; renderUpJobs();
+        if(toClaude) ujOpenClaude(r.id, win); else kgUndoToast(r.existing ? 'Job war schon in der Liste ✓' : 'Job gespeichert ✓');
+      }catch(e){ if(win) try{ win.close(); }catch(_){} msgEl.textContent = e.message; btns.forEach(b=>b.disabled = false); }
+    };
+    card.querySelector('#ujAddSave').onclick = ()=>go(false);
+    card.querySelector('#ujAddAi').onclick = ()=>go(true);
+    setTimeout(()=>{ const i = card.querySelector('#ujAddUrl'); if(i) i.focus(); }, 50);
   }
   async function ujCheckNow(){
     uj.busy = true; renderUpJobs();
