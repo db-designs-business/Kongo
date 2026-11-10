@@ -9,7 +9,7 @@ $db = uw_db();
 function uw_out(array $r): array {
   return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
-    'spent' => $r['spent'], 'country' => $r['country'], 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason']];
+    'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason']];
 }
 
 switch ($action) {

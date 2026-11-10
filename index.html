@@ -1083,20 +1083,27 @@
   .uj-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; color:var(--muted, #8a9a9a); margin:0 2px 12px; }
   .uj-bar button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:8px 0; }
   .uj-tabs{ margin-bottom:12px; } .uj-tabs .aufg-tab{ font-size:13px; min-height:38px; padding:8px 4px; }
-  .uj-card{ padding:16px; }
+  .uj-card{ padding:12px 14px; margin-bottom:8px !important; }
   .uj-card.uj-hl{ border-color:rgba(34,227,211,.6) !important; box-shadow:0 0 0 1px rgba(34,227,211,.35), 0 0 24px rgba(34,227,211,.15); }
-  .uj-title{ font-weight:700; font-size:16px; line-height:1.3; overflow-wrap:anywhere; }
-  .uj-meta{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .uj-meta span{ font-size:12.5px; padding:4px 9px; border-radius:999px; background:rgba(255,255,255,.05); border:1px solid var(--line-soft, rgba(255,255,255,.08)); color:var(--ink-soft); white-space:nowrap; }
-  .uj-meta .uj-ok{ color:var(--forest); border-color:rgba(34,227,211,.35); }
-  .uj-meta .uj-warn{ color:#ffb86b; border-color:rgba(255,184,107,.35); }
-  .uj-snip{ font-size:14px; line-height:1.45; color:var(--ink-soft); margin-top:10px; overflow-wrap:anywhere; }
-  .uj-skills{ font-size:12.5px; color:var(--muted, #8a9a9a); margin-top:6px; }
-  .uj-when{ font-size:12px; color:var(--muted, #8a9a9a); margin-top:8px; }
-  .uj-reason{ font-size:12.5px; color:#ffb86b; margin-top:8px; }
-  .uj-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-  .uj-actions > *{ flex:1 1 auto; min-height:44px; display:flex; align-items:center; justify-content:center; text-align:center; text-decoration:none; }
-  .uj-actions .up-open{ flex-basis:100%; }
+  .uj-tap{ cursor:pointer; }
+  .uj-top{ display:flex; align-items:flex-start; gap:10px; }
+  .uj-title{ flex:1; min-width:0; font-weight:700; font-size:15px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+  .uj-when{ flex:0 0 auto; font-size:11.5px; color:var(--muted, #8a9a9a); padding-top:2px; white-space:nowrap; }
+  .uj-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:5px; line-height:1.5; }
+  .uj-meta b{ color:var(--ink); font-weight:600; }
+  .uj-meta i{ font-style:normal; opacity:.45; margin:0 5px; }
+  .uj-meta .uj-ok{ color:var(--forest); } .uj-meta .uj-warn{ color:#ffb86b; }
+  .uj-snip{ font-size:13px; line-height:1.4; color:var(--muted, #8a9a9a); margin-top:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+  .uj-more{ display:none; font-size:12px; color:var(--muted, #8a9a9a); margin-top:6px; line-height:1.45; }
+  .uj-card.open .uj-title, .uj-card.open .uj-snip{ -webkit-line-clamp:unset; display:block; }
+  .uj-card.open .uj-more{ display:block; }
+  .uj-reason{ font-size:12px; color:#ffb86b; margin-top:6px; }
+  .uj-actions{ display:flex; gap:6px; margin-top:10px; }
+  .uj-btn{ flex:1 1 0; min-height:38px; padding:0 10px; border-radius:12px; font-size:13.5px; font-weight:600; display:flex; align-items:center; justify-content:center; text-decoration:none; white-space:nowrap;
+    background:rgba(255,255,255,.04); border:1px solid var(--line-soft, rgba(255,255,255,.1)); color:var(--ink); }
+  .uj-btn.uj-open{ color:var(--forest) !important; }
+  .uj-btn.uj-yes{ background:var(--forest); border-color:var(--forest); color:#001a17; }
+  .uj-btn.uj-x{ flex:0 0 42px; padding:0; color:var(--muted, #8a9a9a); font-size:15px; }
   .uj-filter textarea{ width:100%; min-height:130px; }
   .uj-filter .set-toggle{ margin-top:10px; }
   .uj-filter .set-toggle b, .uj-filter .set-toggle small{ white-space:normal; }
@@ -11076,23 +11083,32 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const n = t=>uj.jobs.filter(j=>ujInTab(j, t)).length;
     const list = uj.jobs.filter(j=>ujInTab(j, uj.tab));
     const last = uj.last && uj.last.ts ? 'Zuletzt geprüft ' + ujAgo(new Date(uj.last.ts * 1000).toISOString()) + (uj.last.error ? ' · ' + uj.last.error : '') : 'Noch nicht geprüft';
+    const money = j=>{
+      const parts = String(j.budget || '').split(' · ');
+      const m = parts.find(x=>x.includes('$'));
+      const v = m ? m.replace(/\.00\b/g, '').replace(/\s*-\s*/, '–') + (j.kind === 'Stundensatz' ? '/h' : ' fix') : (j.kind === 'Stundensatz' ? 'Stundenbasis' : 'Festpreis');
+      return { v, rest: parts.filter(x=>x !== m) };
+    };
     const card = j=>{
-      const meta = [];
-      if(j.budget || j.kind) meta.push(`<span>${escapeHtml((j.kind === 'Stundensatz' ? 'Std. ' : j.kind === 'Festpreis' ? 'Fix ' : '') + (j.budget || ''))}</span>`);
-      if(j.verified === true) meta.push('<span class="uj-ok">✓ Zahlung verifiziert</span>'); else if(j.verified === false) meta.push('<span class="uj-warn">Zahlung nicht verifiziert</span>');
-      if(j.spent) meta.push(`<span>${escapeHtml(j.spent)} ausgegeben</span>`);
-      if(j.country) meta.push(`<span>${escapeHtml(j.country)}</span>`);
-      const open = j.url ? `<a class="ghost up-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Auf Upwork öffnen ↗</a>` : '';
-      const acts = uj.tab === 'neu' ? `${open}<button type="button" class="primary" data-st="beworben" data-id="${j.id}">Beworben ✓</button><button type="button" class="ghost" data-st="uebersprungen" data-id="${j.id}">Überspringen</button>`
-        : uj.tab === 'beworben' ? `${open}<button type="button" class="ghost" data-st="neu" data-id="${j.id}">Doch nicht beworben</button>`
-        : `${open}<button type="button" class="ghost" data-st="neu" data-id="${j.id}">Zurückholen</button>`;
+      const mo = money(j);
+      const meta = [`<b>${escapeHtml(mo.v)}</b>`];
+      if(j.country) meta.push(escapeHtml(j.country));
+      if(j.verified === true) meta.push('<span class="uj-ok">✓ verifiziert</span>'); else if(j.verified === false) meta.push('<span class="uj-warn">nicht verifiziert</span>');
+      if(j.spent) meta.push(escapeHtml(j.spent) + ' ausgegeben');
+      if(j.rating) meta.push('★ ' + escapeHtml(j.rating));
+      const open = j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Öffnen ↗</a>` : '';
+      const acts = uj.tab === 'neu' ? `${open}<button type="button" class="uj-btn uj-yes" data-st="beworben" data-id="${j.id}">✓ Beworben</button><button type="button" class="uj-btn uj-x" data-st="uebersprungen" data-id="${j.id}" aria-label="Überspringen">✕</button>`
+        : uj.tab === 'beworben' ? `${open}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Doch nicht</button>`
+        : `${open}<button type="button" class="uj-btn" data-st="neu" data-id="${j.id}">Zurückholen</button>`;
+      const more = [mo.rest.length ? escapeHtml(mo.rest.join(' · ')) : '', j.skills ? escapeHtml(j.skills) : ''].filter(Boolean);
       return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}" id="uj_${j.id}">
-        <div class="uj-title">${escapeHtml(j.title)}</div>
-        ${meta.length ? `<div class="uj-meta">${meta.join('')}</div>` : ''}
-        ${j.snippet ? `<div class="uj-snip">${escapeHtml(j.snippet)}</div>` : ''}
-        ${j.skills ? `<div class="uj-skills">${escapeHtml(j.skills)}</div>` : ''}
-        ${uj.tab === 'aus' ? `<div class="uj-reason">${escapeHtml(j.status === 'uebersprungen' ? 'Von dir übersprungen' : (j.reason || 'Aussortiert'))}</div>` : ''}
-        <div class="uj-when">${ujAgo(j.received)}</div>
+        <div class="uj-tap" data-tap="${j.id}">
+          <div class="uj-top"><div class="uj-title">${escapeHtml(j.title)}</div><div class="uj-when">${ujAgo(j.received)}</div></div>
+          <div class="uj-meta">${meta.join('<i>·</i>')}</div>
+          ${j.snippet ? `<div class="uj-snip">${escapeHtml(j.snippet)}</div>` : ''}
+          ${more.length ? `<div class="uj-more">${more.map(x=>`<div>${x}</div>`).join('')}</div>` : ''}
+          ${uj.tab === 'aus' ? `<div class="uj-reason">${escapeHtml(j.status === 'uebersprungen' ? 'Von dir übersprungen' : (j.reason || 'Aussortiert'))}</div>` : ''}
+        </div>
         <div class="uj-actions">${acts}</div></div>`;
     };
     const empty = uj.tab === 'neu' ? 'Keine neuen Jobs. Sobald ein Upwork-Alert in deinem Postfach landet, erscheint er hier und du bekommst eine Push-Nachricht.' : uj.tab === 'beworben' ? 'Noch keine Bewerbungen markiert.' : 'Nichts aussortiert.';
@@ -11107,6 +11123,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); });
     el.querySelector('#ujCheck').onclick = ujCheckNow;
     el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
+    el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>t.closest('.uj-card').classList.toggle('open'));
   }
   async function ujCheckNow(){
     uj.busy = true; renderUpJobs();
