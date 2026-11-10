@@ -9,7 +9,8 @@ $db = uw_db();
 function uw_out(array $r): array {
   return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
-    'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:')];
+    'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:'),
+    'draft' => $r['draft'] ?? '', 'draft_answers' => $r['draft_answers'] ?? '', 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null];
 }
 
 switch ($action) {
@@ -32,6 +33,18 @@ switch ($action) {
     kg_set($uid, 'upwork_filter', ['exclude' => $words, 'only_verified' => !empty($in['only_verified']), 'min_rate' => max(0, (float)($in['min_rate'] ?? 0)), 'archive' => !empty($in['archive'])]);
     uw_refilter($uid);
     kg_json(['ok' => true, 'settings' => uw_settings($uid)]);
+
+  case 'draft':
+    // Entwurf in Kongrow bearbeiten
+    $db->prepare('UPDATE upwork_jobs SET draft=?, draft_answers=?, draft_ts=?, updated=? WHERE id=? AND user_id=?')
+      ->execute([mb_substr((string)($in['draft'] ?? ''), 0, 6000), mb_substr((string)($in['answers'] ?? ''), 0, 6000), gmdate('c'), gmdate('c'), (int)($in['id'] ?? 0), $uid]);
+    kg_json(['ok' => true]);
+
+  case 'mcp_key':
+    // Adresse für den Kongrow-Connector in Claude (Schlüssel wird bei Bedarf erzeugt oder neu erzeugt)
+    $k = kg_get($uid, 'mcp_key');
+    if (!is_string($k) || !empty($in['renew'])) { $k = bin2hex(random_bytes(20)); kg_set($uid, 'mcp_key', $k); }
+    kg_json(['url' => kg_base_url() . '/api/mcp.php?key=' . $k]);
 
   case 'delete':
     // merken, damit derselbe Job nicht aus einer Alert-Mail zurückkommt

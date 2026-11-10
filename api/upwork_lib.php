@@ -21,6 +21,7 @@ function uw_db(): PDO {
     try { $db->exec('CREATE UNIQUE INDEX IF NOT EXISTS uw_jobkey ON upwork_jobs(user_id, job_key) WHERE job_key IS NOT NULL'); } catch (Throwable $e) {}
     $cols = array_column($db->query('PRAGMA table_info(upwork_jobs)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
+    foreach (['draft', 'draft_answers', 'draft_notes', 'draft_ts'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c TEXT");
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_deleted (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, job_key))');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
   }

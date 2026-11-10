@@ -1108,6 +1108,8 @@
   .uj-btn.uj-ai{ color:#c9b8ff; border-color:rgba(201,184,255,.3); }
   .uj-btn.uj-yes{ background:var(--forest); border-color:var(--forest); color:#001a17; }
   .uj-btn.uj-x{ flex:0 0 42px; padding:0; color:var(--muted, #8a9a9a); font-size:15px; }
+  .uj-prop-text{ width:100%; min-height:300px; font-size:14px; line-height:1.45; }
+  .uj-prop-ans{ width:100%; min-height:90px; font-size:14px; line-height:1.45; }
   .uj-filter textarea{ width:100%; min-height:130px; }
   .uj-filter .set-toggle{ margin-top:10px; }
   .uj-filter .set-toggle b, .uj-filter .set-toggle small{ white-space:normal; }
@@ -11098,14 +11100,16 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const card = j=>{
       const mo = money(j);
       const meta = [`<b>${escapeHtml(mo.v)}</b>`];
+      if(j.draft) meta.unshift('<span class="uj-ok">✍️ Proposal bereit</span>');
       if(j.country) meta.push(escapeHtml(j.country));
       if(j.verified === true) meta.push('<span class="uj-ok">✓ verifiziert</span>'); else if(j.verified === false) meta.push('<span class="uj-warn">nicht verifiziert</span>');
       if(j.spent) meta.push(escapeHtml(j.spent) + ' ausgegeben');
       if(j.rating) meta.push('★ ' + escapeHtml(j.rating));
       const open = j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Öffnen ↗</a>` : '';
-      const ai = j.url && uj.tab !== 'beworben' ? `<button type="button" class="uj-btn uj-ai" data-ai="${j.id}">Claude ✦</button>` : '';
+      const ai = j.draft ? `<button type="button" class="uj-btn uj-ai" data-prop="${j.id}">Proposal ✍️</button>`
+        : j.url && uj.tab !== 'beworben' ? `<button type="button" class="uj-btn uj-ai" data-ai="${j.id}">Claude ✦</button>` : '';
       const acts = (uj.tab === 'neu' || uj.tab === 'gemerkt') ? `${open}${ai}<button type="button" class="uj-btn uj-yes" data-st="beworben" data-id="${j.id}">✓ Beworben</button><button type="button" class="uj-btn uj-x" data-st="uebersprungen" data-id="${j.id}" aria-label="Überspringen">✕</button>`
-        : uj.tab === 'beworben' ? `${open}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Doch nicht</button>`
+        : uj.tab === 'beworben' ? `${open}${j.draft ? ai : ''}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Doch nicht</button>`
         : `${open}${ai}<button type="button" class="uj-btn" data-st="${ujHome(j)}" data-id="${j.id}">Zurückholen</button>`;
       const more = [mo.rest.length ? escapeHtml(mo.rest.join(' · ')) : '', j.skills ? escapeHtml(j.skills) : ''].filter(Boolean);
       return `<div class="card uj-card${uj.hl === j.id ? ' uj-hl' : ''}" id="uj_${j.id}">
@@ -11135,16 +11139,50 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     el.querySelectorAll('[data-st]').forEach(b=>b.onclick = ()=>ujSetStatus(+b.dataset.id, b.dataset.st));
     el.querySelectorAll('[data-tap]').forEach(t=>t.onclick = ()=>t.closest('.uj-card').classList.toggle('open'));
     el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
+    el.querySelectorAll('[data-prop]').forEach(b=>b.onclick = ()=>openUjProposal(+b.dataset.prop));
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>ujDelete(+b.dataset.del));
   }
   // Auftrag für Claude (mit offiziellem Upwork-Connector) kopieren und Claude öffnen
   async function ujOpenClaude(id, win){
     const j = uj.jobs.find(x=>x.id === id); if(!j || !j.url) return;
-    const prompt = `Nutze den Upwork-Connector und meinen Skill „Upwork-Proposals“.\n\nLies diesen Job vollständig (Beschreibung, Screening-Fragen, Kundeninfos): ${j.url}\nTitel: ${j.title}\n\nWähle mein passendes Template, schreib das Proposal und beantworte die Screening-Fragen. Nur als Entwurf – ich reiche selbst auf Upwork ein.`;
+    const prompt = `Nutze den Upwork-Connector und meinen Skill „Upwork-Proposals“.\n\nLies diesen Job vollständig (Beschreibung, Screening-Fragen, Kundeninfos): ${j.url}\nTitel: ${j.title}\n\nWähle mein passendes Template, schreib das Proposal und beantworte die Screening-Fragen. Speichere den fertigen Entwurf mit dem Kongrow-Connector (save_proposal_draft) in Kongrow – nicht bei Upwork einreichen, das mache ich selbst.`;
     let copied = false; try{ await navigator.clipboard.writeText(prompt); copied = true; }catch(e){}
     const target = 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
     if(win && !win.closed) win.location.href = target; else window.open(target, '_blank', 'noopener');
     kgUndoToast(copied ? 'Auftrag kopiert ✓ Falls das Feld in Claude leer ist: einfach einfügen.' : 'Claude geöffnet', null, 5000);
+  }
+  // Zweimal tippen zum Bestätigen (ohne Browser-Dialog)
+  function confirmInline(btn){ if(btn.dataset.armed){ return true; } btn.dataset.armed = '1'; const t = btn.textContent; btn.textContent = 'Sicher? Alte Adresse geht dann nicht mehr'; setTimeout(()=>{ delete btn.dataset.armed; btn.textContent = t; }, 4000); return false; }
+  // Fertiger Entwurf von Claude: bearbeiten, kopieren, zur Job-Seite, beworben
+  async function ujCopy(text, okMsg){
+    try{ await navigator.clipboard.writeText(text); kgUndoToast(okMsg); return; }catch(e){}
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); kgUndoToast(okMsg); }catch(e){ kgUndoToast('Kopieren ging nicht – Text bitte markieren und kopieren'); }
+    ta.remove();
+  }
+  function openUjProposal(id){
+    const j = uj.jobs.find(x=>x.id === id); if(!j) return;
+    openErnModal(`<div class="modal-title">${escapeHtml(j.title)}</div>
+      ${j.draft_notes ? `<div class="modal-sub">${escapeHtml(j.draft_notes)}</div>` : ''}
+      <div class="step-label" style="margin-top:6px;">Proposal</div>
+      <textarea id="ujPropText" class="uj-prop-text">${escapeHtml(j.draft || '')}</textarea>
+      <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Zur Job-Seite ↗</a>` : ''}</div>
+      <div class="step-label" style="margin-top:16px;">Screening-Fragen</div>
+      <textarea id="ujPropAns" class="uj-prop-ans" placeholder="Keine Screening-Antworten">${escapeHtml(j.draft_answers || '')}</textarea>
+      ${j.draft_answers ? '<div class="uj-actions"><button type="button" class="uj-btn" id="ujAnsCopy">Antworten kopieren</button></div>' : ''}
+      <div class="hint" id="ujPropSaved" style="margin:10px 0 0;min-height:1em;"></div>
+      <div class="uj-actions" style="margin-top:6px;">${j.status !== 'beworben' ? `<button type="button" class="uj-btn uj-yes" id="ujPropDone">✓ Beworben</button>` : ''}<button type="button" class="uj-btn uj-ai" id="ujPropAi">Neu von Claude</button></div>`);
+    const card = ernModalCard();
+    const t = card.querySelector('#ujPropText'), a = card.querySelector('#ujPropAns'), info = card.querySelector('#ujPropSaved');
+    let timer = null;
+    const save = async ()=>{ clearTimeout(timer); if(t.value === (j.draft || '') && a.value === (j.draft_answers || '')) return;
+      try{ await kgApi('upwork.php?action=draft', { id, draft:t.value, answers:a.value }); j.draft = t.value; j.draft_answers = a.value; info.textContent = 'Änderungen gespeichert ✓'; }catch(e){ info.textContent = 'Speichern fehlgeschlagen: ' + e.message; } };
+    [t, a].forEach(x=>{ x.oninput = ()=>{ info.textContent = ''; clearTimeout(timer); timer = setTimeout(save, 900); }; x.onblur = save; });
+    card.querySelector('#ujPropCopy').onclick = ()=>{ save(); ujCopy(t.value, 'Proposal kopiert ✓'); };
+    const ac = card.querySelector('#ujAnsCopy'); if(ac) ac.onclick = ()=>ujCopy(a.value, 'Antworten kopiert ✓');
+    const done = card.querySelector('#ujPropDone'); if(done) done.onclick = async ()=>{ await save(); closeErnModal(); ujSetStatus(id, 'beworben'); };
+    card.querySelector('#ujPropAi').onclick = ()=>{ save(); ujOpenClaude(id); };
+    card.querySelector('[data-x]').addEventListener('click', ()=>{ save(); renderUpJobs(); });
   }
   // Job-Link manuell hinzufügen (z. B. am PC gefunden)
   function openUjAdd(){
@@ -11213,8 +11251,20 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         <label class="set-toggle" style="padding-left:0;padding-right:0;"><span><b>Posteingang sauber halten</b><small>Alert-Mails nach dem Abholen in den Ordner „Upwork-Jobs“ verschieben</small></span><input type="checkbox" role="switch" id="ujArchive" ${s.archive ? 'checked' : ''}><i></i></label>
       </div>
       <button type="button" class="primary" id="ujFilterSave" style="width:100%;margin-top:14px;">Speichern</button>
-      <button type="button" class="aufg-link" id="ujTestPush" style="margin-top:12px;">Test-Push für offene Jobs senden</button>`);
+      <button type="button" class="aufg-link" id="ujTestPush" style="margin-top:12px;">Test-Push für offene Jobs senden</button>
+      <div class="step-label" style="margin-top:20px;">Kongrow-Connector für Claude</div>
+      <div class="hint" style="margin:0 0 8px;">Über diese Adresse legt Claude fertige Proposals hier ab. In Claude unter Einstellungen → Konnektoren → „Eigenen Konnektor hinzufügen“ eintragen. Die Adresse ist geheim – nicht weitergeben.</div>
+      <div id="ujMcpBox"><button type="button" class="ghost" id="ujMcpShow" style="width:100%;">Adresse anzeigen</button></div>`);
     const card = ernModalCard();
+    const showMcp = async renew=>{
+      const box = card.querySelector('#ujMcpBox');
+      try{ const r = await kgApi('upwork.php?action=mcp_key', renew ? { renew:true } : {});
+        box.innerHTML = `<input type="text" readonly value="${escapeHtml(r.url)}" id="ujMcpUrl" style="font-size:12px;"><div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujMcpCopy">Kopieren</button><button type="button" class="uj-btn" id="ujMcpNew">Neu erzeugen</button></div>`;
+        box.querySelector('#ujMcpCopy').onclick = ()=>ujCopy(r.url, 'Adresse kopiert ✓');
+        box.querySelector('#ujMcpNew').onclick = ()=>{ if(confirmInline(box.querySelector('#ujMcpNew'))) showMcp(true); };
+      }catch(e){ kgUndoToast(e.message); }
+    };
+    card.querySelector('#ujMcpShow').onclick = ()=>showMcp(false);
     card.querySelector('#ujTestPush').onclick = async ()=>{ try{ const r = await kgApi('upwork.php?action=test_push', {}); kgUndoToast(r.jobs + ' Test-Push' + (r.jobs > 1 ? 's' : '') + ' an ' + r.devices + ' Gerät' + (r.devices === 1 ? '' : 'e') + ' gesendet'); }catch(e){ kgUndoToast(e.message); } };
     card.querySelector('#ujFilterSave').onclick = async ()=>{
       const btn = card.querySelector('#ujFilterSave'); btn.disabled = true;
@@ -11227,13 +11277,13 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   document.querySelectorAll('#upView .aufg-tab').forEach(b=>b.onclick = ()=>{ uj.view = b.dataset.v; try{ localStorage.setItem('kongrow_up_view', uj.view); }catch(e){} upShowView(); if(uj.view === 'jobs') renderUpJobs(); else renderUpwork(); });
   document.getElementById('upFilterBtn').onclick = ()=>{ if(uj.loaded) openUjFilter(); };
   // Aus der Push-Nachricht geöffnet: Job hervorheben
-  async function ujOpenFromPush(jobId){
+  async function ujOpenFromPush(jobId, showDraft){
     uj.view = 'jobs'; uj.tab = 'neu'; uj.hl = jobId || null;
     try{ await upJobsLoad(true); }catch(e){}
     const j = jobId && uj.jobs.find(x=>x.id === jobId);
     if(j && !ujInTab(j, 'neu')) uj.tab = j.status === 'beworben' ? 'beworben' : j.status === 'gemerkt' ? 'gemerkt' : 'aus';
     switchTab('upwork');
-    if(jobId) setTimeout(()=>{ const c = document.getElementById('uj_' + jobId); if(c) c.scrollIntoView({ behavior:'smooth', block:'center' }); }, 200);
+    if(jobId) setTimeout(()=>{ const c = document.getElementById('uj_' + jobId); if(c) c.scrollIntoView({ behavior:'smooth', block:'center' }); if(showDraft && j && j.draft) openUjProposal(jobId); }, 200);
   }
 
 
@@ -11255,7 +11305,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
-      else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null); }
+      else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null, params.get('draft') === '1'); }
       else if(open === 'nachrichten' || open === 'slack' || open === 'mail'){
         switchTab('nachrichten');
         if(open === 'mail'){
