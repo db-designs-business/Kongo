@@ -87,7 +87,7 @@ function n_mail_new(int $uid): array {
     if (!n_on($p, 'mail:' . $a['id'])) continue;
     try { $out = array_merge($out, n_imap_new($uid, $a)); } catch (Throwable $e) {}
   }
-  // ausgeblendete Mails (Regeln aus „Postfächer sortieren“) melden sich nicht per Push
+  // Mails, die per Regel in einen Ordner ohne Push sortiert werden, melden sich nicht
   $rules = n_mail_rules($uid);
   return $rules ? array_values(array_filter($out, fn($m) => !n_mail_hidden($rules, $m['box'] ?? '', $m['from_raw'] ?? $m['from'], $m['subject']))) : $out;
 }
@@ -101,6 +101,7 @@ function n_rule_part(string $need, string $have): bool {
 function n_mail_hidden(array $rules, string $box, string $from, string $subject): bool {
   foreach ($rules as $r) {
     if (($r['box'] ?? '') !== '' && $r['box'] !== $box) continue;
+    if (!empty($r['push'])) continue;   // Ordner mit Push: normal melden
     $f = trim((string)($r['from'] ?? '')); $s = trim((string)($r['subject'] ?? ''));
     if ($f === '' && $s === '') continue;
     if (($f === '' || n_rule_part($f, $from)) && ($s === '' || n_rule_part($s, $subject))) return true;

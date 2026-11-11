@@ -1105,6 +1105,11 @@
   .uj-chev{ flex:0 0 auto; color:var(--muted, #8a9a9a); font-size:12px; transition:transform .15s; margin-left:2px; }
   .uj-card.open .uj-chev{ transform:rotate(180deg); }
   .uj-reason{ font-size:12px; color:#ffb86b; margin-top:6px; }
+  .msg-folders{ display:flex; gap:6px; overflow-x:auto; margin:8px 0 2px; padding-bottom:2px; scrollbar-width:none; } .msg-folders::-webkit-scrollbar{ display:none; }
+  .msg-fold{ flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; font-size:13px; font-weight:600; background:rgba(255,255,255,.04); border:1px solid var(--line-soft, rgba(255,255,255,.1)); color:var(--ink-soft); white-space:nowrap; }
+  .msg-fold.active{ background:rgba(34,227,211,.14); border-color:rgba(34,227,211,.5); color:var(--ink); }
+  .msg-fold b{ font-size:11px; background:var(--forest); color:#04110F; border-radius:999px; padding:1px 6px; } .msg-fold-set{ padding:7px 10px; }
+  .mr-push{ display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13.5px; } .mr-push input{ width:auto; margin:0; }
   .mrule-list{ margin-top:10px; } .mrule{ display:flex; align-items:center; gap:6px; padding:10px 0; border-bottom:1px solid var(--line-soft, rgba(255,255,255,.08)); }
   .mrule-main{ flex:1; min-width:0; } .mrule-main b{ display:block; font-size:14.5px; } .mrule-main small{ display:block; font-size:12px; color:var(--muted, #8a9a9a); margin-top:2px; line-height:1.4; overflow-wrap:anywhere; }
   .uj-issue{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; padding:8px 10px; border-radius:10px; background:rgba(245,181,68,.1); border:1px solid rgba(245,181,68,.35); font-size:12.5px; color:#ffcf7a; }
@@ -2164,6 +2169,7 @@
         <button type="button" class="aufg-tab" data-f="email">E-Mail<span class="cnt" data-c="email"></span></button>
         <button type="button" class="aufg-tab" data-f="slack">Slack<span class="cnt" data-c="slack"></span></button>
       </div>
+      <div class="msg-folders" id="msgFolders" style="display:none;"></div>
       <div class="msg-bar-row">
         <button type="button" class="msg-box-btn" id="msgBoxBtn"><span id="msgBoxLabel">Alle Postfächer</span> ▾</button>
         <button type="button" class="msg-box-clear" id="msgBoxClear" aria-label="Filter zurücksetzen" style="display:none;">×</button>
@@ -9823,8 +9829,10 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
   document.getElementById('homeTermineAll').onclick = ()=>{ switchTab('kalender'); window.scrollTo(0,0); };
 
   /* ---------- Nachrichten ---------- */
-  const msg = { items:[], filter:'alle', account:'', unreadOnly:false, loading:false, current:null, loadedAt:0, sources:[], rules:[], showHidden:false };
-  // Postfächer sortieren: Regeln zum Ausblenden (z. B. Upwork-Job-Alerts). Ausgeblendet = nur nicht in der Liste und kein Push, in der Mailbox bleibt alles.
+  const msg = { items:[], filter:'alle', account:'', unreadOnly:false, loading:false, current:null, loadedAt:0, sources:[], rules:[], folder:'' };
+  try{ msg.folder = localStorage.getItem('kongrow_msg_folder') || ''; }catch(e){}
+  // Postfächer sortieren wie in Gmail: Regeln legen Mails in Ordner (z. B. „Upwork-Jobs“), der Rest bleibt im Posteingang.
+  // In deinem Postfach selbst wird nichts verschoben. Für Gmail werden zusätzlich Mails mit dem gleichnamigen Gmail-Label geladen.
   const msgBox = m=>m.source === 'gmail' ? 'gmail' : m.source === 'mail' ? 'mail:' + m.accountId : '';
   const msgRulePart = (need, have)=>String(need || '').toLowerCase().split('|').map(x=>x.trim()).filter(Boolean).some(a=>String(have || '').toLowerCase().includes(a));
   function msgRuleHit(r, m){
@@ -9833,8 +9841,10 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
     const f = (r.from || '').trim(), sj = (r.subject || '').trim(); if(!f && !sj) return false;
     return (!f || msgRulePart(f, m.from)) && (!sj || msgRulePart(sj, m.subject));
   }
-  const msgHidden = m=>(msg.rules || []).some(r=>msgRuleHit(r, m));
-  const msgVisible = m=>!msgHidden(m);
+  function msgFolderOf(m){ if(m.source === 'slack') return ''; if(m.folder) return m.folder; const r = (msg.rules || []).find(x=>msgRuleHit(x, m)); return r ? (r.name || 'Sortiert') : ''; }
+  const msgFolders = ()=>[...new Set((msg.rules || []).map(r=>r.name || 'Sortiert'))];
+  const msgHidden = m=>msgFolderOf(m) !== '';
+  const msgVisible = m=>!msgHidden(m);   // zählt für „ungelesen“ (nur Posteingang)
   try{ msg.filter = localStorage.getItem('kongrow_msg_filter') || 'alle'; if(!['alle','email','slack'].includes(msg.filter)) msg.filter = 'alle'; msg.account = localStorage.getItem('kongrow_msg_account') || ''; msg.unreadOnly = localStorage.getItem('kongrow_msg_unread') === '1'; }catch(e){}
   const SRC_ICON = { gmail:'✉️', mail:'✉️', slack:'💬' };
   // Kurze Namen + Farben pro Postfach (auf dem Server gespeichert)
@@ -9896,7 +9906,15 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
     if(msg.account && !msg.sources.some(x=>x.key === msg.account)){ const alt = msg.account.replace(/^mail\|/, 'imap|'); msg.account = msg.sources.some(x=>x.key === alt) ? alt : ''; }
     const none = !sources.length;
     const results = await Promise.all(jobs);
-    msg.items = [].concat(...results).filter(m=>m && typeof m === "object").map(m=>Object.assign({ date:"" }, m)).sort((a,b)=>b.date.localeCompare(a.date));
+    let all = [].concat(...results).filter(m=>m && typeof m === "object").map(m=>Object.assign({ date:"" }, m));
+    // Gmail: Ordner, zu denen es ein gleichnamiges Label gibt (z. B. „Upwork-Jobs“, in das Kongrow die Alerts verschiebt), mitladen
+    if(gs.connected && (msg.rules || []).length){
+      const have = new Set(all.filter(m=>m.source === 'gmail').map(m=>m.id));
+      const extra = await Promise.all(msgFolders().map(f=>kgApi('google.php?action=mail_list&max=25&q=' + encodeURIComponent('label:"' + f + '" -in:inbox newer_than:14d')).then(j=>(j.messages || []).map(m=>Object.assign({ date:'' }, m, { folder:f }))).catch(()=>[])));
+      [].concat(...extra).forEach(m=>{ if(!have.has(m.id)){ have.add(m.id); all.push(m); } });
+    }
+    msg.items = all.sort((a,b)=>b.date.localeCompare(a.date));
+    if(msg.folder && !msgFolders().includes(msg.folder)) msg.folder = '';
     msg.loadedAt = Date.now(); msg.loading = false; msg.none = none;
     if(msg.account && !msg.sources.some(x=>x.key === msg.account)) msg.account = '';
     document.getElementById('msgErrors').innerHTML = errors.map(e=>`<div class="msg-err">⚠️ ${escapeHtml(e)}</div>`).join('');
@@ -9906,7 +9924,7 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
   function msgItemKey(m){ return msgKey(m.source, m.account); }
   function msgMatches(m, ignoreUnread){
     if(!ignoreUnread && msg.unreadOnly && !m.unread) return false;
-    if(!ignoreUnread && !msg.showHidden && msgHidden(m)) return false;
+    if(!ignoreUnread && msgFolderOf(m) !== msg.folder) return false;
     if(msg.account && msgItemKey(m) !== msg.account) return false;
     if(msg.filter === 'email') return m.source === 'gmail' || m.source === 'mail';
     if(msg.filter === 'slack') return m.source === 'slack';
@@ -9928,13 +9946,22 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
       <button type="button" class="mbox-all ${!msg.account ? 'active' : ''}" data-k="">${allLabel}${allUnread ? ` <b class="mbox-cnt">${allUnread}</b>` : ''}</button>
       ${group('E-Mail', mails)}${group('Slack', slacks)}
       ${mails.length + slacks.length ? '' : `<div class="hint">${f === 'slack' ? 'Noch kein Slack-Workspace verbunden.' : f === 'email' ? 'Noch kein E-Mail-Postfach verbunden.' : 'Noch keine Konten verbunden.'}</div>`}
-      <button type="button" class="ghost" id="mboxRules" style="width:100%;margin-top:14px;">🙈 Sortieren · Mails ausblenden${(msg.rules || []).length ? ' (' + msg.rules.length + ')' : ''}</button>
+      ${mails.length ? `<button type="button" class="ghost" id="mboxRules" style="width:100%;margin-top:14px;">📁 Ordner & Sortier-Regeln</button>
+      <button type="button" class="ghost" id="mboxSigs" style="width:100%;margin-top:8px;">✍️ Signaturen</button>` : ''}
       <button type="button" class="aufg-link" id="mboxConn" style="margin-top:10px;">Konten verwalten</button>`);
     const c = ernModalCard();
     c.querySelectorAll('[data-k]').forEach(b=>b.onclick = ()=>{ msg.account = b.dataset.k; try{ localStorage.setItem('kongrow_msg_account', msg.account); }catch(e){} closeErnModal(); renderMessages(); });
     c.querySelectorAll('[data-e]').forEach(b=>b.onclick = ()=>openMsgBoxEdit(msg.sources.find(x=>x.key === b.dataset.e)));
     c.querySelector('#mboxConn').onclick = ()=>{ closeErnModal(); openConnections(); };
-    c.querySelector('#mboxRules').onclick = ()=>openMsgRules();
+    const rb = c.querySelector('#mboxRules'); if(rb) rb.onclick = ()=>openMsgRules();
+    const sb = c.querySelector('#mboxSigs'); if(sb) sb.onclick = ()=>openMsgSigs();
+  }
+  // Signaturen aller E-Mail-Postfächer auf einen Blick
+  function openMsgSigs(){
+    const boxes = msg.sources.filter(x=>x.src !== 'slack');
+    openErnModal(`<div class="modal-title">Signaturen</div><div class="modal-sub">Pro Postfach eine eigene Signatur. Sie wird beim Schreiben, Antworten und Weiterleiten automatisch eingesetzt.</div>
+      <div class="mrule-list">${boxes.map(x=>{ const sg = msgSig(x.src, x.account); return `<div class="mrule"><span class="mbox-dot" style="background:${msgColor(x.src, x.account)}"></span><div class="mrule-main"><b>${escapeHtml(msgLabel(x.src, x.account))}</b><small>${escapeHtml(x.account)}</small><small style="white-space:pre-line;">${sg ? escapeHtml(sg.split('\n').slice(0, 3).join('\n')) : '<i>Noch keine Signatur</i>'}</small></div><button type="button" class="mbox-edit" data-sg="${escapeHtml(x.key)}">${sg ? '✎' : '＋'}</button></div>`; }).join('')}</div>`);
+    ernModalCard().querySelectorAll('[data-sg]').forEach(b=>b.onclick = ()=>openMsgBoxEdit(msg.sources.find(x=>x.key === b.dataset.sg), openMsgSigs));
   }
   async function saveMsgRules(list){
     const r = await kgApi('mail.php?action=rules_save', { rules:list }); msg.rules = r.rules || []; renderMessages(); updateMsgBadge();
@@ -9947,33 +9974,34 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
     const cnt = r=>msg.items.filter(m=>msgRuleHit(r, m)).length;
     const hasUp = rules.some(r=>/upwork/i.test(r.from || ''));
     const upBox = msg.sources.some(x=>x.src === 'gmail') ? 'gmail' : '';
-    openErnModal(`<div class="modal-title">Postfächer sortieren</div>
-      <div class="modal-sub">Passende Mails verschwinden aus der Liste und melden sich nicht mehr per Push. In deinem Postfach bleibt alles, wie es ist.</div>
-      ${rules.length ? `<div class="mrule-list">${rules.map((r, i)=>`<div class="mrule"><div class="mrule-main"><b>${escapeHtml(r.name || r.from || r.subject)}</b><small>${escapeHtml(msgBoxName(r.box))}${r.from ? ' · Absender enthält „' + escapeHtml(r.from) + '“' : ''}${r.subject ? ' · Betreff enthält „' + escapeHtml(r.subject) + '“' : ''} · ${cnt(r)} gerade ausgeblendet</small></div><button type="button" class="mbox-edit" data-re="${i}" aria-label="Bearbeiten">✎</button><button type="button" class="mbox-edit" data-rd="${i}" aria-label="Löschen">✕</button></div>`).join('')}</div>` : '<div class="hint">Noch keine Regeln.</div>'}
-      ${hasUp ? '' : `<button type="button" class="ghost" id="mruleUp" style="width:100%;margin-top:12px;">💼 Upwork-Job-Alerts ausblenden</button>`}
-      <button type="button" class="primary" id="mruleNew" style="width:100%;margin-top:10px;">+ Eigene Regel</button>
-      <div class="hint" style="margin:10px 0 0;">Tipp: In einer geöffneten Mail kannst du mit „Solche Mails ausblenden“ direkt eine Regel für den Absender anlegen.</div>`);
+    openErnModal(`<div class="modal-title">Ordner & Sortier-Regeln</div>
+      <div class="modal-sub">Wie in Gmail: Passende Mails landen in ihrem Ordner, alles andere bleibt im Posteingang. In deinem Postfach selbst wird nichts verschoben.</div>
+      ${rules.length ? `<div class="mrule-list">${rules.map((r, i)=>`<div class="mrule"><div class="mrule-main"><b>📁 ${escapeHtml(r.name || 'Sortiert')}</b><small>${escapeHtml(msgBoxName(r.box))}${r.from ? ' · Absender enthält „' + escapeHtml(r.from) + '“' : ''}${r.subject ? ' · Betreff enthält „' + escapeHtml(r.subject) + '“' : ''} · ${cnt(r)} Mails · ${r.push ? 'mit Push' : 'ohne Push'}</small></div><button type="button" class="mbox-edit" data-re="${i}" aria-label="Bearbeiten">✎</button><button type="button" class="mbox-edit" data-rd="${i}" aria-label="Löschen">✕</button></div>`).join('')}</div>` : '<div class="hint">Noch keine Regeln.</div>'}
+      ${hasUp ? '' : `<button type="button" class="ghost" id="mruleUp" style="width:100%;margin-top:12px;">💼 Ordner „Upwork-Jobs“ anlegen</button>`}
+      <button type="button" class="primary" id="mruleNew" style="width:100%;margin-top:10px;">+ Ordner / Regel</button>
+      <div class="hint" style="margin:10px 0 0;">Tipp: In einer geöffneten Mail legst du mit „📁 In Ordner sortieren“ direkt eine Regel für den Absender an. Mehrere Regeln mit demselben Ordnernamen landen im selben Ordner.</div>`);
     const c = ernModalCard();
     c.querySelectorAll('[data-rd]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = '?'; return; } const l = rules.slice(); l.splice(+b.dataset.rd, 1); try{ await saveMsgRules(l); openMsgRules(); }catch(e){ kgUndoToast(e.message); } });
     c.querySelectorAll('[data-re]').forEach(b=>b.onclick = ()=>openMsgRuleEdit(rules[+b.dataset.re], +b.dataset.re));
-    const up = c.querySelector('#mruleUp'); if(up) up.onclick = async ()=>{ try{ await saveMsgRules(rules.concat([{ name:'Upwork-Job-Alerts', box:upBox, from:'upwork.com', subject:'job alert' }])); kgUndoToast('Upwork-Job-Alerts ausgeblendet ✓ Kongrow liest sie trotzdem weiter ein.'); openMsgRules(); }catch(e){ kgUndoToast(e.message); } };
-    c.querySelector('#mruleNew').onclick = ()=>{ const sb = msg.sources.find(x=>x.key === msg.account); const box = !sb || sb.src === 'slack' ? '' : sb.src === 'gmail' ? 'gmail' : 'mail:' + (((msg.accounts || []).find(a=>a.label === sb.account) || {}).id || ''); openMsgRuleEdit({ box, from:'', subject:'', name:'' }, -1); }
+    const up = c.querySelector('#mruleUp'); if(up) up.onclick = async ()=>{ try{ await saveMsgRules(rules.concat([{ name:'Upwork-Jobs', box:upBox, from:'upwork.com', subject:'job alert', push:false }])); msg.loadedAt = 0; loadMessages(true); kgUndoToast('Ordner „Upwork-Jobs“ angelegt ✓ Die Alerts liegen jetzt dort, Kongrow liest sie weiter als Jobs ein.', null, 5000); openMsgRules(); }catch(e){ kgUndoToast(e.message); } };
+    c.querySelector('#mruleNew').onclick = ()=>{ const sb = msg.sources.find(x=>x.key === msg.account); const box = !sb || sb.src === 'slack' ? '' : sb.src === 'gmail' ? 'gmail' : 'mail:' + (((msg.accounts || []).find(a=>a.label === sb.account) || {}).id || ''); openMsgRuleEdit({ box, from:'', subject:'', name:'', push:false }, -1); }
   }
   function openMsgRuleEdit(r, idx){
-    openErnModal(`<div class="modal-title">${idx < 0 ? 'Neue Regel' : 'Regel bearbeiten'}</div>
-      <div class="turn-title">Name</div><input type="text" id="mrName" value="${escapeHtml(r.name || '')}" placeholder="z. B. Newsletter">
+    openErnModal(`<div class="modal-title">${idx < 0 ? 'Neue Sortier-Regel' : 'Regel bearbeiten'}</div>
+      <div class="turn-title">In Ordner</div><input type="text" id="mrName" list="mrFolders" value="${escapeHtml(r.name || '')}" placeholder="z. B. Upwork-Jobs, Newsletter, Rechnungen"><datalist id="mrFolders">${msgFolders().map(f=>`<option value="${escapeHtml(f)}">`).join('')}</datalist>
       <div class="turn-title" style="margin-top:12px;">Postfach</div><select id="mrBox">${msgBoxOpts(r.box || '')}</select>
       <div class="turn-title" style="margin-top:12px;">Absender enthält</div><input type="text" id="mrFrom" value="${escapeHtml(r.from || '')}" placeholder="z. B. upwork.com oder news@shop.de">
       <div class="turn-title" style="margin-top:12px;">Betreff enthält</div><input type="text" id="mrSubj" value="${escapeHtml(r.subject || '')}" placeholder="z. B. job alert">
       <div class="hint" style="margin:6px 0 0;">Leer lassen = egal. Sind beide ausgefüllt, muss beides passen. Mehrere Möglichkeiten mit „|“ trennen, z. B. newsletter | angebot</div>
+      <label class="mr-push"><input type="checkbox" id="mrPush" ${r.push ? 'checked' : ''}> Push-Benachrichtigung für Mails in diesem Ordner</label>
       <div class="hint" id="mrPrev" style="margin:10px 0 0;"></div>
       <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="mrBack">Zurück</button><button type="button" class="primary" id="mrSave">Speichern</button></div>`);
     const c = ernModalCard(), q = x=>c.querySelector(x);
-    const cur = ()=>({ name:q('#mrName').value.trim(), box:q('#mrBox').value, from:q('#mrFrom').value.trim(), subject:q('#mrSubj').value.trim() });
-    const prev = ()=>{ const x = cur(); const hits = msg.items.filter(m=>msgRuleHit(x, m)); q('#mrPrev').innerHTML = !x.from && !x.subject ? 'Gib Absender oder Betreff an.' : hits.length ? `Würde gerade <b>${hits.length}</b> Mail${hits.length > 1 ? 's' : ''} ausblenden, z. B. „${escapeHtml((hits[0].subject || '').slice(0, 60))}“` : 'Passt auf keine der geladenen Mails.'; };
+    const cur = ()=>({ name:q('#mrName').value.trim() || 'Sortiert', box:q('#mrBox').value, from:q('#mrFrom').value.trim(), subject:q('#mrSubj').value.trim(), push:q('#mrPush').checked });
+    const prev = ()=>{ const x = cur(); const hits = msg.items.filter(m=>msgRuleHit(x, m)); q('#mrPrev').innerHTML = !x.from && !x.subject ? 'Gib Absender oder Betreff an.' : hits.length ? `Würde gerade <b>${hits.length}</b> Mail${hits.length > 1 ? 's' : ''} einsortieren, z. B. „${escapeHtml((hits[0].subject || '').slice(0, 60))}“` : 'Passt auf keine der geladenen Mails.'; };
     ['#mrFrom', '#mrSubj', '#mrBox'].forEach(s=>q(s).addEventListener('input', prev)); prev();
     q('#mrBack').onclick = openMsgRules;
-    q('#mrSave').onclick = async ()=>{ const x = cur(); if(!x.from && !x.subject){ prev(); return; } const l = (msg.rules || []).slice(); if(idx < 0) l.push(x); else l[idx] = x; try{ await saveMsgRules(l); kgUndoToast('Regel gespeichert ✓'); openMsgRules(); }catch(e){ kgUndoToast(e.message); } };
+    q('#mrSave').onclick = async ()=>{ const x = cur(); if(!x.from && !x.subject){ prev(); return; } const l = (msg.rules || []).slice(); if(idx < 0) l.push(x); else l[idx] = x; try{ await saveMsgRules(l); kgUndoToast('Regel gespeichert ✓ → 📁 ' + x.name); openMsgRules(); }catch(e){ kgUndoToast(e.message); } };
   }
   function msgSig(src, account){ if(src === 'slack') return ''; const e = msgEntry(src, account); return (e.sig || '').trim(); }
   function openMsgBoxEdit(x, back){
@@ -10000,6 +10028,19 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
     };
     draw();
   }
+  // Ordner-Leiste unter E-Mail/Slack: Posteingang · eigene Ordner (mit Zahl ungelesener)
+  function msgRenderFolders(){
+    const el = document.getElementById('msgFolders'); if(!el) return;
+    const fs = msgFolders();
+    if(!fs.length || msg.filter === 'slack'){ el.innerHTML = ''; el.style.display = 'none'; if(msg.folder && !fs.length) msg.folder = ''; return; }
+    el.style.display = '';
+    const inScope = m=>(!msg.account || msgItemKey(m) === msg.account) && (msg.filter !== 'email' || m.source !== 'slack');
+    const un = f=>msg.items.filter(m=>m.unread && inScope(m) && msgFolderOf(m) === f).length;
+    const chip = (f, label)=>{ const n = un(f); return `<button type="button" class="msg-fold ${msg.folder === f ? 'active' : ''}" data-fold="${escapeHtml(f)}">${label}${n ? `<b>${n}</b>` : ''}</button>`; };
+    el.innerHTML = chip('', '📥 Posteingang') + fs.map(f=>chip(f, '📁 ' + escapeHtml(f))).join('') + `<button type="button" class="msg-fold msg-fold-set" id="msgFoldSet" aria-label="Ordner verwalten">⚙</button>`;
+    el.querySelectorAll('[data-fold]').forEach(b=>b.onclick = ()=>{ msg.folder = b.dataset.fold; try{ localStorage.setItem('kongrow_msg_folder', msg.folder); }catch(e){} renderMessages(); });
+    el.querySelector('#msgFoldSet').onclick = openMsgRules;
+  }
   function relTime(iso){
     const d = new Date(iso), n = new Date();
     if(dKey(d) === dKey(n)) return fmtTime(d);
@@ -10016,6 +10057,7 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
     document.getElementById('msgBoxBtn').classList.toggle('active', !!box);
     document.getElementById('msgBoxClear').style.display = box ? '' : 'none';
     document.getElementById('msgUnreadBtn').classList.toggle('active', msg.unreadOnly);
+    msgRenderFolders();
     const listEl = document.getElementById('msgList');
     if(msg.none){ listEl.innerHTML = `<div class="card"><div class="hint" style="margin-bottom:12px;">Noch keine Quelle verbunden. Verbinde Google, deine E-Mail-Postfächer und Slack.</div><button type="button" class="primary" id="msgConnNow">Verbindungen einrichten</button></div>`; document.getElementById('msgConnNow').onclick = openConnections; return; }
     const q = (msg.q || '').trim().toLowerCase();
@@ -10036,14 +10078,9 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
           <span class="msg-top"><span class="msg-from">${hl(m.source === 'slack' ? m.subject : fromName(m.from))}</span><span class="msg-time">${escapeHtml(relTime(m.date))}</span></span>
           <span class="msg-subj">${hl(m.source === 'slack' ? (m.from + ': ' + m.snippet) : m.subject)}</span>
           ${m.source !== 'slack' && m.snippet ? `<span class="msg-snip">${hl(m.snippet)}</span>` : ''}
-          <span class="msg-acc"><span class="mbox-dot" style="background:${msgColor(m.source, m.account)}"></span>${escapeHtml(msgLabel(m.source, m.account))}${msgHidden(m) ? ' · 🙈 ausgeblendet' : ''}</span>
+          <span class="msg-acc"><span class="mbox-dot" style="background:${msgColor(m.source, m.account)}"></span>${escapeHtml(msgLabel(m.source, m.account))}${q && msgFolderOf(m) ? ' · 📁 ' + escapeHtml(msgFolderOf(m)) : ''}</span>
         </span>
       </button>`).join('') + '</div>' : (q && msg.searching ? '' : `<div class="card"><div class="empty">${q ? 'Nichts gefunden.' : 'Keine Nachrichten für diesen Filter.'}</div></div>`));
-    if(!q){
-      const hid = msg.filter === 'slack' ? 0 : msg.items.filter(m=>msgHidden(m) && (!msg.unreadOnly || m.unread) && (!msg.account || msgItemKey(m) === msg.account)).length;
-      if(hid) listEl.insertAdjacentHTML('beforeend', `<button type="button" class="aufg-link msg-hidden-toggle" id="msgHidToggle" style="display:block;margin:6px auto 0;">${msg.showHidden ? '🙈 Ausgeblendete wieder verstecken' : '🙈 ' + hid + ' ausgeblendet · anzeigen'}</button>`);
-      const tg = listEl.querySelector('#msgHidToggle'); if(tg) tg.onclick = ()=>{ msg.showHidden = !msg.showHidden; renderMessages(); };
-    }
     listEl.querySelectorAll('.msg-item').forEach(b=>b.onclick = ()=>openMessage(msg.view[+b.dataset.i]));
   }
   document.querySelectorAll('#msgSeg .aufg-tab').forEach(b=>b.onclick = ()=>{ msg.filter = b.dataset.f; msg.account = ''; try{ localStorage.setItem('kongrow_msg_filter', msg.filter); localStorage.setItem('kongrow_msg_account', ''); }catch(e){} renderMessages(); });
@@ -10150,15 +10187,15 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
         msg.current.detail = j;
         det.innerHTML = `<div class="msg-subject">${escapeHtml(j.subject || m.subject)}</div>
           <div class="msg-meta"><b>${escapeHtml(j.from)}</b><br>an ${escapeHtml(j.to)}${j.cc ? '<br>cc ' + escapeHtml(j.cc) : ''}<br>${escapeHtml(j.date)}</div>
-          <button type="button" class="aufg-link" id="msgHideLike" style="padding:0;margin:4px 0 8px;font-size:13px;">${msgHidden(m) ? '🙈 Ist ausgeblendet · Regeln ansehen' : '🙈 Solche Mails ausblenden'}</button>
+          <button type="button" class="aufg-link" id="msgHideLike" style="padding:0;margin:4px 0 8px;font-size:13px;">${msgFolderOf(m) ? '📁 Liegt in „' + escapeHtml(msgFolderOf(m)) + '“ · Regeln' : '📁 In Ordner sortieren'}</button>
           <div class="msg-body">${linkify(j.text || '')}</div>
           ${attHtml(m, j)}`;
         det.scrollTop = 0;
         det.querySelectorAll('[data-att]').forEach(b=>b.onclick = ()=>openAttachment(m, (j.attachments || [])[+b.dataset.att]));
         det.querySelector('#msgHideLike').onclick = ()=>{
-          if(msgHidden(m)){ openMsgRules(); return; }
+          if(msgFolderOf(m)){ openMsgRules(); return; }
           const addr = (/<([^>]+)>/.exec(j.from || m.from || '') || [])[1] || String(m.from || '').trim();
-          openMsgRuleEdit({ name:fromName(m.from), box:msgBox(m), from:addr, subject:'' }, -1);
+          openMsgRuleEdit({ name:'', box:msgBox(m), from:addr, subject:'', push:false }, -1);
         };
         acts.innerHTML = '<button type="button" class="ghost msg-task-btn" data-act="task">Als Aufgabe</button><button type="button" class="ghost" data-act="forward">Weiterleiten</button><button type="button" class="primary" data-act="reply">Antworten</button>';
       }
