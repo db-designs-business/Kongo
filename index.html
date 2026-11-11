@@ -10554,6 +10554,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       satzergaenzung: [loadSatzergaenzungHistorie], sprechuebung: [loadSprechuebungHistorie], work: [loadWorkJournal]
     };
     await run(base.concat(perTab[curTab] || []));
+    try{ if(curTab === 'upwork'){ try{ localStorage.removeItem('kongrow_up_sheet_import'); }catch(_){} } }catch(e){}
     try{ if(curTab === 'fortschritt') renderFortschritt(); if(curTab === 'upwork'){ renderUpwork(); renderUpJobs(); } if(curTab === 'aufgaben'){ renderAufgaben(); } renderHomeAufgaben(); }catch(e){}
   };
   authReady.then(()=>{ let t = null; try{ t = sessionStorage.getItem('kg_restore_tab'); sessionStorage.removeItem('kg_restore_tab'); }catch(e){} if(t && panels[t] && t !== 'home') setTimeout(()=>switchTab(t), 300); });
@@ -11096,11 +11097,11 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     });
     return { col, map, H };
   }
-  async function upSheetImport(){
-    openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Lese dein Sheet …</div>');
-    let r; try{ r = await kgApi('upwork.php?action=sheet_rows'); }catch(e){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">' + escapeHtml(e.message) + '</div>'); return; }
+  // Sheet lesen und pro Tag auswerten
+  async function upSheetCompute(){
+    const r = await kgApi('upwork.php?action=sheet_rows');
     const { col, map, H } = upSheetMap(r.header || []);
-    if(col.date < 0){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Keine Spalte „Date“ oder „Datum“ gefunden. Kopfzeile: ' + escapeHtml(H.filter(Boolean).join(', ') || 'leer') + '</div>'); return; }
+    if(col.date < 0) throw new Error('Keine Spalte „Date“ oder „Datum“ im Sheet gefunden (Kopfzeile: ' + (H.filter(Boolean).join(', ') || 'leer') + ')');
     const per = {}; let n = 0, skipped = 0;
     (r.rows || []).forEach(row=>{
       const d = upSheetDate(row[col.date]); const has = (col.title >= 0 && String(row[col.title] || '').trim()) || (col.link >= 0 && String(row[col.link] || '').trim());
@@ -11109,40 +11110,60 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       Object.entries(map).forEach(([id, m])=>{ const v = m.how === 'count' ? 1 : m.how === 'sum' ? upNumVal(row[m.c]) : (upTruthy(row[m.c]) ? 1 : 0); w[id] = (w[id] || 0) + (v || 0); });
     });
     const days = Object.keys(per).sort();
-    if(!days.length){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Keine Bewerbungen mit Datum gefunden.</div>'); return; }
     const tot = {}; days.forEach(d=>Object.entries(per[d]).forEach(([id, v])=>tot[id] = (tot[id] || 0) + v));
-    const from = days[0], to = days[days.length - 1];
+    return { tab:r.tab, map, per, days, tot, n, skipped, from:days[0], to:days[days.length - 1] };
+  }
+  // Werte in die Kongrow-KPIs schreiben (nur Tage, die sich wirklich ändern). Liefert die Zahl geänderter Tage.
+  async function upSheetApply(R, onProgress){
+    const ids = Object.keys(R.map);
+    const zeroIds = ids.filter(id=>id === 'proposals' || id === 'connects' || R.map[id].how === 'count');
+    const todo = R.days.map(d=>({ d, vals:R.per[d] }));
+    up.entries.filter(e=>e.datum >= R.from && e.datum <= R.to && !R.per[e.datum] && zeroIds.some(id=>num(e.werte[id] || 0))).forEach(e=>{ const v = {}; zeroIds.forEach(id=>v[id] = 0); todo.push({ d:e.datum, vals:v }); });
+    let changed = 0, i = 0;
+    for(const t of todo){
+      const cur = up.entries.find(e=>e.datum === t.d);
+      const werte = Object.assign({}, cur ? cur.werte : {}, t.vals);
+      Object.keys(werte).forEach(k=>{ if(werte[k] === 0 && !(k in t.vals)) delete werte[k]; });
+      if(cur){ if(JSON.stringify(cur.werte) !== JSON.stringify(werte)){ await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Werte': JSON.stringify(werte) } }) }); cur.werte = werte; changed++; } }
+      else { const id = await airtableCreate(TABLE_UPWORK, { 'Datum': t.d, 'Werte': JSON.stringify(werte), 'Notiz': '' }); up.entries.push({ id, datum:t.d, werte, notiz:'' }); changed++; }
+      i++; if(onProgress && i % 5 === 0) onProgress(i, todo.length);
+    }
+    up.entries.sort((a, x)=>a.datum.localeCompare(x.datum)); cacheDrop(TABLE_UPWORK);
+    try{ localStorage.setItem('kongrow_up_sheet_import', new Date().toISOString()); }catch(e){}
+    return changed;
+  }
+  // Automatisch: beim Öffnen der KPIs (höchstens alle 10 Min.) und beim Aktualisieren, still im Hintergrund
+  let upAutoBusy = false;
+  async function upSheetAuto(force){
+    if(upAutoBusy || !up.loaded) return;
+    let last = 0; try{ last = Date.parse(localStorage.getItem('kongrow_up_sheet_import') || '') || 0; }catch(e){}
+    if(!force && Date.now() - last < 10 * 60000) return;
+    upAutoBusy = true;
+    try{
+      const R = await upSheetCompute(); if(!R.days.length) return;
+      const changed = await upSheetApply(R);
+      if(changed){ renderUpwork(); kgUndoToast('KPIs mit dem Sheet abgeglichen ✓'); } else renderUpSheet(true);
+    }catch(e){ up.syncMsg = 'Abgleich mit dem Sheet fehlgeschlagen: ' + e.message; renderUpSheet(true); }
+    finally{ upAutoBusy = false; }
+  }
+  // Manuell mit Vorschau
+  async function upSheetImport(){
+    openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Lese dein Sheet …</div>');
+    let R; try{ R = await upSheetCompute(); }catch(e){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">' + escapeHtml(e.message) + '</div>'); return; }
+    if(!R.days.length){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Keine Bewerbungen mit Datum gefunden.</div>'); return; }
     const fmtD = d=>new Date(d + 'T12:00').toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
-    openErnModal(`<div class="modal-title">KPIs aus dem Sheet</div>
-      <div class="modal-sub">Blatt „${escapeHtml(r.tab)}“ · ${n} Bewerbungen an ${days.length} Tagen · ${fmtD(from)} bis ${fmtD(to)}${skipped ? ' · ' + skipped + ' Zeilen ohne lesbares Datum übersprungen' : ''}</div>
-      <div class="up-imp">${up.kpis.map(k=>`<div class="up-imp-row"><span><b>${escapeHtml(k.name)}</b><small>${map[k.id] ? escapeHtml(map[k.id].label) : 'nicht im Sheet, bleibt wie es ist'}</small></span><em>${map[k.id] ? upFmt(k, tot[k.id] || 0) : '–'}</em></div>`).join('')}</div>
-      <div class="hint" style="margin:10px 0 0;">Für jeden Tag im Sheet werden diese Werte in Kongrow ersetzt. Proposals und Connects an Tagen ohne Sheet-Eintrag (im Zeitraum) werden auf 0 gesetzt, weil das Sheet alle Bewerbungen enthält. Andere Werte und Notizen bleiben.</div>
-      <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="upImpNo">Abbrechen</button><button type="button" class="primary" id="upImpGo">Übernehmen</button></div>
+    openErnModal(`<div class="modal-title">Abgleich mit dem Sheet</div>
+      <div class="modal-sub">Blatt „${escapeHtml(R.tab)}“ · ${R.n} Bewerbungen an ${R.days.length} Tagen · ${fmtD(R.from)} bis ${fmtD(R.to)}${R.skipped ? ' · ' + R.skipped + ' Zeilen ohne lesbares Datum übersprungen' : ''}</div>
+      <div class="up-imp">${up.kpis.map(k=>`<div class="up-imp-row"><span><b>${escapeHtml(k.name)}</b><small>${R.map[k.id] ? escapeHtml(R.map[k.id].label) : 'nicht im Sheet, bleibt wie es ist'}</small></span><em>${R.map[k.id] ? upFmt(k, R.tot[k.id] || 0) : '–'}</em></div>`).join('')}</div>
+      <div class="hint" style="margin:10px 0 0;">Läuft automatisch, wenn du die KPIs öffnest. Das Sheet ist die Quelle für alles, was oben einer Spalte zugeordnet ist. Andere Werte und Notizen bleiben.</div>
+      <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="upImpNo">Schließen</button><button type="button" class="primary" id="upImpGo">Jetzt abgleichen</button></div>
       <div class="hint" id="upImpSt" style="margin:8px 0 0;min-height:1em;"></div>`);
     const c = ernModalCard();
     c.querySelector('#upImpNo').onclick = closeErnModal;
     c.querySelector('#upImpGo').onclick = async ()=>{
       const b = c.querySelector('#upImpGo'), st = c.querySelector('#upImpSt'); if(b.disabled) return; b.disabled = true;
-      const ids = Object.keys(map);
-      const zeroIds = ids.filter(id=>id === 'proposals' || id === 'connects' || map[id].how === 'count');
-      const todo = [];
-      days.forEach(d=>todo.push({ d, vals: per[d] }));
-      up.entries.filter(e=>e.datum >= from && e.datum <= to && !per[e.datum] && zeroIds.some(id=>num(e.werte[id] || 0))).forEach(e=>{ const v = {}; zeroIds.forEach(id=>v[id] = 0); todo.push({ d:e.datum, vals:v }); });
-      let done = 0;
-      try{
-        for(const t of todo){
-          const cur = up.entries.find(e=>e.datum === t.d);
-          const werte = Object.assign({}, cur ? cur.werte : {}, t.vals);
-          Object.keys(werte).forEach(k=>{ if(werte[k] === 0 && !(k in t.vals)) delete werte[k]; });
-          const fields = { 'Datum': t.d, 'Werte': JSON.stringify(werte), 'Notiz': cur ? cur.notiz : '' };
-          if(cur){ if(JSON.stringify(cur.werte) !== JSON.stringify(werte)){ await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields }) }); cur.werte = werte; } }
-          else { const id = await airtableCreate(TABLE_UPWORK, fields); up.entries.push({ id, datum:t.d, werte, notiz:'' }); }
-          done++; if(done % 5 === 0) st.textContent = done + ' / ' + todo.length + ' Tage …';
-        }
-        up.entries.sort((a, x)=>a.datum.localeCompare(x.datum)); cacheDrop(TABLE_UPWORK);
-        try{ localStorage.setItem('kongrow_up_sheet_import', new Date().toISOString()); }catch(e){}
-        closeErnModal(); renderUpwork(); kgUndoToast('KPIs aus dem Sheet übernommen ✓ (' + days.length + ' Tage)');
-      }catch(e){ b.disabled = false; st.textContent = 'Fehler nach ' + done + ' Tagen: ' + e.message; }
+      try{ const ch = await upSheetApply(R, (i, n)=>{ st.textContent = i + ' / ' + n + ' Tage …'; }); closeErnModal(); renderUpwork(); kgUndoToast(ch ? 'KPIs abgeglichen ✓ (' + ch + ' Tage geändert)' : 'Schon aktuell ✓'); }
+      catch(e){ b.disabled = false; st.textContent = 'Fehler: ' + e.message; }
     };
   }
   async function renderUpSheet(skipFetch){
@@ -11165,11 +11186,11 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     }
     box.innerHTML = `<div class="up-sheet-row"><div><b>${escapeHtml(up.sheet.title || 'Google Sheet')}</b><small>Bewerbungen → nächste freie Zeile im ersten Blatt</small></div>
         <a class="ghost up-open" href="${escapeHtml(up.sheet.url)}" target="_blank" rel="noopener">Öffnen ↗</a></div>
-      <button type="button" class="primary" id="upSheetImport" style="width:100%;margin-top:10px;">KPIs aus dem Sheet übernehmen</button>
-      ${(()=>{ let t = ''; try{ t = localStorage.getItem('kongrow_up_sheet_import') || ''; }catch(e){} return t ? `<div class="hint" style="margin:6px 0 0;">Zuletzt übernommen: ${new Date(t).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>` : ''; })()}
+      ${(()=>{ let t = ''; try{ t = localStorage.getItem('kongrow_up_sheet_import') || ''; }catch(e){} return `<div class="hint" style="margin:8px 0 0;">${upAutoBusy ? 'Gleiche KPIs mit dem Sheet ab …' : t ? 'KPIs automatisch abgeglichen: ' + new Date(t).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : 'KPIs werden automatisch mit dem Sheet abgeglichen.'} · <button type="button" class="aufg-link" id="upSheetImport" style="padding:0;font-size:inherit;">Details / jetzt abgleichen</button></div>`; })()}
       <button type="button" class="aufg-link" id="upSheetForget" style="margin-top:8px;">Anderes Sheet verknüpfen</button>${msgLine}
-      <div class="hint" style="margin:8px 0 0;">Kongrow schreibt nur Date, Job Title, Link to Job, Boosted? und Connects spent. Deine anderen Spalten und Blätter bleiben unberührt. Mit „KPIs aus dem Sheet übernehmen“ zählt Kongrow deine Bewerbungen im Sheet und trägt sie hier in die KPIs ein (liest nur).</div>`;
+      <div class="hint" style="margin:8px 0 0;">Kongrow schreibt nur Date, Job Title, Link to Job, Boosted? und Connects spent. Deine anderen Spalten und Blätter bleiben unberührt. Die KPIs zählt Kongrow automatisch aus deinen Bewerbungen im Sheet (liest nur).</div>`;
     box.querySelector('#upSheetImport').onclick = upSheetImport;
+    upSheetAuto(false);
     box.querySelector('#upSheetForget').onclick = async ()=>{ await kgApi('google.php?action=sheet_forget', {}).catch(()=>{}); up.sheet = null; up.syncMsg = ''; renderUpSheet(true); };
   }
   document.querySelectorAll('#upRange .aufg-tab').forEach(b=>b.onclick = ()=>{ up.range = b.dataset.v; try{ localStorage.setItem('kongrow_up_range', up.range); }catch(e){} renderUpwork(); });
@@ -11562,6 +11583,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     let r;
     try{ r = await kgApi('upwork.php?action=status', Object.assign({ id, status }, extra || {})); }
     catch(e){ j.status = prev; renderUpJobs(); kgUndoToast('Speichern fehlgeschlagen: ' + e.message); return; }
+    if(status === 'beworben' || prev === 'beworben'){ try{ localStorage.removeItem('kongrow_up_sheet_import'); }catch(_){} }   // nächstes Öffnen der KPIs gleicht sofort mit dem Sheet ab
     const prevConnects = j.connects || 0;
     if(status === 'beworben'){ j.connects = extra && extra.connects != null ? extra.connects : null; ujBumpProposals(1, j.connects || 0); }
     else if(prev === 'beworben'){ ujBumpProposals(-1, -prevConnects); j.connects = null; }
