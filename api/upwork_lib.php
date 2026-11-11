@@ -387,8 +387,10 @@ function uw_fetch_new(int $uid, bool $deep = false): array {
     [$plain, $html] = uw_bodies($m['payload'] ?? []);
     $text = $plain !== '' ? $plain : kg_html_to_text(preg_replace(['#</(td|th)>#i', '#</(span|a|b|strong)>#i'], ['$0' . "\n", '$0 '], $html));
     if (!preg_match('/job alert|matches your alert|view job details/i', $text)) continue;   // andere Upwork-Mails bleiben unangetastet
+    kg_set($uid, 'uw_alert_seen', time());   // für den Selbsttest
     $jobs = uw_parse_all($text, $html, (string)($h['subject'] ?? ''));
-    if (!$jobs) continue;
+    if (!$jobs) { uw_log($uid, 'Alert-Mail ohne erkannten Job: ' . mb_substr((string)($h['subject'] ?? ''), 0, 60)); continue; }
+    kg_set($uid, 'uw_alert_parsed', time());
     $received = gmdate('c', (int)(($m['internalDate'] ?? 0) / 1000) ?: time());
     foreach ($jobs as $n => $j) {
       // gleicher Job schon aus einer anderen Mail da?
@@ -498,10 +500,13 @@ function uw_sheet_put(array $c, array $data): bool {
 }
 // Zeile finden, in der Kongrow diesen Job eingetragen hat (Spalte F = Link)
 // Liefert die Zeilennummer, 0 = nicht gefunden, null = Sheet nicht lesbar
+// Vergleich über die Job-ID (~02…), damit derselbe Job auch mit anderem Link-Format (…/apply/, ?source=…) nur einmal eingetragen wird
+function uw_url_key(string $url): string { return preg_match('/(~0[0-9a-z]{10,})/i', $url, $m) ? strtolower($m[1]) : ''; }
+function uw_same_job(string $cell, string $url): bool { $cell = trim($cell); if ($cell === '') return false; if ($cell === $url) return true; $k = uw_url_key($url); return $k !== '' && uw_url_key($cell) === $k; }
 function uw_sheet_find(array $c, string $url, ?int $hint): ?int {
-  if ($hint) { $v = uw_sheet_get($c, 'F' . $hint); if ($v !== null && ($v[0][0] ?? '') === $url) return $hint; }
+  if ($hint) { $v = uw_sheet_get($c, 'F' . $hint); if ($v !== null && uw_same_job((string)($v[0][0] ?? ''), $url)) return $hint; }
   $all = uw_sheet_get($c, 'F1:F5000'); if ($all === null) return null;
-  foreach ($all as $i => $row) if (($row[0] ?? '') === $url) return $i + 1;
+  foreach ($all as $i => $row) if (uw_same_job((string)($row[0] ?? ''), $url)) return $i + 1;
   return 0;
 }
 // Beworben: Zeile anhängen bzw. „Doch nicht“: Datum/Titel/Link dieser Zeile leeren. Liefert ['ok','msg']
@@ -559,4 +564,151 @@ function uw_sheet_remove_kpi_tabs(int $uid): array {
   if (!$req) return ['ok' => true, 'deleted' => []];
   $r = kg_http('POST', $base . ':batchUpdate', $h, json_encode(['requests' => $req]));
   return ($r['code'] ?? 0) === 200 ? ['ok' => true, 'deleted' => $gone] : ['ok' => false, 'msg' => $r['json']['error']['message'] ?? 'Löschen fehlgeschlagen'];
+}
+
+/* ---------- Zuverlässigkeit: unvollständige Jobs, Mail erneut lesen, Selbsttest, Warteschlange ---------- */
+// Was beim Einlesen fehlt (leer = alles da). Manuelle Jobs werden nicht geprüft.
+function uw_job_issues(array $r): array {
+  if (str_starts_with((string)($r['msg_id'] ?? ''), 'manual:')) return [];
+  $out = [];
+  $t = (string)($r['title'] ?? '');
+  if (!uw_has_words($t) || preg_match('/^\s*(more|read more|see more|upwork-job\b.*)\s*$/i', $t) || mb_strlen($t) < 6) $out[] = 'Titel';
+  if ((string)($r['url'] ?? '') === '') $out[] = 'Link';
+  if (trim((string)($r['budget'] ?? '')) === '') $out[] = 'Budget';
+  return $out;
+}
+// Text einer Alert-Mail holen: ['text','html','subject'] oder ['error']
+function uw_mail_get(int $uid, string $msgId): array {
+  $at = n_google_token($uid); if ($at === '') return ['error' => 'Google ist nicht verbunden.'];
+  $base = explode('#', $msgId)[0];
+  $m = kg_http('GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . rawurlencode($base) . '?format=full', ['Authorization: Bearer ' . $at]);
+  if (($m['code'] ?? 0) === 404) return ['error' => 'Die Mail gibt es in Gmail nicht mehr (gelöscht?).'];
+  if (($m['code'] ?? 0) !== 200 || empty($m['json']['id'])) return ['error' => 'Gmail: ' . (($m['json']['error']['message'] ?? '') ?: 'Fehler ' . ($m['code'] ?? 0))];
+  $h = []; foreach ($m['json']['payload']['headers'] ?? [] as $x) $h[strtolower($x['name'])] = $x['value'];
+  [$plain, $html] = uw_bodies($m['json']['payload'] ?? []);
+  $text = $plain !== '' ? $plain : kg_html_to_text(preg_replace(['#</(td|th)>#i', '#</(span|a|b|strong)>#i'], ['$0' . "\n", '$0 '], $html));
+  return ['text' => $text, 'html' => $html, 'subject' => (string)($h['subject'] ?? ''), 'date' => $h['date'] ?? ''];
+}
+// Job aus seiner Mail neu auslesen. Status, Entwurf und Notizen bleiben. Liefert ['ok','msg','fixed'=>[…]]
+function uw_reparse(int $uid, int $id): array {
+  $db = uw_db();
+  $st = $db->prepare('SELECT * FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([$id, $uid]); $job = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$job) return ['ok' => false, 'msg' => 'Job nicht gefunden'];
+  if (str_starts_with((string)$job['msg_id'], 'manual:')) return ['ok' => false, 'msg' => 'Manuell gespeichert – es gibt keine Mail dazu'];
+  $mail = uw_mail_get($uid, (string)$job['msg_id']); if (!empty($mail['error'])) return ['ok' => false, 'msg' => $mail['error']];
+  $jobs = uw_parse_all($mail['text'], $mail['html'], $mail['subject']);
+  if (!$jobs) return ['ok' => false, 'msg' => 'In der Mail wurde kein Job erkannt'];
+  $n = (int)(explode('#', (string)$job['msg_id'])[1] ?? 0);
+  $pick = null;
+  if ($job['job_key']) foreach ($jobs as $j) if ($j['job_key'] === $job['job_key']) $pick = $j;
+  if (!$pick) {   // über den Titel zuordnen, sonst über die Position in der Mail
+    $t = mb_strtolower(mb_substr(preg_replace('/(…|\.\.\.)$/u', '', (string)$job['title']), 0, 30));
+    if (uw_has_words($t)) foreach ($jobs as $j) if (str_starts_with(mb_strtolower($j['title']), $t)) { $pick = $j; break; }
+  }
+  if (!$pick) $pick = $jobs[$n] ?? (count($jobs) === 1 ? $jobs[0] : null);
+  if (!$pick) return ['ok' => false, 'msg' => 'Job in der Mail nicht eindeutig gefunden'];
+  $before = uw_job_issues($job);
+  $set = []; $vals = [];
+  foreach (['title', 'kind', 'budget', 'rate_min', 'rate_max', 'snippet', 'skills', 'verified', 'spent', 'country', 'rating', 'url', 'app_url'] as $f) {
+    $v = $pick[$f] ?? null; if ($v === null || $v === '') continue;
+    if ($f === 'title' && !in_array('Titel', $before, true) && mb_strlen((string)$v) <= mb_strlen((string)$job['title'])) continue;   // guter Titel bleibt (z. B. von Claude ergänzt)
+    $set[] = "$f=?"; $vals[] = $v;
+  }
+  if ($pick['job_key'] && !$job['job_key']) {
+    $d = $db->prepare('SELECT 1 FROM upwork_jobs WHERE user_id=? AND job_key=? AND id<>?'); $d->execute([$uid, $pick['job_key'], $id]);
+    if ($d->fetchColumn()) return ['ok' => false, 'msg' => 'Diesen Job gibt es schon einmal in der Liste'];
+    $set[] = 'job_key=?'; $vals[] = $pick['job_key'];
+  }
+  if (!$set) return ['ok' => true, 'msg' => 'Neu gelesen – nichts Neues gefunden', 'fixed' => []];
+  $set[] = 'updated=?'; $vals[] = gmdate('c'); $vals[] = $id;
+  $db->prepare('UPDATE upwork_jobs SET ' . implode(',', $set) . ' WHERE id=?')->execute($vals);
+  $st->execute([$id, $uid]); $after = uw_job_issues($st->fetch(PDO::FETCH_ASSOC));
+  $fixed = array_values(array_diff($before, $after));
+  uw_log($uid, 'neu gelesen: ' . mb_substr((string)$pick['title'], 0, 60) . ($after ? ' (fehlt noch: ' . implode(', ', $after) . ')' : ' ✓'));
+  return ['ok' => true, 'msg' => $after ? 'Neu gelesen · fehlt noch: ' . implode(', ', $after) : 'Neu gelesen ✓', 'fixed' => $fixed, 'missing' => $after];
+}
+
+// Warteschlange fürs Sheet: fehlgeschlagene Einträge später nachholen (pro Job zählt der letzte Wunsch)
+function uw_sheet_queue(int $uid): array { $q = kg_get($uid, 'uw_sheet_queue', []); return is_array($q) ? $q : []; }
+function uw_sheet_queue_add(int $uid, int $jobId, bool $on, string $why): void {
+  $q = array_values(array_filter(uw_sheet_queue($uid), fn($e) => (int)$e['id'] !== $jobId));
+  $q[] = ['id' => $jobId, 'on' => $on, 'ts' => time(), 'tries' => 0, 'why' => mb_substr($why, 0, 120)];
+  kg_set($uid, 'uw_sheet_queue', array_slice($q, -50));
+}
+function uw_sheet_queue_drop(int $uid, int $jobId): void {
+  $q = uw_sheet_queue($uid); $n = array_values(array_filter($q, fn($e) => (int)$e['id'] !== $jobId));
+  if (count($n) !== count($q)) kg_set($uid, 'uw_sheet_queue', $n);
+}
+// Fehler, bei denen ein späterer Versuch nichts bringt
+function uw_sheet_permanent(string $msg): bool { return (bool)preg_match('/Kein Google Sheet verknüpft|Job ohne Link/', $msg); }
+function uw_sheet_queue_run(int $uid): array {
+  $q = uw_sheet_queue($uid); if (!$q) return ['done' => 0, 'left' => 0];
+  $db = uw_db(); $keep = []; $done = 0;
+  foreach ($q as $e) {
+    $st = $db->prepare('SELECT * FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)$e['id'], $uid]); $job = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$job || (($job['status'] === 'beworben') !== (bool)$e['on'])) continue;   // inzwischen anders entschieden
+    try { $r = uw_sheet_apply($uid, $job, (bool)$e['on']); } catch (Throwable $ex) { $r = ['ok' => false, 'msg' => 'Sheet-Fehler']; }
+    if ($r['ok']) { $done++; uw_log($uid, 'Sheet nachgetragen: ' . mb_substr((string)$job['title'], 0, 50)); continue; }
+    if (uw_sheet_permanent($r['msg']) || time() - (int)$e['ts'] > 3 * 86400) { uw_log($uid, 'Sheet aufgegeben: ' . mb_substr((string)$job['title'], 0, 50) . ' (' . $r['msg'] . ')'); continue; }
+    $e['tries'] = (int)($e['tries'] ?? 0) + 1; $e['why'] = $r['msg']; $keep[] = $e;
+  }
+  kg_set($uid, 'uw_sheet_queue', $keep);
+  return ['done' => $done, 'left' => count($keep)];
+}
+
+// „Warte auf Entwurf“: nach Claude ✦ gemerkt, nach 10 Min. ohne Entwurf eine Push-Erinnerung
+function uw_draft_waits(int $uid): array { $w = kg_get($uid, 'uw_draft_wait', []); return is_array($w) ? $w : []; }
+function uw_draft_wait_set(int $uid, int $id, bool $on): void {
+  $w = uw_draft_waits($uid); unset($w[(string)$id]);
+  if ($on) $w[(string)$id] = ['ts' => time(), 'n' => 0];
+  kg_set($uid, 'uw_draft_wait', $w);
+}
+// Liefert Push-Nachrichten für Entwürfe, die nicht angekommen sind
+function uw_draft_wait_check(int $uid): array {
+  $w = uw_draft_waits($uid); if (!$w) return [];
+  $db = uw_db(); $msgs = []; $changed = false;
+  foreach ($w as $id => $e) {
+    $st = $db->prepare('SELECT title, draft FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)$id, $uid]); $j = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$j || trim((string)$j['draft']) !== '' || time() - (int)$e['ts'] > 86400) { unset($w[$id]); $changed = true; continue; }
+    if (empty($e['n']) && time() - (int)$e['ts'] >= 600) {
+      $w[$id]['n'] = 1; $changed = true;
+      $msgs[] = ['title' => '⏳ Kein Entwurf angekommen', 'body' => mb_substr((string)$j['title'], 0, 80) . ' – Claude hat nichts in Kongrow gespeichert. Schau im Claude-Chat nach.', 'url' => './?open=upwork&job=' . (int)$id, 'tag' => 'upwork-wait-' . (int)$id];
+    }
+  }
+  if ($changed) kg_set($uid, 'uw_draft_wait', $w);
+  return $msgs;
+}
+
+// Täglicher Selbsttest: liefert ['ts','problems'=>[…],'ok'=>[…]]
+function uw_selftest(int $uid): array {
+  $p = []; $ok = [];
+  $tok = kg_get($uid, 'google_tok');
+  if (empty($tok['refresh'])) $p[] = 'Google ist nicht verbunden – Job-Alerts kommen nicht an.';
+  elseif (n_google_token($uid) === '') $p[] = 'Google-Anmeldung abgelaufen – bitte in Kongrow neu verbinden.';
+  else $ok[] = 'Google verbunden';
+  $last = kg_get($uid, 'upwork_last');
+  if (!empty($last['error'])) $p[] = 'Letzter Abruf fehlgeschlagen: ' . $last['error'];
+  elseif (empty($last['ts']) || time() - (int)$last['ts'] > 3600) $p[] = 'Job-Alerts wurden seit ' . (empty($last['ts']) ? 'langem' : round((time() - (int)$last['ts']) / 3600) . ' Std.') . ' nicht abgerufen (Cronjob läuft nicht?).';
+  else $ok[] = 'Abruf läuft';
+  $seen = (int)kg_get($uid, 'uw_alert_seen', 0); $parsed = (int)kg_get($uid, 'uw_alert_parsed', 0);
+  if (!$seen) {   // vor dem ersten Selbsttest: jüngster Job aus einer Alert-Mail
+    $st = uw_db()->prepare("SELECT MAX(received) FROM upwork_jobs WHERE user_id=? AND msg_id NOT LIKE 'manual:%'"); $st->execute([$uid]);
+    $seen = $parsed = ($m = $st->fetchColumn()) ? (int)strtotime($m) : 0;
+  }
+  $hours = $seen ? (time() - $seen) / 3600 : null;
+  if ($hours === null || $hours > 24) $p[] = 'Seit ' . ($hours === null ? 'langem' : 'über ' . floor($hours) . ' Std.') . ' keine Upwork-Job-Alerts im Postfach. Gmail-Filter oder Alert-Einstellung bei Upwork prüfen.';
+  elseif ($seen - $parsed > 3 * 3600) $p[] = 'Alert-Mails kommen an, aber Kongrow erkennt darin keine Jobs mehr (neues Mail-Layout?).';
+  else $ok[] = 'Alerts kommen an';
+  $db = uw_db();
+  $st = $db->prepare("SELECT * FROM upwork_jobs WHERE user_id=? AND received > ? AND msg_id NOT LIKE 'manual:%'"); $st->execute([$uid, gmdate('c', time() - 86400)]);
+  $bad = 0; $all = 0; foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $all++; if (uw_job_issues($r)) $bad++; }
+  if ($bad) $p[] = $bad . ' von ' . $all . ' Jobs der letzten 24 Std. nicht sauber gelesen (⚠️ in der Liste).'; elseif ($all) $ok[] = $all . ' Jobs sauber gelesen';
+  if (!empty(kg_get($uid, 'upwork_sheet')['id'])) {
+    if (uw_sheet_ctx($uid)) $ok[] = 'Sheet erreichbar'; else $p[] = 'Google Sheet nicht erreichbar – Bewerbungen werden nicht eingetragen.';
+  }
+  $q = uw_sheet_queue($uid);
+  if ($q) $p[] = count($q) . ' Bewerbung' . (count($q) > 1 ? 'en warten' : ' wartet') . ' noch auf den Sheet-Eintrag.';
+  $res = ['ts' => time(), 'problems' => $p, 'ok' => $ok];
+  kg_set($uid, 'uw_selftest', $res);
+  return $res;
 }

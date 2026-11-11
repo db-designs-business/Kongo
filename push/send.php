@@ -41,6 +41,18 @@ if ($type === 'slack' || $type === 'upwork') {
       else echo date('c') . ' upwork: ' . count($r['new']) . ' neu, ' . $r['filtered'] . " aussortiert\n";
       if ($r['new'] && n_on($p, 'upwork')) $upMsgs = array_merge($upMsgs, uw_push_messages($r['new']));
     } catch (Throwable $e) { echo 'Upwork-Fehler: ' . $e->getMessage() . "\n"; }
+    // Zuverlässigkeit: Sheet-Einträge nachholen, fehlende Claude-Entwürfe melden, einmal am Tag Selbsttest
+    try { $q = uw_sheet_queue_run($u); if ($q['done'] || $q['left']) echo date('c') . " sheet-queue: {$q['done']} nachgetragen, {$q['left']} offen\n"; } catch (Throwable $e) { echo 'Sheet-Queue-Fehler: ' . $e->getMessage() . "\n"; }
+    try { if (n_on($p, 'upwork')) $upMsgs = array_merge($upMsgs, uw_draft_wait_check($u)); } catch (Throwable $e) { echo 'Entwurf-Check-Fehler: ' . $e->getMessage() . "\n"; }
+    try {
+      $now = new DateTime('now', new DateTimeZone('Europe/Berlin'));
+      if ((int)$now->format('G') >= 9 && kg_get($u, 'uw_selftest_day') !== $now->format('Y-m-d')) {
+        kg_set($u, 'uw_selftest_day', $now->format('Y-m-d'));
+        $t = uw_selftest($u);
+        echo date('c') . ' selbsttest: ' . ($t['problems'] ? implode(' | ', $t['problems']) : 'alles ok') . "\n";
+        if ($t['problems']) $upMsgs[] = ['title' => '⚠️ Kongrow-Check: ' . count($t['problems']) . ' Problem' . (count($t['problems']) > 1 ? 'e' : ''), 'body' => implode("\n", array_slice($t['problems'], 0, 4)), 'url' => './?open=upwork&check=1', 'tag' => 'upwork-selftest'];
+      }
+    } catch (Throwable $e) { echo 'Selbsttest-Fehler: ' . $e->getMessage() . "\n"; }
   }
   if ($upMsgs) echo kg_push_all($upMsgs) . " Gerät(e) für Upwork benachrichtigt\n";
   if ($type === 'upwork') exit(0);

@@ -7,7 +7,10 @@ $in = kg_input();
 $db = uw_db();
 
 function uw_out(array $r): array {
-  return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'app_url' => ($r['app_url'] ?? '') ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
+  static $waits = null; if ($waits === null) $waits = uw_draft_waits((int)$r['user_id']);
+  $w = $waits[(string)$r['id']] ?? null;
+  return ['issues' => uw_job_issues($r), 'draft_wait' => $w && trim((string)($r['draft'] ?? '')) === '' ? ['ts' => (int)$w['ts'], 'late' => !empty($w['n']) || time() - (int)$w['ts'] >= 600] : null,
+    'id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'app_url' => ($r['app_url'] ?? '') ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
     'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:'),
     'draft' => $r['draft'] ?? '', 'draft_answers' => uw_answers_list((string)($r['draft_answers'] ?? '')), 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null,
@@ -19,7 +22,8 @@ switch ($action) {
     $st = $db->prepare('SELECT * FROM upwork_jobs WHERE user_id=? ORDER BY received DESC LIMIT 300'); $st->execute([$uid]);
     $tok = kg_get($uid, 'google_tok');
     kg_json(['jobs' => array_map('uw_out', $st->fetchAll(PDO::FETCH_ASSOC)), 'settings' => uw_settings($uid), 'last' => kg_get($uid, 'upwork_last'),
-      'google' => ['connected' => !empty($tok['refresh']), 'email' => $tok['email'] ?? null]]);
+      'google' => ['connected' => !empty($tok['refresh']), 'email' => $tok['email'] ?? null],
+      'selftest' => kg_get($uid, 'uw_selftest'), 'sheet_queue' => array_map(fn($e) => ['id' => (int)$e['id'], 'on' => (bool)$e['on'], 'why' => $e['why'] ?? ''], uw_sheet_queue($uid))]);
 
   case 'status':
     $id = (int)($in['id'] ?? 0); $s = (string)($in['status'] ?? '');
@@ -36,7 +40,10 @@ switch ($action) {
     $sheet = null;
     if (($s === 'beworben') !== ($job['status'] === 'beworben')) {
       try { $sheet = uw_sheet_apply($uid, $job, $s === 'beworben'); } catch (Throwable $e) { $sheet = ['ok' => false, 'msg' => 'Sheet-Fehler']; }
+      if ($sheet['ok']) uw_sheet_queue_drop($uid, $id);
+      elseif (!uw_sheet_permanent($sheet['msg'])) { uw_sheet_queue_add($uid, $id, $s === 'beworben', $sheet['msg']); $sheet['queued'] = true; $sheet['msg'] .= ' – wird automatisch nachgetragen'; }
     }
+    if ($s === 'beworben' || $s === 'uebersprungen') uw_draft_wait_set($uid, $id, false);
     kg_json(['ok' => true, 'sheet' => $sheet]);
 
   case 'settings':
@@ -140,6 +147,32 @@ switch ($action) {
     foreach ($jobs as &$j) $j['id'] = (int)$j['id']; unset($j);
     ob_start(); $devices = kg_push_all(uw_push_messages($jobs)); ob_end_clean();
     kg_json(['ok' => true, 'jobs' => count($jobs), 'devices' => $devices]);
+
+  case 'mail':
+    // Original-Mail zu einem Job anzeigen (nur lesen)
+    $st = $db->prepare('SELECT * FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)($in['id'] ?? 0), $uid]); $job = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$job) kg_json(['error' => ['message' => 'Job nicht gefunden']], 404);
+    if (str_starts_with((string)$job['msg_id'], 'manual:')) kg_json(['error' => ['message' => 'Manuell gespeichert – es gibt keine Mail dazu']], 409);
+    $m = uw_mail_get($uid, (string)$job['msg_id']);
+    if (!empty($m['error'])) kg_json(['error' => ['message' => $m['error']]], 409);
+    $norm = uw_v2_normalize($m['text']);
+    $txt = preg_replace(["/[ \t]+/", "/\n{3,}/"], [' ', "\n\n"], str_replace(["\r\n", "\r", "\xC2\xA0"], ["\n", "\n", ' '], $norm ?? $m['text']));
+    $txt = preg_replace('#https?://\S{60,}#', '[Link]', $txt);
+    kg_json(['ok' => true, 'subject' => $m['subject'], 'date' => $m['date'], 'text' => mb_substr(trim($txt), 0, 20000), 'layout' => $norm !== null ? 'neu' : 'alt']);
+
+  case 'reparse':
+    $r = uw_reparse($uid, (int)($in['id'] ?? 0));
+    if (!$r['ok']) kg_json(['error' => ['message' => $r['msg']]], 409);
+    $st = $db->prepare('SELECT * FROM upwork_jobs WHERE id=? AND user_id=?'); $st->execute([(int)$in['id'], $uid]);
+    kg_json($r + ['job' => uw_out($st->fetch(PDO::FETCH_ASSOC))]);
+
+  case 'draft_wait':
+    uw_draft_wait_set($uid, (int)($in['id'] ?? 0), !array_key_exists('on', $in) || !empty($in['on']));
+    kg_json(['ok' => true]);
+
+  case 'selftest':
+    $q = uw_sheet_queue_run($uid);
+    kg_json(['ok' => true, 'queue' => $q] + uw_selftest($uid));
 
   case 'check':
     $r = uw_fetch_new($uid, true);

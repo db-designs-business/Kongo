@@ -1105,6 +1105,12 @@
   .uj-chev{ flex:0 0 auto; color:var(--muted, #8a9a9a); font-size:12px; transition:transform .15s; margin-left:2px; }
   .uj-card.open .uj-chev{ transform:rotate(180deg); }
   .uj-reason{ font-size:12px; color:#ffb86b; margin-top:6px; }
+  .uj-issue{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; padding:8px 10px; border-radius:10px; background:rgba(245,181,68,.1); border:1px solid rgba(245,181,68,.35); font-size:12.5px; color:#ffcf7a; }
+  .uj-issue span{ flex:1 1 100%; } .uj-issue button{ flex:1 1 0; background:none; border:1px solid rgba(245,181,68,.5); color:#ffcf7a; border-radius:9px; padding:5px 10px; font-size:12.5px; font-weight:600; }
+  .uj-wait{ color:#9ecbff; } .uj-late{ color:#ffb86b; }
+  .uj-check{ border:1px solid rgba(245,181,68,.4); background:rgba(245,181,68,.08); }
+  .uj-check ul{ margin:6px 0 10px 18px; padding:0; font-size:13.5px; line-height:1.45; } .uj-check li{ margin:3px 0; }
+  .uj-mail{ white-space:pre-wrap; font:12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; background:rgba(0,0,0,.25); border-radius:10px; padding:10px; max-height:55vh; overflow:auto; overflow-wrap:anywhere; margin-top:10px; }
   .uj-actions{ display:flex; gap:6px; margin-top:10px; }
   .uj-btn{ flex:1 1 0; min-height:38px; padding:0 8px; border-radius:12px; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; text-decoration:none; white-space:nowrap;
     background:rgba(255,255,255,.04); border:1px solid var(--line-soft, rgba(255,255,255,.1)); color:var(--ink); }
@@ -11117,16 +11123,19 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const r = await kgApi('upwork.php?action=sheet_rows');
     const { col, map, H } = upSheetMap(r.header || []);
     if(col.date < 0) throw new Error('Keine Spalte „Date“ oder „Datum“ im Sheet gefunden (Kopfzeile: ' + (H.filter(Boolean).join(', ') || 'leer') + ')');
-    const per = {}; let n = 0, skipped = 0;
+    const per = {}; let n = 0, skipped = 0, dups = 0; const seenJob = new Set();
     (r.rows || []).forEach(row=>{
       const d = upSheetDate(row[col.date]); const has = (col.title >= 0 && String(row[col.title] || '').trim()) || (col.link >= 0 && String(row[col.link] || '').trim());
       if(!d || !has){ if(row.some(v=>String(v == null ? '' : v).trim())) skipped++; return; }
+      // derselbe Job zweimal im Sheet (gleiche Job-ID ~02… im Link): nur einmal zählen
+      const km = col.link >= 0 && String(row[col.link] || '').match(/~0[0-9a-z]{10,}/i);
+      if(km){ const k = km[0].toLowerCase(); if(seenJob.has(k)){ dups++; return; } seenJob.add(k); }
       n++; const w = per[d] || (per[d] = {});
       Object.entries(map).forEach(([id, m])=>{ const v = m.how === 'count' ? 1 : m.how === 'sum' ? upNumVal(row[m.c]) : (upTruthy(row[m.c]) ? 1 : 0); w[id] = (w[id] || 0) + (v || 0); });
     });
     const days = Object.keys(per).sort();
     const tot = {}; days.forEach(d=>Object.entries(per[d]).forEach(([id, v])=>tot[id] = (tot[id] || 0) + v));
-    return { tab:r.tab, map, per, days, tot, n, skipped, from:days[0], to:days[days.length - 1] };
+    return { tab:r.tab, map, per, days, tot, n, skipped, dups, from:days[0], to:days[days.length - 1] };
   }
   // Werte in die Kongrow-KPIs schreiben (nur Tage, die sich wirklich ändern). Liefert die Zahl geänderter Tage.
   async function upSheetApply(R, onProgress){
@@ -11168,7 +11177,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     if(!R.days.length){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Keine Bewerbungen mit Datum gefunden.</div>'); return; }
     const fmtD = d=>new Date(d + 'T12:00').toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
     openErnModal(`<div class="modal-title">Abgleich mit dem Sheet</div>
-      <div class="modal-sub">Blatt „${escapeHtml(R.tab)}“ · ${R.n} Bewerbungen an ${R.days.length} Tagen · ${fmtD(R.from)} bis ${fmtD(R.to)}${R.skipped ? ' · ' + R.skipped + ' Zeilen ohne lesbares Datum übersprungen' : ''}</div>
+      <div class="modal-sub">Blatt „${escapeHtml(R.tab)}“ · ${R.n} Bewerbungen an ${R.days.length} Tagen · ${fmtD(R.from)} bis ${fmtD(R.to)}${R.skipped ? ' · ' + R.skipped + ' Zeilen ohne lesbares Datum übersprungen' : ''}${R.dups ? ' · ' + R.dups + ' doppelte Job-Zeile' + (R.dups > 1 ? 'n' : '') + ' nur einmal gezählt' : ''}</div>
       <div class="up-imp">${up.kpis.map(k=>`<div class="up-imp-row"><span><b>${escapeHtml(k.name)}</b><small>${R.map[k.id] ? escapeHtml(R.map[k.id].label) : 'nicht im Sheet, bleibt wie es ist'}</small></span><em>${R.map[k.id] ? upFmt(k, R.tot[k.id] || 0) : '–'}</em></div>`).join('')}</div>
       <div class="hint" style="margin:10px 0 0;">Läuft automatisch, wenn du die KPIs öffnest. Das Sheet ist die Quelle für alles, was oben einer Spalte zugeordnet ist. Andere Werte und Notizen bleiben.</div>
       <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="upImpNo">Schließen</button><button type="button" class="primary" id="upImpGo">Jetzt abgleichen</button></div>
@@ -11221,7 +11230,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   async function upJobsLoad(force){
     if(uj.loaded && !force) return;
     const j = await kgApi('upwork.php?action=list');
-    uj.jobs = j.jobs || []; uj.settings = j.settings; uj.last = j.last; uj.google = j.google; uj.loaded = true;
+    uj.jobs = j.jobs || []; uj.settings = j.settings; uj.last = j.last; uj.google = j.google; uj.selftest = j.selftest || null; uj.sheetQueue = j.sheet_queue || []; uj.loaded = true;
   }
   function upShowView(){
     document.querySelectorAll('#upView .aufg-tab').forEach(b=>b.classList.toggle('active', b.dataset.v === uj.view));
@@ -11261,6 +11270,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       const mo = money(j);
       const meta = [`<b>${escapeHtml(mo.v)}</b>`];
       if(j.draft) meta.unshift('<span class="uj-ok">✍️ Proposal bereit</span>');
+      else if(j.draft_wait) meta.unshift(j.draft_wait.late ? '<span class="uj-late">⚠️ Kein Entwurf angekommen</span>' : '<span class="uj-wait">⏳ Warte auf Entwurf</span>');
+      if(uj.sheetQueue && uj.sheetQueue.some(q=>q.id === j.id)) meta.push('<span class="uj-late">Sheet-Eintrag wartet</span>');
       if(j.country) meta.push(escapeHtml(j.country));
       if(j.verified === true) meta.push('<span class="uj-ok">✓ verifiziert</span>'); else if(j.verified === false) meta.push('<span class="uj-warn">nicht verifiziert</span>');
       if(j.spent) meta.push(escapeHtml(j.spent) + ' ausgegeben');
@@ -11281,6 +11292,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
           ${more.length ? `<div class="uj-more">${more.map(x=>`<div>${x}</div>`).join('')}</div>` : ''}
           ${uj.tab === 'aus' ? `<div class="uj-reason">${escapeHtml(j.status === 'uebersprungen' ? 'Von dir übersprungen' : (j.reason || 'Aussortiert'))}</div>` : ''}
         </div>
+        ${j.issues && j.issues.length ? `<div class="uj-issue"><span>⚠️ Nicht sauber gelesen – fehlt: ${escapeHtml(j.issues.join(', '))}</span><button type="button" data-mail="${j.id}">Mail ansehen</button><button type="button" data-reparse="${j.id}">Erneut auslesen</button></div>` : ''}
         <div class="uj-actions">${acts}</div>
         <div class="uj-del-row"><button type="button" class="aufg-link" data-del="${j.id}">Job ganz löschen</button></div></div>`;
     };
@@ -11293,6 +11305,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         <button type="button" class="aufg-tab ${uj.tab === 'beworben' ? 'active' : ''}" data-t="beworben">Beworben (${n('beworben')})</button>
         <button type="button" class="aufg-tab ${uj.tab === 'aus' ? 'active' : ''}" data-t="aus">Aus (${n('aus')})</button>
       </div>
+      ${ujCheckBanner()}
       ${list.length ? list.map(card).join('') : `<div class="card"><div class="hint" style="margin:0;">${empty}</div></div>`}`;
     const tb = document.querySelector('.topbar'); if(tb && getComputedStyle(tb).position === 'sticky') document.documentElement.style.setProperty('--kg-topbar-h', (tb.offsetHeight + 4) + 'px');
     el.querySelectorAll('#ujTabs .aufg-tab').forEach(b=>b.onclick = ()=>{ if(b.dataset.t === uj.tab) return; ujSavePos(el); uj.tab = b.dataset.t; uj.hl = null; renderUpJobs(); ujRestorePos(el); });
@@ -11309,9 +11322,67 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
     el.querySelectorAll('[data-prop]').forEach(b=>b.onclick = ()=>openUjProposal(+b.dataset.prop));
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>ujDelete(+b.dataset.del));
+    el.querySelectorAll('[data-mail]').forEach(b=>b.onclick = ()=>ujShowMail(+b.dataset.mail));
+    el.querySelectorAll('[data-reparse]').forEach(b=>b.onclick = ()=>ujReparse(+b.dataset.reparse, b));
+    const cb = el.querySelector('#ujCheckRun'); if(cb) cb.onclick = ()=>ujRunCheck(cb);
+    const cx = el.querySelector('#ujCheckHide'); if(cx) cx.onclick = ()=>{ try{ localStorage.setItem('kongrow_uj_check_hide', String(uj.selftest.ts)); }catch(e){} renderUpJobs(); };
     if(uj.tab === 'neu' || uj.tab === 'gemerkt') el.querySelectorAll('.uj-card').forEach(ujSwipe);
     try{ if((uj.tab === 'neu') && el.querySelector('.uj-card') && !localStorage.getItem('kongrow_uj_swipe_hint')){ localStorage.setItem('kongrow_uj_swipe_hint', '1'); setTimeout(()=>kgUndoToast('Tipp: Job nach rechts wischen = Claude schreibt · nach links = überspringen', null, 6000), 800); } }catch(e){}
   }
+  // Täglicher Selbsttest (Server): Hinweis oben in der Liste, solange Probleme offen sind
+  function ujCheckBanner(){
+    const t = uj.selftest; if(!t || !t.problems || !t.problems.length || Date.now() / 1000 - t.ts > 36 * 3600) return '';
+    let hid = ''; try{ hid = localStorage.getItem('kongrow_uj_check_hide') || ''; }catch(e){}
+    if(hid === String(t.ts)) return '';
+    return `<div class="card uj-check"><div class="step-label">⚠️ Kongrow-Check · ${new Date(t.ts * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>
+      <ul>${t.problems.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul>
+      <div class="uj-actions" style="display:flex;"><button type="button" class="uj-btn" id="ujCheckRun">Erneut prüfen</button><button type="button" class="uj-btn" id="ujCheckHide">Ausblenden</button></div></div>`;
+  }
+  async function ujRunCheck(btn){
+    if(btn){ btn.disabled = true; btn.textContent = 'Prüfe …'; }
+    try{
+      const r = await kgApi('upwork.php?action=selftest', {});
+      uj.selftest = { ts:r.ts, problems:r.problems, ok:r.ok };
+      await upJobsLoad(true).catch(()=>{}); renderUpJobs();
+      const done = r.queue && r.queue.done ? ' · ' + r.queue.done + ' Sheet-Eintrag nachgetragen' : '';
+      if(!r.problems.length) kgUndoToast('Alles in Ordnung ✓ ' + (r.ok || []).join(' · ') + done, null, 5000);
+      else if(done) kgUndoToast(done.slice(3));
+      return r;
+    }catch(e){ kgUndoToast('Prüfen fehlgeschlagen: ' + e.message); if(btn){ btn.disabled = false; btn.textContent = 'Erneut prüfen'; } }
+  }
+  // Original-Mail eines Jobs anzeigen
+  async function ujShowMail(id){
+    const j = uj.jobs.find(x=>x.id === id); if(!j) return;
+    openErnModal('<div class="modal-title">Alert-Mail</div><div class="hint">Lade die Mail …</div>');
+    let r; try{ r = await kgApi('upwork.php?action=mail', { id }); }
+    catch(e){ openErnModal('<div class="modal-title">Alert-Mail</div><div class="hint">' + escapeHtml(e.message) + '</div><div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="ujMailX">Schließen</button></div>'); ernModalCard().querySelector('#ujMailX').onclick = closeErnModal; return; }
+    openErnModal(`<div class="modal-title">${escapeHtml(r.subject || 'Alert-Mail')}</div>
+      <div class="modal-sub">${escapeHtml(r.date || '')}${r.layout === 'neu' ? ' · neues Upwork-Layout' : ''}${j.issues && j.issues.length ? ' · fehlt: ' + escapeHtml(j.issues.join(', ')) : ''}</div>
+      <div class="uj-mail">${escapeHtml(r.text || '')}</div>
+      <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="ujMailX">Schließen</button><button type="button" class="primary" id="ujMailRe">Erneut auslesen</button></div>`);
+    const c = ernModalCard();
+    c.querySelector('#ujMailX').onclick = closeErnModal;
+    c.querySelector('#ujMailRe').onclick = async ()=>{ const ok = await ujReparse(id, c.querySelector('#ujMailRe')); if(ok) closeErnModal(); };
+  }
+  // Job aus seiner Mail neu auslesen (Status und Entwurf bleiben)
+  async function ujReparse(id, btn){
+    if(btn){ if(btn.disabled) return false; btn.disabled = true; btn.dataset.t = btn.textContent; btn.textContent = 'Lese …'; }
+    try{
+      const r = await kgApi('upwork.php?action=reparse', { id });
+      const i = uj.jobs.findIndex(x=>x.id === id); if(i >= 0 && r.job) uj.jobs[i] = r.job;
+      renderUpJobs(); kgUndoToast(r.msg || 'Neu gelesen ✓');
+      return true;
+    }catch(e){ kgUndoToast(e.message); if(btn){ btn.disabled = false; btn.textContent = btn.dataset.t || 'Erneut auslesen'; } return false; }
+  }
+  // Nach „Claude ✦“: beim Zurückkommen in die App nachsehen, ob der Entwurf da ist
+  document.addEventListener('visibilitychange', async ()=>{
+    if(document.visibilityState !== 'visible' || !uj.loaded || !uj.jobs.some(j=>j.draft_wait && !j.draft)) return;
+    const before = new Set(uj.jobs.filter(j=>j.draft).map(j=>j.id));
+    try{ await upJobsLoad(true); }catch(e){ return; }
+    const fresh = uj.jobs.filter(j=>j.draft && !before.has(j.id));
+    if(document.getElementById('upJobs') && document.getElementById('upJobsView') && document.getElementById('upJobsView').offsetParent) renderUpJobs();
+    if(fresh.length) kgUndoToast('✍️ Entwurf von Claude ist da: ' + fresh[0].title.slice(0, 50), null, 5000);
+  });
   // Wischen: nach rechts = Claude schreibt (bzw. Entwurf öffnen), nach links = überspringen (mit Rückgängig)
   function ujSwipe(card){
     const id = +card.id.replace('uj_', ''); let x0 = 0, y0 = 0, dx = 0, mode = '';
@@ -11361,6 +11432,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const target = 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
     if(win && !win.closed) win.location.href = target; else window.open(target, '_blank', 'noopener');
     kgUndoToast(copied ? 'Auftrag kopiert ✓ Falls das Feld in Claude leer ist: einfach einfügen.' : 'Claude geöffnet', null, 5000);
+    if(!j.draft){ j.draft_wait = { ts: Math.round(Date.now() / 1000), late:false }; kgApi('upwork.php?action=draft_wait', { id }).catch(()=>{}); setTimeout(()=>{ try{ renderUpJobs(); }catch(e){} }, 300); }
   }
   // Zweimal tippen zum Bestätigen (ohne Browser-Dialog)
   function confirmInline(btn){ if(btn.dataset.armed){ return true; } btn.dataset.armed = '1'; const t = btn.textContent; btn.textContent = 'Sicher? Alte Adresse geht dann nicht mehr'; setTimeout(()=>{ delete btn.dataset.armed; btn.textContent = t; }, 4000); return false; }
@@ -11663,6 +11735,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       </div>
       <button type="button" class="primary" id="ujFilterSave" style="width:100%;margin-top:14px;">Speichern</button>
       <button type="button" class="aufg-link" id="ujTestPush" style="margin-top:12px;">Test-Push für offene Jobs senden</button>
+      <button type="button" class="aufg-link" id="ujSelfTest" style="margin-top:8px;">Kongrow-Check jetzt ausführen</button>
+      <div class="hint" style="margin:4px 0 0;">Läuft jeden Tag ab 9 Uhr automatisch und meldet sich nur per Push, wenn etwas nicht stimmt (Google-Anmeldung, Sheet, ausbleibende Alerts, schlecht gelesene Jobs).</div>
       <div class="step-label" style="margin-top:20px;">Kongrow-Connector für Claude</div>
       <div class="hint" style="margin:0 0 8px;">Über diese Adresse legt Claude fertige Proposals hier ab. In Claude unter Einstellungen → Konnektoren → „Eigenen Konnektor hinzufügen“ eintragen. Die Adresse ist geheim – nicht weitergeben.</div>
       <div id="ujMcpBox"><button type="button" class="ghost" id="ujMcpShow" style="width:100%;">Adresse anzeigen</button></div>`);
@@ -11676,6 +11750,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       }catch(e){ kgUndoToast(e.message); }
     };
     card.querySelector('#ujMcpShow').onclick = ()=>showMcp(false);
+    card.querySelector('#ujSelfTest').onclick = async ()=>{ const b = card.querySelector('#ujSelfTest'); b.textContent = 'Prüfe …'; try{ localStorage.removeItem('kongrow_uj_check_hide'); }catch(e){} const r = await ujRunCheck(); if(r && r.problems.length) closeErnModal(); b.textContent = 'Kongrow-Check jetzt ausführen'; };
     card.querySelector('#ujTestPush').onclick = async ()=>{ try{ const r = await kgApi('upwork.php?action=test_push', {}); kgUndoToast(r.jobs + ' Test-Push' + (r.jobs > 1 ? 's' : '') + ' an ' + r.devices + ' Gerät' + (r.devices === 1 ? '' : 'e') + ' gesendet'); }catch(e){ kgUndoToast(e.message); } };
     card.querySelector('#ujFilterSave').onclick = async ()=>{
       const btn = card.querySelector('#ujFilterSave'); btn.disabled = true;
@@ -11718,7 +11793,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
-      else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null, params.get('draft') === '1'); }
+      else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null, params.get('draft') === '1'); if(params.get('check') === '1') try{ localStorage.removeItem('kongrow_uj_check_hide'); }catch(e){} }
       else if(open === 'nachrichten' || open === 'slack' || open === 'mail'){
         switchTab('nachrichten');
         if(open === 'mail'){
