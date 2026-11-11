@@ -51,7 +51,7 @@ function n_gmail_new(int $uid): array {
   foreach (kg_http_multi($urls, ['Authorization: Bearer ' . $at]) as $id => $m) {
     if (!$m || empty($m['id'])) continue;
     $h = []; foreach ($m['payload']['headers'] ?? [] as $x) $h[strtolower($x['name'])] = $x['value'];
-    $out[] = ['kind' => 'mail', 'src' => 'gmail', 'account' => $tok['email'] ?? 'Gmail', 'accountId' => '', 'id' => $id, 'from' => n_from_name($h['from'] ?? ''), 'subject' => $h['subject'] ?? '(kein Betreff)'];
+    $out[] = ['kind' => 'mail', 'src' => 'gmail', 'box' => 'gmail', 'account' => $tok['email'] ?? 'Gmail', 'accountId' => '', 'id' => $id, 'from' => n_from_name($h['from'] ?? ''), 'from_raw' => $h['from'] ?? '', 'subject' => $h['subject'] ?? '(kein Betreff)'];
   }
   return $out;
 }
@@ -73,7 +73,7 @@ function n_imap_new(int $uid, array $a): array {
   if ($new) foreach (imap_fetch_overview($mb, implode(',', array_slice($new, -6)), FT_UID) ?: [] as $o) {
     if (!empty($o->seen)) continue;
     $dec = function ($s) { if (!$s) return ''; $r = @iconv_mime_decode($s, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8'); return $r !== false ? $r : (string)imap_utf8($s); };
-    $out[] = ['kind' => 'mail', 'src' => 'mail', 'account' => $a['label'], 'accountId' => $a['id'], 'id' => (string)$o->uid, 'from' => n_from_name($dec($o->from ?? '')), 'subject' => $dec($o->subject ?? '') ?: '(kein Betreff)'];
+    $out[] = ['kind' => 'mail', 'src' => 'mail', 'box' => 'mail:' . $a['id'], 'account' => $a['label'], 'accountId' => $a['id'], 'id' => (string)$o->uid, 'from' => n_from_name($dec($o->from ?? '')), 'from_raw' => $dec($o->from ?? ''), 'subject' => $dec($o->subject ?? '') ?: '(kein Betreff)'];
   }
   imap_close($mb);
   return $out;
@@ -87,5 +87,23 @@ function n_mail_new(int $uid): array {
     if (!n_on($p, 'mail:' . $a['id'])) continue;
     try { $out = array_merge($out, n_imap_new($uid, $a)); } catch (Throwable $e) {}
   }
-  return $out;
+  // ausgeblendete Mails (Regeln aus „Postfächer sortieren“) melden sich nicht per Push
+  $rules = n_mail_rules($uid);
+  return $rules ? array_values(array_filter($out, fn($m) => !n_mail_hidden($rules, $m['box'] ?? '', $m['from_raw'] ?? $m['from'], $m['subject']))) : $out;
+}
+
+/* ---------- Ausblenden-Regeln: {box: '' | 'gmail' | 'mail:<id>', from, subject} – Teiltexte, „|“ = oder, beide gesetzt = und ---------- */
+function n_mail_rules(int $uid): array { $r = kg_get($uid, 'mail_rules', []); return is_array($r) ? $r : []; }
+function n_rule_part(string $need, string $have): bool {
+  foreach (array_filter(array_map('trim', explode('|', mb_strtolower($need))), 'strlen') as $alt) if (str_contains(mb_strtolower($have), $alt)) return true;
+  return false;
+}
+function n_mail_hidden(array $rules, string $box, string $from, string $subject): bool {
+  foreach ($rules as $r) {
+    if (($r['box'] ?? '') !== '' && $r['box'] !== $box) continue;
+    $f = trim((string)($r['from'] ?? '')); $s = trim((string)($r['subject'] ?? ''));
+    if ($f === '' && $s === '') continue;
+    if (($f === '' || n_rule_part($f, $from)) && ($s === '' || n_rule_part($s, $subject))) return true;
+  }
+  return false;
 }

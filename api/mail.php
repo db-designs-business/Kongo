@@ -100,6 +100,22 @@ function m_diag(array $a): string {
 function m_public(array $a): array { unset($a['pass']); return $a; }
 
 switch ($action) {
+  case 'rules':
+    require_once __DIR__ . '/notify_lib.php';
+    kg_json(['rules' => n_mail_rules($uid)]);
+
+  case 'rules_save':
+    $rules = [];
+    foreach ((array)($in['rules'] ?? []) as $r) {
+      $f = mb_substr(trim((string)($r['from'] ?? '')), 0, 200); $s = mb_substr(trim((string)($r['subject'] ?? '')), 0, 200);
+      if ($f === '' && $s === '') continue;
+      $box = (string)($r['box'] ?? ''); if (!preg_match('/^(|gmail|mail:[A-Za-z0-9_-]{1,40})$/', $box)) $box = '';
+      $rules[] = ['box' => $box, 'from' => $f, 'subject' => $s, 'name' => mb_substr(trim((string)($r['name'] ?? '')), 0, 60)];
+      if (count($rules) >= 100) break;
+    }
+    kg_set($uid, 'mail_rules', $rules);
+    kg_json(['ok' => true, 'rules' => $rules]);
+
   case 'accounts':
     kg_json(['accounts' => array_map('m_public', m_accounts($uid)), 'presets' => array_keys(MAIL_PRESETS)]);
 
