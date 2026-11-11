@@ -42,6 +42,14 @@ function uw_db(): PDO {
     $ac = array_column($db->query('PRAGMA table_info(upwork_applied)')->fetchAll(PDO::FETCH_ASSOC), 'name');
     if (!in_array('sheet_row', $ac, true)) $db->exec('ALTER TABLE upwork_applied ADD COLUMN sheet_row INTEGER');
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
+    // Reparatur: Jobs aus dem neuen Mail-Layout mit kaputtem Titel (z. B. nur „)“) entfernen und ihre Mail
+    // als ungelesen fürs Einlesen markieren, damit sie beim nächsten Abruf mit dem verbesserten Parser neu kommen
+    $bad = $db->query("SELECT id, user_id, msg_id, title FROM upwork_jobs WHERE status IN ('neu','gefiltert','gemerkt') AND (draft IS NULL OR draft = '')")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($bad as $r) {
+      if (uw_has_words((string)$r['title'])) continue;
+      $db->prepare('DELETE FROM upwork_jobs WHERE id=?')->execute([$r['id']]);
+      $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND msg_id=?')->execute([$r['user_id'], explode('#', (string)$r['msg_id'])[0]]);
+    }
   }
   return $db;
 }
@@ -72,6 +80,15 @@ function uw_clean_line(string $l): string {
   $l = preg_replace('/\s*[:\-–]\s*$/u', '', trim(preg_replace('/\s+/u', ' ', $l)));
   return trim($l);
 }
+// Titel säubern: offene Klammer am Ende ("Titel ("), lose Klammern, Doppelpunkt
+function uw_trim_title(string $t): string {
+  $t = trim(preg_replace('/\s*[(\[{]\s*[)\]}]\s*/u', ' ', $t));
+  $t = preg_replace(['/\s*[(\[{:\-–]\s*$/u', '/^\s*[)\]}:\-–]\s*/u'], '', $t);
+  if (substr_count($t, '(') < substr_count($t, ')')) $t = preg_replace('/\s*\)\s*$/u', '', $t);
+  return trim($t);
+}
+// sinnvolle Zeile = mindestens 3 Buchstaben
+function uw_has_words(string $l): bool { return (bool)preg_match('/\p{L}.*\p{L}.*\p{L}/u', $l); }
 function uw_noise(string $l): bool {
   return $l === '' || preg_match('/^[-=_*·•.\s]+$/u', $l) || preg_match('/do not apply via email|only upwork applications will be accepted/i', $l);
 }
@@ -91,7 +108,14 @@ function uw_parse_all(string $text, string $html = '', string $subject = ''): ar
   }
   // Zeilen bereinigen
   $L = [];
-  foreach (uw_lines($text) as $l) { $c = uw_clean_line($l); if (!uw_noise($c)) $L[] = $c; }
+  foreach (uw_lines($text) as $l) {
+    $c = uw_clean_line($l);
+    // Reste vom entfernten Link: eine Zeile nur aus Klammern/Satzzeichen gehört zur vorigen Zeile
+    if ($c !== '' && !preg_match('/[\p{L}\p{N}]/u', $c)) { if ($L) $L[count($L) - 1] = uw_trim_title($L[count($L) - 1] . $c); continue; }
+    // neues Upwork-Layout: „Fixed“ / „Hourly“ in einer Zeile, „price“ / „rate“ in der nächsten
+    if ($L && preg_match('/^(price|rate|-?price:?|-?rate:?)\b/i', $c) && preg_match('/^(Hourly|Fixed)[- ]?$/i', $L[count($L) - 1])) { $L[count($L) - 1] = rtrim($L[count($L) - 1], ' -') . ' ' . $c; continue; }
+    if (!uw_noise($c)) $L[] = $c;
+  }
   $budgetIdx = [];
   foreach ($L as $i => $l) if (preg_match('/^(Hourly|Fixed[- ]?price|Fixed)\b/i', $l)) $budgetIdx[] = $i;
   if (!$budgetIdx) return [];
@@ -99,20 +123,22 @@ function uw_parse_all(string $text, string $html = '', string $subject = ''): ar
   $titleIdx = [];
   foreach ($budgetIdx as $n => $b) {
     $t = null; $min = $n ? $budgetIdx[$n - 1] + 1 : 0;
-    for ($i = $b - 1; $i >= $min; $i--) { if (preg_match(UW_HEAD, $L[$i]) || preg_match('/payment (un)?verified|\bspent\b/i', $L[$i])) continue; $t = $i; break; }
+    for ($i = $b - 1; $i >= $min; $i--) { if (preg_match(UW_HEAD, $L[$i]) || preg_match('/payment (un)?verified|\bspent\b|matches your saved search|take a look and submit/i', $L[$i]) || !uw_has_words($L[$i])) continue; $t = $i; break; }
     $titleIdx[$n] = $t;
   }
   $keys = array_keys($jobLinks); $out = [];
   foreach ($budgetIdx as $n => $b) {
-    $title = $titleIdx[$n] !== null ? $L[$titleIdx[$n]] : '';
-    if ($title === '' && count($budgetIdx) === 1) $title = trim(preg_replace('/^(new job( alert)?|job alert)\s*[:\-–]\s*/i', '', $subject));
+    $title = $titleIdx[$n] !== null ? uw_trim_title($L[$titleIdx[$n]]) : '';
+    $subj = uw_trim_title(trim(preg_replace('/^(new job( alert)?|job alert)\s*[:\-–]\s*/i', '', $subject)));
+    if (!uw_has_words($title) && count($budgetIdx) === 1) $title = $subj;
+    if (!uw_has_words($title)) continue;
     if ($title === '') continue;
     $end = isset($budgetIdx[$n + 1]) ? ($titleIdx[$n + 1] ?? $budgetIdx[$n + 1]) : count($L);
     for ($i = $b + 1; $i < $end; $i++) if (uw_stop($L[$i])) { $end = $i; break; }
     $seg = array_slice($L, $b + 1, max(0, $end - $b - 1));
     // Budget
     $line = $L[$b];
-    if (count(uw_parts($line)) < 2 && isset($seg[0]) && preg_match('/^(\$|budget|est)/i', $seg[0])) $line .= ' • ' . array_shift($seg);
+    if (count(uw_parts($line)) < 2 && isset($seg[0]) && preg_match('/^(\$|budget|est|\d+\s*(to|-)\s*\d+\s*(months?|weeks?))/i', $seg[0])) $line .= ' • ' . array_shift($seg);
     $bp = uw_parts($line);
     $kind = stripos($bp[0], 'hour') !== false ? 'Stundensatz' : 'Festpreis';
     // „Hourly: $20.00 - $38.00“ – Betrag steht direkt hinter dem Doppelpunkt
