@@ -58,6 +58,8 @@ function mcp_text(string $t, bool $err = false): array { return ['content' => [[
 
 function mcp_call(int $uid, string $name, array $a): array {
   $db = uw_db();
+  // Fehlersuche auch über das bestehende Werkzeug erreichbar (falls die Werkzeugliste im Client zwischengespeichert ist)
+  if ($name === 'get_proposal_draft' && str_starts_with((string)($a['job_url'] ?? ''), 'debug:alerts')) { $name = 'upwork_alert_debug'; $q = substr((string)$a['job_url'], 12); $a = ['title_contains' => trim($q, ' :'), 'max_mails' => 3]; }
   if ($name === 'upwork_alert_debug') {
     $at = n_google_token($uid);
     if ($at === '') return mcp_text('Google ist nicht verbunden.', true);
