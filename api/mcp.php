@@ -76,7 +76,7 @@ function mcp_call(int $uid, string $name, array $a): array {
       $text = $plain !== '' ? $plain : kg_html_to_text(preg_replace(['#</(td|th)>#i', '#</(span|a|b|strong)>#i'], ['$0' . "\n", '$0 '], $html));
       if (!preg_match('/job alert|matches your alert|view job details/i', $text)) continue;
       $jobs = uw_parse_all($text, $html, (string)($h['subject'] ?? ''));
-      $titles = array_map(fn($j) => $j['title'] . ' | ' . $j['budget'] . ' | ' . $j['country'] . ' | url=' . $j['url'] . ' | ' . mb_substr((string)$j['snippet'], 0, 40), $jobs);
+      $titles = array_map(fn($j) => $j['title'] . ' | ' . $j['budget'] . ' | ' . $j['country'] . ' | url=' . $j['url'] . ' | app=' . ($j['app_url'] ? 'ja' : 'nein') . ' | ' . mb_substr((string)$j['snippet'], 0, 40), $jobs);
       if ($want !== '' && !array_filter($titles, fn($t) => mb_stripos($t, $want) !== false)) continue;
       $lines = array_values(array_filter(array_map('trim', uw_lines($text)), fn($l) => $l !== ''));
       $out[] = '### ' . ($h['subject'] ?? '') . "\nQuelle: " . ($plain !== '' ? 'text/plain' : 'HTML') . "\nErkannt:\n- " . implode("\n- ", $titles) . "\n\nZeilen:\n" . implode("\n", array_map(fn($l) => '| ' . mb_substr(preg_replace_callback('#https?://[^\s)]+#', fn($u) => '<' . preg_replace('#\?.*$#', '', $u[0]) . (str_contains($u[0], '?') ? '?…' : '') . '>', $l), 0, 240), array_slice($lines, 0, 140)));

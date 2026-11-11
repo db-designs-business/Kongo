@@ -31,6 +31,7 @@ function uw_db(): PDO {
     if (!in_array('rating', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN rating TEXT');
     foreach (['draft', 'draft_answers', 'draft_notes', 'draft_ts'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c TEXT");
     foreach (['boosted', 'connects'] as $c) if (!in_array($c, $cols, true)) $db->exec("ALTER TABLE upwork_jobs ADD COLUMN $c INTEGER");
+    if (!in_array('app_url', $cols, true)) $db->exec('ALTER TABLE upwork_jobs ADD COLUMN app_url TEXT');   // Original-Link aus der Mail (öffnet auf dem iPhone die Upwork-App)
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_deleted (user_id INTEGER NOT NULL, job_key TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, job_key))');
     // Altlast aus dem ersten Parser: Links im Titel („Titel...: https://…“) entfernen
     foreach ($db->query("SELECT id, title FROM upwork_jobs WHERE title LIKE '%http%'")->fetchAll(PDO::FETCH_ASSOC) as $r) {
@@ -59,6 +60,17 @@ function uw_db(): PDO {
       $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND msg_id=?')->execute([$r['user_id'], explode('#', (string)$r['msg_id'])[0]]);
     }
     foreach ($relinked as $u => $list) kg_set($u, 'uw_relinked', array_slice($list, -300));
+    // App-Links (Original-Link aus der Mail) für Jobs der letzten 3 Tage nachtragen: Mail einmal erneut lesen, Job bleibt wie er ist
+    $miss = $db->query("SELECT user_id, msg_id FROM upwork_jobs WHERE (app_url IS NULL OR app_url='') AND msg_id NOT LIKE 'manual:%'")->fetchAll(PDO::FETCH_ASSOC);
+    $done = [];
+    foreach ($miss as $r) {
+      $u = (int)$r['user_id']; $base = explode('#', (string)$r['msg_id'])[0];
+      if (!isset($done[$u])) $done[$u] = kg_get($u, 'uw_applinked', []) ?: [];
+      if (in_array($base, $done[$u], true)) continue;
+      $done[$u][] = $base;
+      $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND msg_id=?')->execute([$u, $base]);
+    }
+    foreach ($done as $u => $list) kg_set($u, 'uw_applinked', array_slice($list, -500));
   }
   return $db;
 }
@@ -119,10 +131,10 @@ function uw_resolve_link(string $url): string {
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_NOBODY => false, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 8,
       CURLOPT_RANGE => '0-2048', CURLOPT_USERAGENT => 'Mozilla/5.0 (Kongrow)']);
     $res = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $loc = (string)curl_getinfo($ch, CURLINFO_REDIRECT_URL); curl_close($ch);
-    if ($loc === '' && preg_match('/~0[0-9a-z]{10,}/i', $res, $m)) return $cache[$url] = 'https://www.upwork.com/jobs/' . $m[0];   // Zwischenseite mit Job-ID im Inhalt
+    if ($loc === '' && preg_match('/~0[0-9a-z]{10,}/i', $res, $m)) { $GLOBALS['uw_app_links'][strtolower($m[0])] = $url; return $cache[$url] = 'https://www.upwork.com/jobs/' . $m[0]; }   // Zwischenseite mit Job-ID im Inhalt
     if ($code < 300 || $code >= 400 || $loc === '') break;
     $u = $loc;
-    if (preg_match('/~0[0-9a-z]{10,}/i', $u)) return $cache[$url] = $u;
+    if (preg_match('/~0[0-9a-z]{10,}/i', $u, $m)) { $GLOBALS['uw_app_links'][strtolower($m[0])] = $url; return $cache[$url] = $u; }
   }
   return $cache[$url] = '';
 }
@@ -188,7 +200,7 @@ function uw_v2_normalize(string $text): ?string {
     $skills = [];
     while ($k < $m && !preg_match('/^posted/i', $blk[$k])) { if ($urlOf($blk[$k]) !== '') { $s0 = $strip($blk[$k]); if ($s0 !== '') $skills[] = $s0; } $k++; }
     $url = $jobUrl !== '' && preg_match('/~0[0-9a-z]{10,}/i', $jobUrl) ? $jobUrl : (preg_match('/~0[0-9a-z]{10,}/i', $viewUrl) ? $viewUrl : '');
-    if ($url === '') foreach ([$jobUrl, $viewUrl] as $cand) { if ($cand !== '' && ($r = uw_resolve_link($cand)) !== '') { $url = $r; break; } }
+    if ($url === '') foreach ([$jobUrl, $viewUrl] as $cand) { if ($cand !== '' && ($r = uw_resolve_link($cand)) !== '') { $url = $r; if (preg_match('/~0[0-9a-z]{10,}/i', $r, $km)) $GLOBALS['uw_app_links'][strtolower($km[0])] = $cand; break; } }
     $out[] = implode(' ', $title);
     if ($kind !== '') $out[] = $kind . ($kind === 'Hourly' ? ': ' : ': ') . $budget . ($extra ? ' • Est. time: ' . implode(' • ', $extra) : '');
     if ($desc) $out[] = preg_replace('/^(project )?(description|overview|summary):?\s+/i', '', implode(' ', $desc));
@@ -287,7 +299,7 @@ function uw_parse_all(string $text, string $html = '', string $subject = ''): ar
     $sk = array_slice(array_values(array_unique($sk)), 0, 8);
     $key = $keys[count($budgetIdx) === count($keys) ? $n : (count($budgetIdx) === 1 ? 0 : -1)] ?? null;
     $out[] = ['title' => $title, 'kind' => $kind, 'budget' => $budget, 'rate_min' => $rmin, 'rate_max' => $rmax, 'snippet' => $snippet,
-      'skills' => implode(' · ', $sk), 'verified' => $verified, 'spent' => $spent, 'country' => $country, 'rating' => $rating, 'url' => $key ? $jobLinks[$key] : '', 'job_key' => $key];
+      'skills' => implode(' · ', $sk), 'verified' => $verified, 'spent' => $spent, 'country' => $country, 'rating' => $rating, 'url' => $key ? $jobLinks[$key] : '', 'job_key' => $key, 'app_url' => $key ? ($GLOBALS['uw_app_links'][strtolower($key)] ?? '') : ''];
   }
   return $out;
 }
@@ -365,8 +377,8 @@ function uw_fetch_new(int $uid, bool $deep = false): array {
   if (!$ids) { uw_note($uid, $res); return $res; }
   $urls = []; foreach (array_slice($ids, 0, 15) as $id) $urls[$id] = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $id . '?format=full';
   $seen = $db->prepare('INSERT OR IGNORE INTO upwork_seen(user_id,msg_id,ts) VALUES(?,?,?)');
-  $ins = $db->prepare('INSERT OR IGNORE INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,rate_min,rate_max,snippet,skills,verified,spent,country,rating,received,status,reason,updated)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  $ins = $db->prepare('INSERT OR IGNORE INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,rate_min,rate_max,snippet,skills,verified,spent,country,rating,received,status,reason,updated,app_url)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
   $label = null; $labelTried = false;
   foreach (kg_http_multi($urls, $auth) as $id => $m) {
     if (!$m || empty($m['id'])) continue;   // bei Fehler nächstes Mal erneut versuchen
@@ -382,11 +394,14 @@ function uw_fetch_new(int $uid, bool $deep = false): array {
       // gleicher Job schon aus einer anderen Mail da?
       if ($j['job_key']) {
         $d = $db->prepare('SELECT 1 FROM upwork_jobs WHERE user_id=? AND job_key=? UNION SELECT 1 FROM upwork_deleted WHERE user_id=? AND job_key=?'); $d->execute([$uid, $j['job_key'], $uid, $j['job_key']]);
-        if ($d->fetchColumn()) continue;   // schon da oder von dir gelöscht
+        if ($d->fetchColumn()) {   // schon da oder von dir gelöscht: höchstens den App-Link nachtragen
+          if (!empty($j['app_url'])) $db->prepare("UPDATE upwork_jobs SET app_url=? WHERE user_id=? AND job_key=? AND (app_url IS NULL OR app_url='')")->execute([$j['app_url'], $uid, $j['job_key']]);
+          continue;
+        }
       } elseif ($deep) { $d = $db->prepare('SELECT 1 FROM upwork_jobs WHERE user_id=? AND msg_id=?'); $d->execute([$uid, $n ? $id . '#' . $n : $id]); if ($d->fetchColumn()) continue; }
       $reason = uw_filter_reason($j, $s);
       $ins->execute([$uid, $n ? $id . '#' . $n : $id, $j['job_key'], $j['url'], $j['title'], $j['kind'], $j['budget'], $j['rate_min'], $j['rate_max'], $j['snippet'], $j['skills'],
-        $j['verified'], $j['spent'], $j['country'], $j['rating'] ?? '', $received, $reason ? 'gefiltert' : 'neu', $reason, gmdate('c')]);
+        $j['verified'], $j['spent'], $j['country'], $j['rating'] ?? '', $received, $reason ? 'gefiltert' : 'neu', $reason, gmdate('c'), $j['app_url'] ?? '']);
       if ($ins->rowCount() < 1) continue;
       $j['id'] = (int)$db->lastInsertId();
       if ($reason) $res['filtered']++; else $res['new'][] = $j;

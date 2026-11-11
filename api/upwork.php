@@ -7,7 +7,7 @@ $in = kg_input();
 $db = uw_db();
 
 function uw_out(array $r): array {
-  return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
+  return ['id' => (int)$r['id'], 'title' => $r['title'], 'url' => $r['url'] ?: null, 'app_url' => ($r['app_url'] ?? '') ?: null, 'kind' => $r['kind'], 'budget' => $r['budget'],
     'snippet' => $r['snippet'], 'skills' => $r['skills'], 'verified' => $r['verified'] === null ? null : (bool)$r['verified'],
     'spent' => $r['spent'], 'country' => $r['country'], 'rating' => $r['rating'] ?? '', 'received' => $r['received'], 'status' => $r['status'], 'reason' => $r['reason'], 'manual' => str_starts_with((string)$r['msg_id'], 'manual:'),
     'draft' => $r['draft'] ?? '', 'draft_answers' => uw_answers_list((string)($r['draft_answers'] ?? '')), 'draft_notes' => $r['draft_notes'] ?? '', 'draft_ts' => $r['draft_ts'] ?? null,
