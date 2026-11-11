@@ -114,6 +114,17 @@ switch ($action) {
       ->execute([$uid, 'manual:' . $key, $key, $clean, $title !== '' ? $title : 'Upwork-Job ' . $key, 'Manuell', '', $note, gmdate('c'), gmdate('c')]);
     kg_json(['ok' => true, 'id' => (int)$db->lastInsertId(), 'existing' => false, 'status' => 'gemerkt']);
 
+  case 'sheet_rows':
+    // Bewerbungsliste aus dem verknüpften Sheet lesen (nur lesen), für den KPI-Abgleich in Kongrow
+    if (empty(kg_get($uid, 'upwork_sheet')['id'])) kg_json(['error' => ['message' => 'Kein Google Sheet verknüpft']], 409);
+    $c = uw_sheet_ctx($uid); if (!$c) kg_json(['error' => ['message' => 'Sheet nicht erreichbar. Ist Google noch verbunden?']], 409);
+    $r = kg_http('GET', $c['base'] . '/values/' . rawurlencode($c['q'] . '!A1:Z5000') . '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER', $c['h']);
+    if (($r['code'] ?? 0) !== 200) kg_json(['error' => ['message' => 'Sheet konnte nicht gelesen werden']], 409);
+    $vals = $r['json']['values'] ?? [];
+    // Kopfzeile = erste Zeile (in den ersten 10), in der „Date“/„Datum“ steht
+    $hi = 0; foreach (array_slice($vals, 0, 10) as $i => $row) { if (preg_grep('/^\s*(date|datum)\b/i', array_map('strval', $row))) { $hi = $i; break; } }
+    kg_json(['ok' => true, 'tab' => trim($c['q'], "'"), 'header' => array_map('strval', $vals[$hi] ?? []), 'header_row' => $hi + 1, 'rows' => array_slice($vals, $hi + 1)]);
+
   case 'remove_kpi_tabs':
     kg_json(uw_sheet_remove_kpi_tabs($uid));
 

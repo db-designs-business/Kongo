@@ -1136,6 +1136,10 @@
   .up-head-btns{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
   .uj-pf-row button:disabled{ opacity:.3; }
   .uj-pf-open{ flex:1 1 100%; order:4; font-size:12.5px; color:var(--forest); text-decoration:none; }
+  .up-imp{ margin-top:10px; }
+  .up-imp-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--line-soft); }
+  .up-imp-row:first-child{ border-top:0; } .up-imp-row span{ display:flex; flex-direction:column; min-width:0; } .up-imp-row small{ color:var(--ink-soft); font-size:12px; }
+  .up-imp-row em{ font-style:normal; font-weight:800; font-size:18px; font-variant-numeric:tabular-nums; }
   .uj-pf-head button{ background:none; border:0; color:var(--forest); font-weight:600; font-size:13px; padding:2px 4px; }
   .uj-pf-item{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:0; border-top:1px solid var(--line-soft, rgba(255,255,255,.06)); padding:10px 4px; color:var(--ink, inherit); font-size:14px; }
   .uj-pf-item:first-of-type{ border-top:0; }
@@ -11063,6 +11067,84 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   }
   // KPI-Abgleich ins Sheet ist abgeschaltet: die KPIs liegen auf dem Server, das Sheet bekommt nur noch die Bewerbungen (Upwork → Jobs → Beworben)
   function upScheduleSync(){}
+  /* ----- KPIs aus dem Google Sheet übernehmen (Sheet = Liste aller Bewerbungen) ----- */
+  function upSheetDate(v){
+    if(typeof v === 'number' && v > 20000 && v < 80000){ const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000); return d.toISOString().slice(0, 10); }
+    const t = String(v == null ? '' : v).trim(); if(!t) return '';
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    m = t.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+    if(m){ let a = +m[1], b = +m[2], y = +m[3]; if(y < 100) y += 2000;
+      // Kongrow trägt Monat.Tag.Jahr ein; ist die erste Zahl > 12, ist es Tag.Monat
+      let mo = a, d = b; if(a > 12 && b <= 12){ mo = b; d = a; }
+      if(mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+      return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+    return '';
+  }
+  const upTruthy = v=>{ if(typeof v === 'number') return v > 0; const t = String(v == null ? '' : v).trim().toLowerCase(); return !!t && !/^(no|nein|false|falsch|0|-|–|n|x? ?no|n\/a)$/.test(t); };
+  const upNumVal = v=>typeof v === 'number' ? v : num(String(v == null ? '' : v).replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+  function upSheetMap(header){
+    const H = header.map(h=>String(h || '').trim()), find = re=>H.findIndex(h=>re.test(h));
+    const col = { date: find(/^(date|datum)\b/i), title: find(/title|titel/i), link: find(/link|url/i), connects: find(/connects?/i), boosted: find(/boost/i) };
+    const syn = { antworten:/(reply|replied|response|antwort|message|nachricht|viewed back)/i, calls:/(call|interview|meeting|gespräch)/i, closes:/(hired|hire\b|won|close|contract|auftrag|gewonnen)/i, umsatz:/(revenue|umsatz|earn|amount|value|betrag|\$|€)/i };
+    const map = {};
+    up.kpis.forEach(k=>{
+      if(k.id === 'proposals' || /^proposals?$/i.test(k.name)){ map[k.id] = { how:'count', label:'jede Zeile mit Datum' }; return; }
+      if(k.id === 'connects' || /connect/i.test(k.name)){ if(col.connects >= 0) map[k.id] = { how:'sum', c:col.connects, label:'Spalte „' + H[col.connects] + '“ (Summe)' }; return; }
+      let c = H.findIndex((h, i)=>i !== col.date && i !== col.title && i !== col.link && h && h.toLowerCase() === k.name.toLowerCase());
+      if(c < 0 && syn[k.id]) c = H.findIndex((h, i)=>i !== col.date && i !== col.title && i !== col.link && i !== col.connects && syn[k.id].test(h));
+      if(c >= 0) map[k.id] = k.typ === 'euro' ? { how:'sum', c, label:'Spalte „' + H[c] + '“ (Summe)' } : { how:'yes', c, label:'Spalte „' + H[c] + '“ (Ja/Wert gezählt)' };
+    });
+    return { col, map, H };
+  }
+  async function upSheetImport(){
+    openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Lese dein Sheet …</div>');
+    let r; try{ r = await kgApi('upwork.php?action=sheet_rows'); }catch(e){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">' + escapeHtml(e.message) + '</div>'); return; }
+    const { col, map, H } = upSheetMap(r.header || []);
+    if(col.date < 0){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Keine Spalte „Date“ oder „Datum“ gefunden. Kopfzeile: ' + escapeHtml(H.filter(Boolean).join(', ') || 'leer') + '</div>'); return; }
+    const per = {}; let n = 0, skipped = 0;
+    (r.rows || []).forEach(row=>{
+      const d = upSheetDate(row[col.date]); const has = (col.title >= 0 && String(row[col.title] || '').trim()) || (col.link >= 0 && String(row[col.link] || '').trim());
+      if(!d || !has){ if(row.some(v=>String(v == null ? '' : v).trim())) skipped++; return; }
+      n++; const w = per[d] || (per[d] = {});
+      Object.entries(map).forEach(([id, m])=>{ const v = m.how === 'count' ? 1 : m.how === 'sum' ? upNumVal(row[m.c]) : (upTruthy(row[m.c]) ? 1 : 0); w[id] = (w[id] || 0) + (v || 0); });
+    });
+    const days = Object.keys(per).sort();
+    if(!days.length){ openErnModal('<div class="modal-title">KPIs aus dem Sheet</div><div class="hint">Keine Bewerbungen mit Datum gefunden.</div>'); return; }
+    const tot = {}; days.forEach(d=>Object.entries(per[d]).forEach(([id, v])=>tot[id] = (tot[id] || 0) + v));
+    const from = days[0], to = days[days.length - 1];
+    const fmtD = d=>new Date(d + 'T12:00').toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+    openErnModal(`<div class="modal-title">KPIs aus dem Sheet</div>
+      <div class="modal-sub">Blatt „${escapeHtml(r.tab)}“ · ${n} Bewerbungen an ${days.length} Tagen · ${fmtD(from)} bis ${fmtD(to)}${skipped ? ' · ' + skipped + ' Zeilen ohne lesbares Datum übersprungen' : ''}</div>
+      <div class="up-imp">${up.kpis.map(k=>`<div class="up-imp-row"><span><b>${escapeHtml(k.name)}</b><small>${map[k.id] ? escapeHtml(map[k.id].label) : 'nicht im Sheet, bleibt wie es ist'}</small></span><em>${map[k.id] ? upFmt(k, tot[k.id] || 0) : '–'}</em></div>`).join('')}</div>
+      <div class="hint" style="margin:10px 0 0;">Für jeden Tag im Sheet werden diese Werte in Kongrow ersetzt. Proposals und Connects an Tagen ohne Sheet-Eintrag (im Zeitraum) werden auf 0 gesetzt, weil das Sheet alle Bewerbungen enthält. Andere Werte und Notizen bleiben.</div>
+      <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="upImpNo">Abbrechen</button><button type="button" class="primary" id="upImpGo">Übernehmen</button></div>
+      <div class="hint" id="upImpSt" style="margin:8px 0 0;min-height:1em;"></div>`);
+    const c = ernModalCard();
+    c.querySelector('#upImpNo').onclick = closeErnModal;
+    c.querySelector('#upImpGo').onclick = async ()=>{
+      const b = c.querySelector('#upImpGo'), st = c.querySelector('#upImpSt'); if(b.disabled) return; b.disabled = true;
+      const ids = Object.keys(map);
+      const zeroIds = ids.filter(id=>id === 'proposals' || id === 'connects' || map[id].how === 'count');
+      const todo = [];
+      days.forEach(d=>todo.push({ d, vals: per[d] }));
+      up.entries.filter(e=>e.datum >= from && e.datum <= to && !per[e.datum] && zeroIds.some(id=>num(e.werte[id] || 0))).forEach(e=>{ const v = {}; zeroIds.forEach(id=>v[id] = 0); todo.push({ d:e.datum, vals:v }); });
+      let done = 0;
+      try{
+        for(const t of todo){
+          const cur = up.entries.find(e=>e.datum === t.d);
+          const werte = Object.assign({}, cur ? cur.werte : {}, t.vals);
+          Object.keys(werte).forEach(k=>{ if(werte[k] === 0 && !(k in t.vals)) delete werte[k]; });
+          const fields = { 'Datum': t.d, 'Werte': JSON.stringify(werte), 'Notiz': cur ? cur.notiz : '' };
+          if(cur){ if(JSON.stringify(cur.werte) !== JSON.stringify(werte)){ await airtableFetch(TABLE_UPWORK + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields }) }); cur.werte = werte; } }
+          else { const id = await airtableCreate(TABLE_UPWORK, fields); up.entries.push({ id, datum:t.d, werte, notiz:'' }); }
+          done++; if(done % 5 === 0) st.textContent = done + ' / ' + todo.length + ' Tage …';
+        }
+        up.entries.sort((a, x)=>a.datum.localeCompare(x.datum)); cacheDrop(TABLE_UPWORK);
+        try{ localStorage.setItem('kongrow_up_sheet_import', new Date().toISOString()); }catch(e){}
+        closeErnModal(); renderUpwork(); kgUndoToast('KPIs aus dem Sheet übernommen ✓ (' + days.length + ' Tage)');
+      }catch(e){ b.disabled = false; st.textContent = 'Fehler nach ' + done + ' Tagen: ' + e.message; }
+    };
+  }
   async function renderUpSheet(skipFetch){
     let box = document.getElementById('upSheet'); if(!box) return;
     if(!skipFetch || up.sheet === undefined || !up.g){
@@ -11083,8 +11165,11 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     }
     box.innerHTML = `<div class="up-sheet-row"><div><b>${escapeHtml(up.sheet.title || 'Google Sheet')}</b><small>Bewerbungen → nächste freie Zeile im ersten Blatt</small></div>
         <a class="ghost up-open" href="${escapeHtml(up.sheet.url)}" target="_blank" rel="noopener">Öffnen ↗</a></div>
+      <button type="button" class="primary" id="upSheetImport" style="width:100%;margin-top:10px;">KPIs aus dem Sheet übernehmen</button>
+      ${(()=>{ let t = ''; try{ t = localStorage.getItem('kongrow_up_sheet_import') || ''; }catch(e){} return t ? `<div class="hint" style="margin:6px 0 0;">Zuletzt übernommen: ${new Date(t).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>` : ''; })()}
       <button type="button" class="aufg-link" id="upSheetForget" style="margin-top:8px;">Anderes Sheet verknüpfen</button>${msgLine}
-      <div class="hint" style="margin:8px 0 0;">Kongrow schreibt nur Date, Job Title, Link to Job, Boosted? und Connects spent. Deine anderen Spalten und Blätter bleiben unberührt. Die KPIs bleiben in Kongrow.</div>`;
+      <div class="hint" style="margin:8px 0 0;">Kongrow schreibt nur Date, Job Title, Link to Job, Boosted? und Connects spent. Deine anderen Spalten und Blätter bleiben unberührt. Mit „KPIs aus dem Sheet übernehmen“ zählt Kongrow deine Bewerbungen im Sheet und trägt sie hier in die KPIs ein (liest nur).</div>`;
+    box.querySelector('#upSheetImport').onclick = upSheetImport;
     box.querySelector('#upSheetForget').onclick = async ()=>{ await kgApi('google.php?action=sheet_forget', {}).catch(()=>{}); up.sheet = null; up.syncMsg = ''; renderUpSheet(true); };
   }
   document.querySelectorAll('#upRange .aufg-tab').forEach(b=>b.onclick = ()=>{ up.range = b.dataset.v; try{ localStorage.setItem('kongrow_up_range', up.range); }catch(e){} renderUpwork(); });
