@@ -1137,6 +1137,7 @@
   .uj-pf-row button:disabled{ opacity:.3; }
   .uj-pf-open{ flex:1 1 100%; order:4; font-size:12.5px; color:var(--forest); text-decoration:none; }
   .uj-links{ margin-top:8px; font-size:13px; color:var(--ink-soft); text-align:center; } .uj-links a{ color:var(--forest); text-decoration:none; }
+  .up-table td:first-child, .up-table th:first-child{ white-space:nowrap; }
   .up-imp{ margin-top:10px; }
   .up-imp-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--line-soft); }
   .up-imp-row:first-child{ border-top:0; } .up-imp-row span{ display:flex; flex-direction:column; min-width:0; } .up-imp-row small{ color:var(--ink-soft); font-size:12px; }
@@ -2181,6 +2182,7 @@
     <div id="upJobsView"><div id="upJobs"><div class="loading">Lade ...</div></div></div>
     <div id="upKpiView" style="display:none;">
       <div class="aufg-tabs" id="upRange">
+        <button type="button" class="aufg-tab" data-v="tag">Heute</button>
         <button type="button" class="aufg-tab active" data-v="woche">Woche</button>
         <button type="button" class="aufg-tab" data-v="monat">Monat</button>
         <button type="button" class="aufg-tab" data-v="gesamt">Gesamt</button>
@@ -10899,7 +10901,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     { id:'umsatz', name:'Umsatz', typ:'euro' }
   ];
   const up = { loaded:false, entries:[], kpis:UP_DEFAULT_KPIS.slice(), cfgId:null, range:'woche', date:todayStr(), sheet:undefined, g:null, syncTimer:null, syncMsg:'' };
-  try{ const r = localStorage.getItem('kongrow_up_range'); if(['woche','monat','gesamt'].includes(r)) up.range = r; }catch(e){}
+  try{ const r = localStorage.getItem('kongrow_up_range'); if(['tag','woche','monat','gesamt'].includes(r)) up.range = r; }catch(e){}
   const upFunnel = ()=>up.kpis.filter(k=>k.typ === 'funnel');
   const upPct = (a, b)=>b ? Math.round(a / b * 1000) / 10 : 0;
   const upFmt = (k, v)=>k.typ === 'euro' ? Math.round(v).toLocaleString('de-DE') + ' €' : Math.round(v * 10) / 10 === Math.round(v) ? String(Math.round(v)) : fmtNum(v);
@@ -10917,6 +10919,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   function upSum(list){ const s = {}; up.kpis.forEach(k=>s[k.id] = 0); list.forEach(e=>up.kpis.forEach(k=>s[k.id] += num(e.werte[k.id] || 0))); return s; }
   function upInRange(range){
     const t = todayStr();
+    if(range === 'tag') return up.entries.filter(e=>e.datum === t);
     if(range === 'woche'){ const s = upWeekStart(t); return up.entries.filter(e=>e.datum >= s && e.datum <= t); }
     if(range === 'monat'){ const s = t.slice(0, 8) + '01'; return up.entries.filter(e=>e.datum >= s && e.datum <= t); }
     return up.entries.slice();
@@ -10924,7 +10927,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   // Gruppen (Wochen/Monate) für Tabelle, Chart und Sheet
   function upGroups(kind){
     const m = new Map();
-    up.entries.forEach(e=>{ const key = kind === 'woche' ? upWeekStart(e.datum) : e.datum.slice(0, 7); if(!m.has(key)) m.set(key, []); m.get(key).push(e); });
+    up.entries.forEach(e=>{ const key = kind === 'tag' ? e.datum : kind === 'woche' ? upWeekStart(e.datum) : e.datum.slice(0, 7); if(!m.has(key)) m.set(key, []); m.get(key).push(e); });
     return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([key, list])=>({ key, sum: upSum(list), n:list.length }));
   }
 
@@ -10947,14 +10950,18 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const cur = up.entries.find(e=>e.datum === up.date);
     const form = up.kpis.map(k=>`<div class="up-in"><label for="upv_${k.id}">${escapeHtml(k.name)}${k.typ === 'euro' ? ' (€)' : ''}</label>
       <div class="up-stepper"><button type="button" data-dec="${k.id}" aria-label="weniger">−</button><input type="number" inputmode="decimal" min="0" id="upv_${k.id}" value="${cur && cur.werte[k.id] != null ? cur.werte[k.id] : ''}" placeholder="0"><button type="button" data-inc="${k.id}" aria-label="mehr">+</button></div></div>`).join('');
-    // Wochen
-    const weeks = upGroups('woche').slice(-8);
-    const chart = F[0] && weeks.length ? barChartSvg(weeks.map(w=>w.sum[F[0].id]), weeks.map(w=>'KW' + upIsoWeek(w.key).kw)) : '';
-    const wTable = weeks.length ? `<div class="up-table-wrap"><table class="up-table"><thead><tr><th>KW</th>${F.map(k=>`<th>${escapeHtml(k.name)}</th>`).join('')}${F.length > 1 ? '<th>Quote</th>' : ''}</tr></thead><tbody>
-      ${weeks.slice().reverse().map(w=>`<tr><td>${upIsoWeek(w.key).kw}</td>${F.map(k=>`<td>${upFmt(k, w.sum[k.id])}</td>`).join('')}${F.length > 1 ? `<td>${upPct(w.sum[last.id], w.sum[F[0].id]).toLocaleString('de-DE')} %</td>` : ''}</tr>`).join('')}</tbody></table></div>` : '';
+    // Wochen bzw. bei „Heute“ die letzten 14 Tage (auch Tage ohne Eintrag)
+    const daily = up.range === 'tag';
+    let weeks;
+    if(daily){ const by = {}; upGroups('tag').forEach(g=>by[g.key] = g); weeks = []; for(let i = 13; i >= 0; i--){ const d = shiftDay(todayStr(), -i); weeks.push(by[d] || { key:d, sum:upSum([]), n:0 }); } if(!up.entries.length) weeks = []; }
+    else weeks = upGroups('woche').slice(-8);
+    const lab = w=>daily ? new Date(w.key + 'T12:00').toLocaleDateString('de-DE', { day:'numeric', month:'numeric' }) : 'KW' + upIsoWeek(w.key).kw;
+    const chart = F[0] && weeks.length ? barChartSvg(weeks.map(w=>w.sum[F[0].id] || 0), weeks.map(w=>daily ? new Date(w.key + 'T12:00').getDate() + '.' : lab(w))) : '';
+    const wTable = weeks.length ? `<div class="up-table-wrap"><table class="up-table"><thead><tr><th>${daily ? 'Tag' : 'KW'}</th>${F.map(k=>`<th>${escapeHtml(k.name)}</th>`).join('')}${F.length > 1 ? '<th>Quote</th>' : ''}</tr></thead><tbody>
+      ${weeks.slice().reverse().map(w=>`<tr><td>${daily ? new Date(w.key + 'T12:00').toLocaleDateString('de-DE', { weekday:'short' }).replace('.', '') + ' ' + new Date(w.key + 'T12:00').toLocaleDateString('de-DE', { day:'numeric', month:'numeric' }) : upIsoWeek(w.key).kw}</td>${F.map(k=>`<td>${upFmt(k, w.sum[k.id])}</td>`).join('')}${F.length > 1 ? `<td>${upPct(w.sum[last.id], w.sum[F[0].id]).toLocaleString('de-DE')} %</td>` : ''}</tr>`).join('')}</tbody></table></div>` : '';
     const hist = up.entries.slice(-14).reverse();
     el.innerHTML = `
-      <div class="card"><div class="step-label">Funnel · ${up.range === 'woche' ? 'Diese Woche' : up.range === 'monat' ? 'Dieser Monat' : 'Gesamt'}</div>${funnel}</div>
+      <div class="card"><div class="step-label">Funnel · ${up.range === 'tag' ? 'Heute' : up.range === 'woche' ? 'Diese Woche' : up.range === 'monat' ? 'Dieser Monat' : 'Gesamt'}</div>${funnel}</div>
       ${extras ? `<div class="fs-tiles up-tiles">${extras}</div>` : ''}
       <div class="card" id="upFormCard">
         <div class="home-aufg-head"><div class="step-label" style="margin:0;">Eintragen</div><input type="date" id="upDate" value="${up.date}" class="up-date"></div>
@@ -10964,7 +10971,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         <button type="button" class="primary" id="upSave" style="width:100%;margin-top:12px;">Speichern</button>
         <div class="hint" id="upStatus" style="margin:8px 0 0;min-height:1em;"></div>
       </div>
-      ${weeks.length ? `<div class="card"><div class="step-label">${F[0] ? escapeHtml(F[0].name) + ' pro Woche' : 'Wochen'}</div>${chart}${wTable}</div>` : ''}
+      ${weeks.length ? `<div class="card"><div class="step-label">${F[0] ? escapeHtml(F[0].name) + (daily ? ' pro Tag · letzte 14 Tage' : ' pro Woche') : (daily ? 'Tage' : 'Wochen')}</div>${chart}${wTable}</div>` : ''}
       <div class="card"><div class="step-label">Verlauf</div>${hist.length ? hist.map(e=>`<div class="up-hist" data-d="${e.datum}">
           <button type="button" class="up-hist-main" data-load="${e.datum}"><b>${new Date(e.datum + 'T12:00').toLocaleDateString('de-DE', { weekday:'short', day:'numeric', month:'short' })}</b>
           <span>${up.kpis.filter(k=>num(e.werte[k.id] || 0)).map(k=>escapeHtml(k.name) + ' ' + upFmt(k, num(e.werte[k.id]))).join(' · ') || 'keine Werte'}</span>${e.notiz ? `<em>${escapeHtml(e.notiz)}</em>` : ''}</button>
