@@ -46,7 +46,7 @@ function uw_db(): PDO {
     // als ungelesen fürs Einlesen markieren, damit sie beim nächsten Abruf mit dem verbesserten Parser neu kommen
     $bad = $db->query("SELECT id, user_id, msg_id, title FROM upwork_jobs WHERE status IN ('neu','gefiltert','gemerkt') AND (draft IS NULL OR draft = '')")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($bad as $r) {
-      if (uw_has_words((string)$r['title'])) continue;
+      if (uw_has_words((string)$r['title']) && !preg_match('/^\s*(more|read more|see more)\s*$/i', (string)$r['title'])) continue;
       $db->prepare('DELETE FROM upwork_jobs WHERE id=?')->execute([$r['id']]);
       $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND msg_id=?')->execute([$r['user_id'], explode('#', (string)$r['msg_id'])[0]]);
     }
@@ -95,8 +95,85 @@ function uw_noise(string $l): bool {
 function uw_stop(string $l): bool { return (bool)preg_match('/^(view job|see (all|more) jobs|you received this|you are receiving|unsubscribe|manage your|this email was sent|©)/i', $l); }
 const UW_HEAD = '/^(posted|new job alert|new jobs?|jobs? (you might like|matching)|hi |hello |this job was just posted|these jobs|view job|skills?$|recommended)/i';
 
+// Neues Alert-Layout (ab Nov. 2026): Titel, darunter „( Link )“, Beschreibung, „more ( Link )“, „Fixed / price: / $500“ bzw. „Hourly: / $10-$100“,
+// „• Dauer“, „Payment verified / • 5.0 / • $227 / spent / • Land“, Skills mit je einem Link, „Posted …“, „View job details ( Link )“.
+// Wird hier in das bisherige Zeilenformat übersetzt, damit der normale Parser es versteht. Liefert null, wenn es nicht dieses Layout ist.
+function uw_v2_normalize(string $text): ?string {
+  if (!preg_match('/view job details/i', $text) || !preg_match('/proposal when you.{0,3}re ready/iu', $text)) return null;
+  $t = preg_replace('/[\x{034F}\x{00AD}\x{200B}-\x{200D}\x{2060}\x{FEFF}]/u', '', $text);
+  $t = preg_replace('/\(\s*(https?:\/\/[^\s)]+)\s*\)/u', ' [[URL:$1]] ', $t);   // „( Link )“ auch über Zeilen hinweg
+  $L = [];
+  foreach (preg_split('/\R/u', $t) as $l) {
+    $l = trim(preg_replace('/[ \t\x{00A0}]+/u', ' ', $l)); if ($l === '') continue;
+    // Zeile nur mit Link gehört zur Zeile davor (z. B. Skill-Name, dann „( Link )“)
+    if ($L && preg_match('/^(\[\[URL:[^\]]+\]\]\s*)+$/', $l)) { $L[count($L) - 1] .= ' ' . $l; continue; }
+    $L[] = $l;
+  }
+  $urlOf = fn($l) => preg_match('/\[\[URL:([^\]]+)\]\]/', $l, $m) ? $m[1] : '';
+  $strip = fn($l) => trim(preg_replace('/\s*\[\[URL:[^\]]+\]\]\s*/', ' ', $l));
+  $out = []; $i = 0; $n = count($L);
+  // Start: nach „… submit a proposal when you’re ready.“
+  while ($i < $n && !preg_match('/proposal when you.{0,3}re ready/iu', $L[$i])) $i++;
+  $i++;
+  while ($i < $n) {
+    // Block bis „View job details“
+    $blk = []; while ($i < $n && !preg_match('/^view job details/i', $L[$i])) { $blk[] = $L[$i]; $i++; }
+    $viewUrl = $i < $n ? $urlOf($L[$i]) : ''; $i++;
+    if (!$blk || !preg_grep('/^(fixed|hourly)\b/i', $blk)) continue;   // z. B. Fußzeile
+    $k = 0; $m = count($blk);
+    // Titel (kann über mehrere Zeilen gehen, bis zum ersten Link)
+    $title = []; $jobUrl = '';
+    while ($k < $m) { $u = $urlOf($blk[$k]); $s0 = $strip($blk[$k]); if ($s0 !== '') $title[] = $s0; $k++; if ($u !== '') { $jobUrl = $u; break; } if (count($title) > 3) break; }
+    // Beschreibung bis „more“ bzw. bis zum Budget
+    $desc = [];
+    while ($k < $m && !preg_match('/^(fixed|hourly)\b/i', $blk[$k])) {
+      $s0 = $strip($blk[$k]); $k++;
+      if (preg_match('/^more$/i', $s0) || $s0 === '') continue;
+      $desc[] = $s0;
+    }
+    // Budget
+    $budget = ''; $kind = '';
+    if ($k < $m && preg_match('/^fixed/i', $blk[$k])) {
+      $kind = 'Fixed-price'; $tail = preg_replace('/^fixed[\s-]*(price)?:?\s*/i', '', $blk[$k]); $k++;
+      if ($tail === '' && $k < $m && preg_match('/^price:?\s*(.*)$/i', $blk[$k], $pm)) { $tail = trim($pm[1]); $k++; }
+      if ($tail === '' && $k < $m && preg_match('/^\$/', $blk[$k])) { $tail = $blk[$k]; $k++; }
+      $budget = $tail;
+    } elseif ($k < $m && preg_match('/^hourly/i', $blk[$k])) {
+      $kind = 'Hourly'; $tail = trim(preg_replace('/^hourly:?\s*/i', '', $blk[$k])); $k++;
+      if ($tail === '' && $k < $m && preg_match('/^\$/', $blk[$k])) { $tail = $blk[$k]; $k++; }
+      $budget = $tail;
+    }
+    $extra = []; while ($k < $m && preg_match('/^•/u', $blk[$k])) { $extra[] = trim(ltrim($blk[$k], "• ")); $k++; }
+    // Kunde: „Payment verified“ + „• 5.0“ + „• $227“ + „spent“ + „• Land“
+    $client = [];
+    if ($k < $m && preg_match('/^payment/i', $blk[$k])) {
+      $client[] = $blk[$k]; $k++;
+      while ($k < $m && $urlOf($blk[$k]) === '' && !preg_match('/^posted/i', $blk[$k])) {
+        $s0 = trim(ltrim($blk[$k], "• "));
+        if (preg_match('/^spent$/i', $s0) && $client) $client[count($client) - 1] .= ' spent';
+        elseif (preg_match('/^\d(\.\d)?$/', $s0)) $client[] = $s0 . ' stars';
+        else $client[] = $s0;
+        $k++;
+      }
+    }
+    // Skills: Zeilen mit Link
+    $skills = [];
+    while ($k < $m && !preg_match('/^posted/i', $blk[$k])) { if ($urlOf($blk[$k]) !== '') { $s0 = $strip($blk[$k]); if ($s0 !== '') $skills[] = $s0; } $k++; }
+    $url = $jobUrl !== '' && preg_match('/~0[0-9a-z]{10,}/i', $jobUrl) ? $jobUrl : $viewUrl;
+    $out[] = implode(' ', $title);
+    if ($kind !== '') $out[] = $kind . ($kind === 'Hourly' ? ': ' : ': ') . $budget . ($extra ? ' • Est. time: ' . implode(' • ', $extra) : '');
+    if ($desc) $out[] = preg_replace('/^(project )?(description|overview|summary):?\s+/i', '', implode(' ', $desc));
+    if ($skills) $out[] = 'Skills: ' . implode(' • ', $skills);
+    if ($client) $out[] = implode(' • ', $client);
+    if ($url !== '') $out[] = 'View job: ' . $url;
+    $out[] = '';
+  }
+  return $out ? "New job alert\n\n" . implode("\n", $out) : null;
+}
+
 // Liefert alle Jobs einer Alert-Mail (Upwork schickt teils mehrere in einer Mail)
 function uw_parse_all(string $text, string $html = '', string $subject = ''): array {
+  if (($v2 = uw_v2_normalize($text)) !== null) $text = $v2;
   // Links aus Text und HTML sammeln, bevor sie entfernt werden
   $links = [];
   if (preg_match_all('#https?://[^\s<>"\'\)\]]+#i', $text, $m)) foreach ($m[0] as $u) $links[] = $u;
