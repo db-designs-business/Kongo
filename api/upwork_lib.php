@@ -44,12 +44,21 @@ function uw_db(): PDO {
     $db->exec('CREATE TABLE IF NOT EXISTS upwork_seen (user_id INTEGER NOT NULL, msg_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(user_id, msg_id))');
     // Reparatur: Jobs aus dem neuen Mail-Layout mit kaputtem Titel (z. B. nur „)“) entfernen und ihre Mail
     // als ungelesen fürs Einlesen markieren, damit sie beim nächsten Abruf mit dem verbesserten Parser neu kommen
-    $bad = $db->query("SELECT id, user_id, msg_id, title FROM upwork_jobs WHERE status IN ('neu','gefiltert','gemerkt') AND (draft IS NULL OR draft = '')")->fetchAll(PDO::FETCH_ASSOC);
+    $bad = $db->query("SELECT id, user_id, msg_id, title, url, received FROM upwork_jobs WHERE status IN ('neu','gefiltert','gemerkt') AND (draft IS NULL OR draft = '')")->fetchAll(PDO::FETCH_ASSOC);
+    $relinked = [];
     foreach ($bad as $r) {
-      if (uw_has_words((string)$r['title']) && !preg_match('/^\s*(more|read more|see more)\s*$/i', (string)$r['title'])) continue;
+      $badTitle = !uw_has_words((string)$r['title']) || preg_match('/^\s*(more|read more|see more)\s*$/i', (string)$r['title']);
+      // Jobs aus dem neuen Layout ohne Link (Tracking-Links wurden noch nicht aufgelöst): einmalig neu einlesen
+      $noLink = (string)$r['url'] === '' && !str_starts_with((string)$r['msg_id'], 'manual:') && strtotime((string)$r['received']) > time() - 3 * 86400;
+      if ($noLink && !$badTitle) {
+        $u = (int)$r['user_id']; if (!isset($relinked[$u])) $relinked[$u] = kg_get($u, 'uw_relinked', []) ?: [];
+        if (in_array($r['msg_id'], $relinked[$u], true)) continue;
+        $relinked[$u][] = $r['msg_id'];
+      } elseif (!$badTitle) continue;
       $db->prepare('DELETE FROM upwork_jobs WHERE id=?')->execute([$r['id']]);
       $db->prepare('DELETE FROM upwork_seen WHERE user_id=? AND msg_id=?')->execute([$r['user_id'], explode('#', (string)$r['msg_id'])[0]]);
     }
+    foreach ($relinked as $u => $list) kg_set($u, 'uw_relinked', array_slice($list, -300));
   }
   return $db;
 }
@@ -98,9 +107,28 @@ const UW_HEAD = '/^(posted|new job alert|new jobs?|jobs? (you might like|matchin
 // Neues Alert-Layout (ab Nov. 2026): Titel, darunter „( Link )“, Beschreibung, „more ( Link )“, „Fixed / price: / $500“ bzw. „Hourly: / $10-$100“,
 // „• Dauer“, „Payment verified / • 5.0 / • $227 / spent / • Land“, Skills mit je einem Link, „Posted …“, „View job details ( Link )“.
 // Wird hier in das bisherige Zeilenformat übersetzt, damit der normale Parser es versteht. Liefert null, wenn es nicht dieses Layout ist.
+// Tracking-Link aus der Mail (link.t.upwork.com/…) auflösen, bis die echte Job-Adresse mit ~0… kommt
+function uw_resolve_link(string $url): string {
+  static $cache = [];
+  if (preg_match('/~0[0-9a-z]{10,}/i', $url)) return $url;
+  if (isset($cache[$url])) return $cache[$url];
+  $u = $url;
+  for ($hop = 0; $hop < 5; $hop++) {
+    if (!preg_match('#^https://([a-z0-9-]+\.)*upwork\.com/#i', $u)) break;   // nur Upwork-Adressen aufrufen
+    $ch = curl_init($u);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_NOBODY => false, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 8,
+      CURLOPT_RANGE => '0-2048', CURLOPT_USERAGENT => 'Mozilla/5.0 (Kongrow)']);
+    $res = (string)curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE); $loc = (string)curl_getinfo($ch, CURLINFO_REDIRECT_URL); curl_close($ch);
+    if ($loc === '' && preg_match('/~0[0-9a-z]{10,}/i', $res, $m)) return $cache[$url] = 'https://www.upwork.com/jobs/' . $m[0];   // Zwischenseite mit Job-ID im Inhalt
+    if ($code < 300 || $code >= 400 || $loc === '') break;
+    $u = $loc;
+    if (preg_match('/~0[0-9a-z]{10,}/i', $u)) return $cache[$url] = $u;
+  }
+  return $cache[$url] = '';
+}
 function uw_v2_normalize(string $text): ?string {
   if (!preg_match('/view job details/i', $text) || !preg_match('/proposal when you.{0,3}re ready/iu', $text)) return null;
-  $t = preg_replace('/[\x{034F}\x{00AD}\x{200B}-\x{200D}\x{2060}\x{FEFF}]/u', '', $text);
+  $t = preg_replace('/[\x{034F}\x{00AD}\x{200B}-\x{200D}\x{2060}\x{FEFF}]/u', '', html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
   $t = preg_replace('/\(\s*(https?:\/\/[^\s)]+)\s*\)/u', ' [[URL:$1]] ', $t);   // „( Link )“ auch über Zeilen hinweg
   $L = [];
   foreach (preg_split('/\R/u', $t) as $l) {
@@ -159,7 +187,8 @@ function uw_v2_normalize(string $text): ?string {
     // Skills: Zeilen mit Link
     $skills = [];
     while ($k < $m && !preg_match('/^posted/i', $blk[$k])) { if ($urlOf($blk[$k]) !== '') { $s0 = $strip($blk[$k]); if ($s0 !== '') $skills[] = $s0; } $k++; }
-    $url = $jobUrl !== '' && preg_match('/~0[0-9a-z]{10,}/i', $jobUrl) ? $jobUrl : $viewUrl;
+    $url = $jobUrl !== '' && preg_match('/~0[0-9a-z]{10,}/i', $jobUrl) ? $jobUrl : (preg_match('/~0[0-9a-z]{10,}/i', $viewUrl) ? $viewUrl : '');
+    if ($url === '') foreach ([$jobUrl, $viewUrl] as $cand) { if ($cand !== '' && ($r = uw_resolve_link($cand)) !== '') { $url = $r; break; } }
     $out[] = implode(' ', $title);
     if ($kind !== '') $out[] = $kind . ($kind === 'Hourly' ? ': ' : ': ') . $budget . ($extra ? ' • Est. time: ' . implode(' • ', $extra) : '');
     if ($desc) $out[] = preg_replace('/^(project )?(description|overview|summary):?\s+/i', '', implode(' ', $desc));
@@ -237,7 +266,7 @@ function uw_parse_all(string $text, string $html = '', string $subject = ''): ar
       $verified = preg_match('/payment unverified/i', $cl) ? 0 : (preg_match('/payment verified/i', $cl) ? 1 : null);
       if (preg_match('/(\$\s?[\d.,]+\s*[kKmM]?\+?)\s*spent/i', $cl, $mm)) $spent = str_replace(' ', '', $mm[1]);
       if (preg_match('/([0-5](?:\.\d+)?)\s*stars?/i', $cl, $mm)) $rating = $mm[1];
-      foreach (array_reverse(uw_parts($cl)) as $p) { if (!preg_match('/verified|spent|\$|\d/i', $p) && mb_strlen($p) <= 40) { $country = $p; break; } }
+      foreach (array_reverse(uw_parts($cl)) as $p) { $p = trim(rtrim($p, "-–— \t")); if ($p !== '' && !preg_match('/verified|spent|\$|\d/i', $p) && mb_strlen($p) <= 40) { $country = $p; break; } }
     }
     // Beschreibung und Skills
     $tnorm = mb_strtolower(rtrim(preg_replace('/(…|\.\.\.)$/u', '', $title)));
