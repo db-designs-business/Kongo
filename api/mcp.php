@@ -38,6 +38,14 @@ const MCP_TOOLS = [
     ], 'required' => ['job_url', 'proposal']],
   ],
   [
+    'name' => 'upwork_alert_debug',
+    'description' => 'Nur zur Fehlersuche (liest nur): zeigt den Text der neuesten Upwork-Job-Alert-Mails, so wie Kongrow ihn sieht, und welche Jobs der Parser daraus erkennt.',
+    'inputSchema' => ['type' => 'object', 'properties' => [
+      'max_mails' => ['type' => 'integer', 'description' => 'Wie viele Mails (1–5, Standard 3)'],
+      'title_contains' => ['type' => 'string', 'description' => 'Optional: nur Mails, in denen ein erkannter Job-Titel diesen Text enthält (z. B. "more")'],
+    ]],
+  ],
+  [
     'name' => 'get_proposal_draft',
     'description' => 'Liest den aktuellen (ggf. von Dominic bearbeiteten) Proposal-Entwurf zu einem Upwork-Job aus Kongrow.',
     'inputSchema' => ['type' => 'object', 'properties' => [
@@ -50,6 +58,30 @@ function mcp_text(string $t, bool $err = false): array { return ['content' => [[
 
 function mcp_call(int $uid, string $name, array $a): array {
   $db = uw_db();
+  if ($name === 'upwork_alert_debug') {
+    $at = n_google_token($uid);
+    if ($at === '') return mcp_text('Google ist nicht verbunden.', true);
+    $auth = ['Authorization: Bearer ' . $at];
+    $r = kg_http('GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages?' . http_build_query(['maxResults' => 15, 'q' => 'from:upwork.com newer_than:3d -in:trash']), $auth);
+    if (($r['code'] ?? 0) !== 200) return mcp_text('Gmail-Fehler ' . ($r['code'] ?? '?'), true);
+    $max = max(1, min(5, (int)($a['max_mails'] ?? 3))); $want = mb_strtolower(trim((string)($a['title_contains'] ?? '')));
+    $out = []; $n = 0;
+    foreach (($r['json']['messages'] ?? []) as $mm) {
+      if ($n >= $max) break;
+      $m = kg_http('GET', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' . $mm['id'] . '?format=full', $auth)['json'] ?? null; if (!$m) continue;
+      $h = []; foreach ($m['payload']['headers'] ?? [] as $x) $h[strtolower($x['name'])] = $x['value'];
+      [$plain, $html] = uw_bodies($m['payload'] ?? []);
+      $text = $plain !== '' ? $plain : kg_html_to_text(preg_replace(['#</(td|th)>#i', '#</(span|a|b|strong)>#i'], ['$0' . "\n", '$0 '], $html));
+      if (!preg_match('/job alert|matches your alert|view job details/i', $text)) continue;
+      $jobs = uw_parse_all($text, $html, (string)($h['subject'] ?? ''));
+      $titles = array_map(fn($j) => $j['title'] . ' | ' . $j['budget'] . ' | ' . mb_substr((string)$j['snippet'], 0, 60), $jobs);
+      if ($want !== '' && !array_filter($titles, fn($t) => mb_stripos($t, $want) !== false)) continue;
+      $lines = array_values(array_filter(array_map('trim', uw_lines($text)), fn($l) => $l !== ''));
+      $out[] = '### ' . ($h['subject'] ?? '') . "\nQuelle: " . ($plain !== '' ? 'text/plain' : 'HTML') . "\nErkannt:\n- " . implode("\n- ", $titles) . "\n\nZeilen:\n" . implode("\n", array_map(fn($l) => '| ' . mb_substr(preg_replace('#https?://\S+#', '<link>', $l), 0, 160), array_slice($lines, 0, 140)));
+      $n++;
+    }
+    return mcp_text($out ? implode("\n\n", $out) : 'Keine passende Alert-Mail in den letzten 3 Tagen gefunden.');
+  }
   if (!preg_match('/(~0[0-9a-z]{10,})/i', (string)($a['job_url'] ?? ''), $m)) return mcp_text('Kein gültiger Upwork-Job-Link: Er muss eine Job-ID wie ~02… enthalten.', true);
   $jk = $m[1];
   if ($name === 'get_proposal_draft') {
