@@ -1136,6 +1136,13 @@
   .up-head-btns{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
   .uj-pf-row button:disabled{ opacity:.3; }
   .uj-pf-open{ flex:1 1 100%; order:4; font-size:12.5px; color:var(--forest); text-decoration:none; }
+  .uj-card{ position:relative; touch-action:pan-y; }
+  .uj-card[data-sw="ai"], .uj-card[data-sw="prop"]{ box-shadow:inset 6px 0 0 var(--forest); }
+  .uj-card[data-sw="skip"]{ box-shadow:inset -6px 0 0 #E5484D; }
+  .uj-card[data-sw]::before{ position:absolute; top:12px; font-size:12.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:99px; z-index:2; }
+  .uj-card[data-sw="ai"]::before{ content:'Claude ✦ schreibt'; left:12px; background:var(--forest); color:#04110F; }
+  .uj-card[data-sw="prop"]::before{ content:'Proposal öffnen'; left:12px; background:var(--forest); color:#04110F; }
+  .uj-card[data-sw="skip"]::before{ content:'Überspringen'; right:12px; background:#E5484D; color:#fff; }
   .uj-links{ margin-top:8px; font-size:13px; color:var(--ink-soft); text-align:center; } .uj-links a{ color:var(--forest); text-decoration:none; }
   .up-table td:first-child, .up-table th:first-child{ white-space:nowrap; }
   .up-imp{ margin-top:10px; }
@@ -11302,6 +11309,33 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     el.querySelectorAll('[data-ai]').forEach(b=>b.onclick = ()=>ujOpenClaude(+b.dataset.ai));
     el.querySelectorAll('[data-prop]').forEach(b=>b.onclick = ()=>openUjProposal(+b.dataset.prop));
     el.querySelectorAll('[data-del]').forEach(b=>b.onclick = ()=>ujDelete(+b.dataset.del));
+    if(uj.tab === 'neu' || uj.tab === 'gemerkt') el.querySelectorAll('.uj-card').forEach(ujSwipe);
+    try{ if((uj.tab === 'neu') && el.querySelector('.uj-card') && !localStorage.getItem('kongrow_uj_swipe_hint')){ localStorage.setItem('kongrow_uj_swipe_hint', '1'); setTimeout(()=>kgUndoToast('Tipp: Job nach rechts wischen = Claude schreibt · nach links = überspringen', null, 6000), 800); } }catch(e){}
+  }
+  // Wischen: nach rechts = Claude schreibt (bzw. Entwurf öffnen), nach links = überspringen (mit Rückgängig)
+  function ujSwipe(card){
+    const id = +card.id.replace('uj_', ''); let x0 = 0, y0 = 0, dx = 0, mode = '';
+    const reset = ()=>{ card.style.transition = 'transform .22s ease'; card.style.transform = ''; card.removeAttribute('data-sw'); setTimeout(()=>{ card.style.transition = ''; }, 240); };
+    card.addEventListener('touchstart', e=>{ if(e.touches.length !== 1 || e.target.closest('a,button,input,textarea')) { mode = 'off'; return; } x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; mode = ''; }, { passive:true });
+    card.addEventListener('touchmove', e=>{
+      if(mode === 'off' || mode === 'v') return;
+      const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+      if(!mode){ if(Math.abs(mx) < 12 && Math.abs(my) < 12) return; mode = Math.abs(mx) > Math.abs(my) * 1.4 ? 'h' : 'v'; if(mode === 'v') return; }
+      e.preventDefault(); dx = mx;
+      const j = uj.jobs.find(x=>x.id === id); const canRight = j && (j.draft || j.url);
+      if(dx > 0 && !canRight) dx = dx / 4;
+      card.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx / 40) + 'deg)';
+      card.setAttribute('data-sw', dx > 70 ? (j && j.draft ? 'prop' : 'ai') : dx < -70 ? 'skip' : '');
+    }, { passive:false });
+    card.addEventListener('touchend', ()=>{
+      if(mode !== 'h'){ mode = ''; return; }
+      mode = '';
+      const j = uj.jobs.find(x=>x.id === id);
+      if(dx < -90){ card.style.transition = 'transform .2s ease, opacity .2s'; card.style.transform = 'translateX(-110%)'; card.style.opacity = '0'; setTimeout(()=>ujSetStatus(id, 'uebersprungen'), 180); return; }
+      if(dx > 90 && j && (j.draft || j.url)){ reset(); try{ navigator.vibrate && navigator.vibrate(15); }catch(e){} if(j.draft) openUjProposal(id); else ujOpenClaude(id); return; }
+      reset();
+    });
+    card.addEventListener('touchcancel', ()=>{ mode = ''; reset(); });
   }
   // Scroll-Position pro Tab merken: oberste sichtbare Karte + Abstand zum Bildschirmrand
   function ujScroller(el){ let n = el.parentElement; while(n && n !== document.body){ const o = getComputedStyle(n).overflowY; if((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight) return n; n = n.parentElement; } return document.scrollingElement || document.documentElement; }
@@ -11521,6 +11555,19 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       box.hidden = false; box.innerHTML = '<div class="hint">Lade …</div>';
       try{ list(await ujPortfolioLoad()); }catch(e){ box.innerHTML = '<div class="hint">Laden fehlgeschlagen: ' + escapeHtml(e.message) + '</div>'; }
     };
+    // Beim ersten Öffnen eines Entwurfs: Claudes Portfolio-Vorschläge (Vorschlag 1, 2, 3) gleich in die freien Platzhalter setzen
+    (async ()=>{
+      const mark = 'pf:' + j.id + ':' + (j.draft_ts || '');
+      let done = []; try{ done = JSON.parse(localStorage.getItem('kongrow_pf_auto') || '[]'); }catch(e){}
+      if(done.includes(mark) || !phCount()) return;
+      let items; try{ items = await ujPortfolioLoad(); }catch(e){ return; }
+      const tags = ujPortfolioPicks(j.draft_notes, items);
+      const ranked = Object.keys(tags).map(Number).filter(i=>items[i] && items[i].url).sort((a, b)=>+tags[a] - +tags[b]);
+      let n = 0;
+      for(const i of ranked){ if(!phCount()) break; const it = items[i]; if(inText(it.url)) continue; const r = ujPortfolioInsert(fields(), null, it.url); if(r.ph){ viaPh[it.url] = true; n++; } else { ujPortfolioRemove(fields(), it.url, false); break; } }
+      try{ done.push(mark); localStorage.setItem('kongrow_pf_auto', JSON.stringify(done.slice(-200))); }catch(e){}
+      if(n){ changed(); if(!box.hidden) marks(); kgUndoToast(n + ' Portfolio-' + (n === 1 ? 'Link' : 'Links') + ' von Claude eingesetzt' + (phCount() ? ' · ' + phCount() + ' Platzhalter noch frei' : ' ✓'), null, 4500); }
+    })();
   }
   // Job-Link manuell hinzufügen (z. B. am PC gefunden)
   function openUjAdd(){
