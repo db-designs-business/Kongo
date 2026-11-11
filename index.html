@@ -11468,8 +11468,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       <textarea id="ujPropText" class="uj-prop-text">${escapeHtml(j.draft || '')}</textarea>
       <div class="uj-actions"><button type="button" class="uj-btn" id="ujPfBtn">Portfolio +</button></div>
       <div id="ujPf" class="uj-pf" hidden></div>
-      <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${j.app_url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.app_url)}" target="_blank" rel="noopener">In Upwork-App ↗</a>` : ujApplyUrl(j) ? `<a class="uj-btn uj-open" href="${escapeHtml(ujApplyUrl(j))}" target="_blank" rel="noopener">Bewerben ↗</a>` : ''}</div>
-      ${j.url ? `<div class="uj-links">${j.app_url && ujApplyUrl(j) ? `<a href="${escapeHtml(ujApplyUrl(j))}" target="_blank" rel="noopener">Im Browser bewerben ↗</a> · ` : ''}<a href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Job-Seite ↗</a> · <a href="${escapeHtml(ujSearchUrl(j))}" target="_blank" rel="noopener">Job auf Upwork suchen ↗</a></div>` : ''}
+      <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${ujApplyUrl(j) ? `<a class="uj-btn uj-open" href="${escapeHtml(ujApplyUrl(j))}" target="_blank" rel="noopener">Bewerben ↗</a>` : j.app_url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.app_url)}" target="_blank" rel="noopener">In Upwork ↗</a>` : ''}</div>
+      ${j.url ? `<div class="uj-links">${j.app_url ? `<a href="${escapeHtml(j.app_url)}" target="_blank" rel="noopener">In Upwork-App ↗</a> · ` : ''}<a href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Job-Seite ↗</a> · <a href="${escapeHtml(ujSearchUrl(j))}" target="_blank" rel="noopener">Job auf Upwork suchen ↗</a></div>` : ''}
       ${qa.length ? `<div class="step-label" style="margin-top:18px;">Screening-Fragen (${qa.length})</div>` + qa.map((x, i)=>`<div class="uj-qa">
           <div class="uj-q">${i + 1}. ${escapeHtml(x.question)}</div>
           <textarea class="uj-a" data-qa="${i}">${escapeHtml(x.answer)}</textarea>
