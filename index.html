@@ -1136,6 +1136,7 @@
   .up-head-btns{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
   .uj-pf-row button:disabled{ opacity:.3; }
   .uj-pf-open{ flex:1 1 100%; order:4; font-size:12.5px; color:var(--forest); text-decoration:none; }
+  .uj-links{ margin-top:8px; font-size:13px; color:var(--ink-soft); text-align:center; } .uj-links a{ color:var(--forest); text-decoration:none; }
   .up-imp{ margin-top:10px; }
   .up-imp-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-top:1px solid var(--line-soft); }
   .up-imp-row:first-child{ border-top:0; } .up-imp-row span{ display:flex; flex-direction:column; min-width:0; } .up-imp-row small{ color:var(--ink-soft); font-size:12px; }
@@ -11199,6 +11200,10 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   /* ----- Upwork-Jobs aus den Alert-Mails (Server liest Gmail, Kongrow spricht nie direkt mit Upwork) ----- */
   const uj = { loaded:false, jobs:[], settings:null, last:null, google:null, view:'jobs', tab:'neu', hl:null, busy:false, openId:{}, pos:{} };
   try{ const v = localStorage.getItem('kongrow_up_view'); if(v === 'kpis' || v === 'jobs') uj.view = v; }catch(e){}
+  // Upwork-Links: Bewerbungsseite (eingeloggt, klappt auch bei Jobs, die öffentlich nicht sichtbar sind) und Suche nach dem Titel als Ausweg
+  const ujKey = j=>{ const m = String(j.url || '').match(/~0[0-9a-z]{10,}/i); return m ? m[0] : ''; };
+  const ujApplyUrl = j=>ujKey(j) ? 'https://www.upwork.com/nx/proposals/job/' + ujKey(j) + '/apply/' : '';
+  const ujSearchUrl = j=>'https://www.upwork.com/nx/search/jobs/?q=' + encodeURIComponent(String(j.title || '').replace(/(…|\.\.\.)\s*$/, '').slice(0, 80));
   async function upJobsLoad(force){
     if(uj.loaded && !force) return;
     const j = await kgApi('upwork.php?action=list');
@@ -11350,7 +11355,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       <textarea id="ujPropText" class="uj-prop-text">${escapeHtml(j.draft || '')}</textarea>
       <div class="uj-actions"><button type="button" class="uj-btn" id="ujPfBtn">Portfolio +</button></div>
       <div id="ujPf" class="uj-pf" hidden></div>
-      <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${j.url ? `<a class="uj-btn uj-open" href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Zur Job-Seite ↗</a>` : ''}</div>
+      <div class="uj-actions"><button type="button" class="uj-btn uj-yes" id="ujPropCopy">Proposal kopieren</button>${ujApplyUrl(j) ? `<a class="uj-btn uj-open" href="${escapeHtml(ujApplyUrl(j))}" target="_blank" rel="noopener">Bewerben ↗</a>` : ''}</div>
+      ${j.url ? `<div class="uj-links"><a href="${escapeHtml(j.url)}" target="_blank" rel="noopener">Job-Seite ↗</a> · <a href="${escapeHtml(ujSearchUrl(j))}" target="_blank" rel="noopener">Job auf Upwork suchen ↗</a></div>` : ''}
       ${qa.length ? `<div class="step-label" style="margin-top:18px;">Screening-Fragen (${qa.length})</div>` + qa.map((x, i)=>`<div class="uj-qa">
           <div class="uj-q">${i + 1}. ${escapeHtml(x.question)}</div>
           <textarea class="uj-a" data-qa="${i}">${escapeHtml(x.answer)}</textarea>

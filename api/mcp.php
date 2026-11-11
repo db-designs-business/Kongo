@@ -67,6 +67,9 @@ function mcp_call(int $uid, string $name, array $a): array {
   $notes = mb_substr(trim((string)($a['notes'] ?? '')), 0, 1000);
   $title = mb_substr(trim((string)($a['title'] ?? '')), 0, 200);
   $now = gmdate('c');
+  // Link so übernehmen, wie Claude ihn von Upwork bekommen hat (ohne Tracking-Parameter); sonst aus der Job-ID bauen
+  $orig = trim((string)($a['job_url'] ?? ''));
+  $jobUrl = preg_match('#^https://(www\.)?upwork\.com/[^\s?#]*' . preg_quote($jk, '#') . '#i', $orig, $um) ? $um[0] : 'https://www.upwork.com/jobs/' . $jk;
   $st = $db->prepare('SELECT id, title, status FROM upwork_jobs WHERE user_id=? AND job_key=?'); $st->execute([$uid, $jk]);
   if ($row = $st->fetch(PDO::FETCH_ASSOC)) {
     $id = (int)$row['id'];
@@ -81,7 +84,7 @@ function mcp_call(int $uid, string $name, array $a): array {
   } else {
     $db->prepare('DELETE FROM upwork_deleted WHERE user_id=? AND job_key=?')->execute([$uid, $jk]);
     $db->prepare("INSERT INTO upwork_jobs(user_id,msg_id,job_key,url,title,kind,budget,snippet,received,status,updated,draft,draft_answers,draft_notes,draft_ts) VALUES(?,?,?,?,?,'Manuell','','',?,'gemerkt',?,?,?,?,?)")
-      ->execute([$uid, 'manual:' . $jk, $jk, 'https://www.upwork.com/jobs/' . $jk, $title !== '' ? $title : 'Upwork-Job ' . $jk, $now, $now, $text, $ans, $notes, $now]);
+      ->execute([$uid, 'manual:' . $jk, $jk, $jobUrl, $title !== '' ? $title : 'Upwork-Job ' . $jk, $now, $now, $text, $ans, $notes, $now]);
     $id = (int)$db->lastInsertId(); $jobTitle = $title !== '' ? $title : 'Upwork-Job ' . $jk;
   }
   uw_log($uid, 'Entwurf von Claude: ' . mb_substr($jobTitle, 0, 60));
