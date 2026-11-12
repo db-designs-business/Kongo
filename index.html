@@ -36,7 +36,7 @@
   select, option{ color:var(--ink); background:var(--paper-raised); }
   select{
     width:100%;font-family:var(--font);font-size:15px;
-    border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px;
+    border:1px solid var(--line-soft);border-radius:12px;padding:12px 36px 12px 14px;text-overflow:ellipsis;
     -webkit-appearance:none;appearance:none;
     background-image:linear-gradient(45deg,transparent 50%,var(--forest) 50%),linear-gradient(135deg,var(--forest) 50%,transparent 50%);
     background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px,6px 6px;background-repeat:no-repeat;
@@ -106,7 +106,8 @@
   .nav-sep{ height:1px; background:var(--line-soft); margin:6px 8px; }
   #settingsModalOverlay > .modal-card{ min-height:min(78vh, 720px); }
   .set-tabs{ margin:6px 0 16px; }
-  .set-tabs .aufg-tab{ font-size:13px; padding-left:4px; padding-right:4px; }
+  .set-tabs{ overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; } .set-tabs::-webkit-scrollbar{ display:none; }
+  .set-tabs .aufg-tab{ font-size:13px; padding-left:12px; padding-right:12px; flex:1 0 auto; white-space:nowrap; }
   .set-group{ margin:16px 0 6px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--forest); }
   .set-toggle{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; min-height:52px; border-top:1px solid var(--line-soft); cursor:pointer; }
   .set-list .set-toggle:first-child{ border-top:0; }
@@ -475,6 +476,7 @@
   }
   .xp-toast.show{ opacity:1; transform:translate(-50%, 0); }
   .xp-toast.big{ font-size:17px; padding:14px 22px; letter-spacing:.02em; }
+  .xp-toast{ max-width:calc(100vw - 28px); white-space:normal; text-align:center; line-height:1.3; border-radius:22px; width:max-content; }
   .prio-quest{ font-size:12px; color:var(--ink-soft); margin:-4px 0 10px; }
   .fokus-box{ margin:2px 0 14px; padding:12px 14px; border-radius:14px; background:linear-gradient(135deg, rgba(34,227,211,.10), rgba(34,227,211,.03)); border:1px solid rgba(34,227,211,.28); }
   .fokus-head{ display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--forest); }
@@ -571,6 +573,7 @@
   .xp-hist-row{ display:flex; justify-content:space-between; gap:10px; font-size:13.5px; padding:6px 0; border-bottom:1px solid var(--line-soft); }
   .xp-hist-row b{ color:var(--forest); flex-shrink:0; }
   #levelOverlay .xp-card, #nofapInfoOverlay .nofap-card{ margin-top:8px; }
+  #levelOverlay .xp-card{ padding:16px; border-radius:16px; border:1px solid rgba(34,227,211,.3); }
   #nofapOverlay{ z-index:70; }
   /* ---------- Bottom-Bar ---------- */
   :root{ --bb-h: 66px; }
@@ -600,7 +603,7 @@
   .top-plus svg{ width:20px; height:20px; }
   .wrap{ padding-bottom:calc(var(--bb-h) + 40px + env(safe-area-inset-bottom)) !important; }
   #routinePausedBanner{ bottom:calc(var(--bb-h) + env(safe-area-inset-bottom)) !important; padding-bottom:12px !important; z-index:44 !important; }
-  .xp-toast{ bottom:calc(var(--bb-h) + 24px + env(safe-area-inset-bottom)) !important; }
+  .xp-toast{ bottom:calc(var(--bb-h) + 84px + env(safe-area-inset-bottom)) !important; }
   .nav-menu{ position:absolute !important; top:46px !important; right:0 !important; bottom:auto !important; max-height:75vh; overflow-y:auto; z-index:46 !important; }
   .quick-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
   .quick-btn{ display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:14px; border-radius:14px; text-align:left;
@@ -916,7 +919,7 @@
   .dh-main{ flex:1; min-width:0; cursor:pointer; } .dh-main b{ display:block; font-size:15px; } .dh-main small{ color:var(--ink-soft); font-size:12.5px; }
   .dh-text{ display:none; font-size:13.5px; line-height:1.45; color:var(--ink-soft); margin-top:6px; } .dh-item.open .dh-text{ display:block; }
   .dh-bar{ position:sticky; bottom:calc(10px + env(safe-area-inset-bottom)); margin-top:16px; display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .dh-bar .primary{ width:100%; min-height:54px; box-shadow:0 10px 30px rgba(0,0,0,.5); } .dh-bar .primary:disabled{ opacity:.55; }
+  .dh-bar .primary{ width:100%; min-height:54px; box-shadow:0 10px 30px rgba(0,0,0,.5); } .dh-bar .primary:disabled{ opacity:1; background:#12302D; color:#7CCFC6; border:1px solid rgba(34,227,211,.3); box-shadow:0 10px 30px rgba(0,0,0,.6); }
   .k-cd-skip{ display:block; margin:-2px 0 8px auto; font-size:13px; text-align:right; }
   .k-plan.k-cardio span{ color:var(--ink-soft); }
   .tip-week .cd span{ color:var(--forest); }
@@ -3310,7 +3313,7 @@
         ${newKey ? `<div class="hint" style="margin-bottom:8px;">Wird nur jetzt angezeigt. Kopieren und gleich in den Kurzbefehl einfügen.</div>
           <div class="siri-key" id="siriKeyVal">${escapeHtml(newKey)}</div>
           <button type="button" class="primary" id="siriCopy" style="width:100%;margin-top:8px;">Schlüssel kopieren</button>`
-          : `<div class="hint" style="margin-bottom:10px;">${c.siri ? '✓ Aktiv seit ' + escapeHtml(c.siriSince || '') + '. Verloren? Einfach neu erstellen, der alte wird dann ungültig.' : 'Damit weiß dein Server, dass der Kurzbefehl von dir kommt.'}</div>
+          : `<div class="hint" style="margin-bottom:10px;">${c.siri ? '✓ Aktiv seit ' + escapeHtml(/^\d{4}-\d{2}-\d{2}/.test(c.siriSince || '') ? new Date(c.siriSince.slice(0, 10) + 'T12:00:00').toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' }) : (c.siriSince || '')) + '. Verloren? Einfach neu erstellen, der alte wird dann ungültig.' : 'Damit weiß dein Server, dass der Kurzbefehl von dir kommt.'}</div>
           <button type="button" class="${c.siri ? 'ghost' : 'primary'}" id="siriNew">${c.siri ? 'Neuen Schlüssel erstellen' : 'Siri-Schlüssel erstellen'}</button>
           ${c.siri ? '<button type="button" class="aufg-link" id="siriRevoke" style="display:block;margin-top:8px;">Siri ausschalten</button>' : ''}`}
       </div>
@@ -3494,8 +3497,8 @@
         <div class="step-label">${reflLabel(tf)}reflexion</div>
         <div class="question" style="font-size:18px;">Für welchen Zeitraum?</div>
         <div class="reflex-grid" style="margin-top:14px;">
-          <button class="ghost" id="periodCurrentBtn" style="padding:16px;">Jetzigen<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, currentKey))}</span></button>
-          <button class="ghost" id="periodPreviousBtn" style="padding:16px;">Letzten<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, previousKey))}</span></button>
+          <button class="ghost" id="periodCurrentBtn" style="padding:16px;">${{ Tag:'Heute', Woche:'Diese Woche', Monat:'Dieser Monat', Quartal:'Dieses Quartal', Jahr:'Dieses Jahr' }[tf] || 'Aktueller Zeitraum'}<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, currentKey))}</span></button>
+          <button class="ghost" id="periodPreviousBtn" style="padding:16px;">${{ Tag:'Gestern', Woche:'Letzte Woche', Monat:'Letzter Monat', Quartal:'Letztes Quartal', Jahr:'Letztes Jahr' }[tf] || 'Vorheriger Zeitraum'}<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, previousKey))}</span></button>
         </div>
         <div class="nav-row" style="justify-content:flex-start;">
           <button class="ghost" id="periodCancelBtn">Abbrechen</button>
@@ -5650,7 +5653,16 @@
   }
 
   function periodLabel(zeitrahmen, key){
-    const labels = { '5 Jahre':'5-Jahres-Zeitraum '+key, Jahr:'Jahr '+key, Quartal:'Quartal '+key, Monat:'Monat '+key, Woche:'Woche '+key, Tag:'Tag '+key };
+    // Lesbar statt Rohschlüssel: „Do., 12.11.2026“, „KW 46 · 2026“, „November 2026“, „Q4 2026“
+    key = String(key || ''); let m;
+    try{
+      if(zeitrahmen === 'Tag' && /^\d{4}-\d{2}-\d{2}$/.test(key)) return new Date(key + 'T12:00:00').toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
+      if(zeitrahmen === 'Woche' && (m = /^(\d{4})-W(\d{1,2})$/.exec(key))) return 'KW ' + (+m[2]) + ' · ' + m[1];
+      if(zeitrahmen === 'Monat' && (m = /^(\d{4})-(\d{2})$/.exec(key))) return new Date(+m[1], +m[2] - 1, 1).toLocaleDateString('de-DE', { month:'long', year:'numeric' });
+      if(zeitrahmen === 'Quartal' && (m = /^(\d{4})-Q(\d)$/.exec(key))) return 'Q' + m[2] + ' ' + m[1];
+      if(zeitrahmen === '5 Jahre') return key.replace('-', '–');
+    }catch(e){}
+    const labels = { Jahr:'Jahr '+key, Quartal:'Quartal '+key, Monat:'Monat '+key, Woche:'Woche '+key, Tag:'Tag '+key };
     return labels[zeitrahmen] || key;
   }
 
@@ -5689,7 +5701,8 @@
   function renderZieleReminders(){
     const now = new Date();
     const reminderLabel = { Jahr:'Jahresziel', Quartal:'Quartalsziel', Monat:'Monatsziel', Woche:'Wochenziel' };
-    const missing = TIMEFRAMES.filter(tf=>{
+    // Tagesziele entstehen in der Abendreflexion und 5-Jahres-Ziele sind optional: dafür keine rote Erinnerung
+    const missing = TIMEFRAMES.filter(tf=>reminderLabel[tf]).filter(tf=>{
       const key = getPeriodKey(tf, now);
       return !zieleCache.some(z=>z.zeitrahmen === tf && z.periodKey === key);
     });
@@ -8603,7 +8616,8 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     requestAnimationFrame(()=>t.classList.add('show'));
     let done = false;
     const close = ()=>{ if(done) return; done = true; t.classList.remove('show'); setTimeout(()=>t.remove(), 300); };
-    const btn = t.querySelector('button'); if(btn) btn.onclick = ()=>{ close(); onUndo(); };
+    const btn = t.querySelector('button'); if(btn) btn.onclick = e=>{ e.stopPropagation(); close(); onUndo(); };
+    t.addEventListener('click', close);   // antippen = weg, damit ein Hinweis nie etwas verdeckt
     setTimeout(close, ms || 5000);
     return close;
   }
@@ -10828,8 +10842,10 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
   };
   authReady.then(()=>{ let t = null; try{ t = sessionStorage.getItem('kg_restore_tab'); sessionStorage.removeItem('kg_restore_tab'); }catch(e){} if(t && panels[t] && t !== 'home') setTimeout(()=>switchTab(t), 300); });
   // Einmalige Hinweise auf Wischgesten
-  function hintOnce(key, text){ try{ if(localStorage.getItem('kg_hint_' + key)) return false; localStorage.setItem('kg_hint_' + key, '1'); }catch(e){ return false; } setTimeout(()=>kgUndoToast(text, null, 6500), 700); return true; }
+  function hintOnce(key, text){ try{ if(localStorage.getItem('kg_hint_' + key)) return false; localStorage.setItem('kg_hint_' + key, '1'); }catch(e){ return false; } setTimeout(()=>{ if([...document.querySelectorAll('.modal-overlay')].some(o=>getComputedStyle(o).display !== 'none')){ try{ localStorage.removeItem('kg_hint_' + key); }catch(e){} return; } kgUndoToast(text, null, 6500); }, 700); return true; }
   function showSwipeHints(key){
+    // Wisch-Tipps nur auf Touch-Geräten; am Desktop stattdessen der Tastatur-Tipp
+    if(!window.matchMedia('(pointer: coarse)').matches){ if(key === 'nachrichten') hintOnce('f5_refresh', 'Tipp: F5 lädt nur die aktuelle Seite neu, Strg/⌘+K startet die Sprachsteuerung.'); return; }
     if(key === 'aufgaben' && aufgabenCache.some(t=>!t.erledigt)){
       if(hintOnce('swipe_aufg', 'Tipp: Aufgabe nach rechts wischen = erledigt, nach links = löschen')){
         setTimeout(()=>{ const row = document.querySelector('#aufgabenList .aufg-item, #aufgabenList [data-id]'); if(row && window.kgSpring){ window.kgSpring({ from:0, to:0, velocity:-500, damping:0.5, response:0.5, onUpdate:x=>{ row.style.transform = `translate3d(${x}px,0,0)`; }, onDone:()=>{ row.style.transform = ''; } }); } }, 900);
