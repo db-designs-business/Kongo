@@ -1555,6 +1555,45 @@
     .card, .modal-card, .aufg-tabs, .fs-tile, .badge{ border-color:rgba(255,255,255,.35) !important; }
     .hint, .sub, .modal-sub, .msg-snip{ color:#C9D1D3 !important; }
   }
+
+  /* =========================================================
+     APPLE-PRINZIPIEN · Runde 2: Klarheit, Trefferflächen, Konsistenz
+     ========================================================= */
+  /* Trefferfläche mind. 44 px, ohne das Layout zu verschieben */
+  .aufg-link, .lib-link, .prio-edit-toggle, .fokus-head button, .aufg-check, .aufg-star, .mbox-edit, .bs-play, .msg-fold-set{ position:relative; }
+  .aufg-link::before, .lib-link::before, .journal-toggle::before, .prio-edit-toggle::before, .fokus-head button::before, .aufg-check::before, .bs-play::before{
+    content:''; position:absolute; left:0; right:0; top:50%; height:44px; transform:translateY(-50%); }
+  .aufg-check::before, .fokus-head button::before, .bs-play::before{ left:50%; right:auto; width:44px; transform:translate(-50%, -50%); }
+  .journal-toggle{ position:relative; }
+  /* Sekundäre Aktion: eine ruhige, einheitliche Form statt gestrichelter Rahmen (gestrichelt = leerer Platz) */
+  .add-item-btn, .k-tips-btn{ border-style:solid !important; border-color:rgba(34,227,211,.28) !important; background:rgba(34,227,211,.07) !important; }
+  .add-item-btn:active, .k-tips-btn:active{ background:rgba(34,227,211,.14) !important; }
+  /* Löschen steht nicht gleichwertig neben der Hauptaktion */
+  .lib-item-actions button.del{ flex:0 0 auto !important; border-color:transparent !important; background:none !important; color:#E88; font-weight:500; padding-left:12px; padding-right:12px; }
+  /* Ziele: offene Zeiträume als ruhiger Hinweis */
+  .ziel-open{ display:flex; flex-direction:column; gap:8px; padding:14px 16px; margin-bottom:14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid var(--line-soft); }
+  .ziel-open b{ font-size:13px; font-weight:600; color:var(--ink-soft); }
+  .ziel-open div{ display:flex; flex-wrap:wrap; gap:6px; }
+  .ziel-open span{ font-size:13px; font-weight:600; padding:5px 11px; border-radius:999px; color:#FFB37A; background:rgba(255,154,77,.1); border:1px solid rgba(255,154,77,.3); }
+  /* Hinweise als Material: schweben über dem Inhalt, kommen als Fläche an (nicht nur einblenden) */
+  .kg-undo{ background:rgba(22,29,33,.9) !important; -webkit-backdrop-filter:blur(22px) saturate(170%); backdrop-filter:blur(22px) saturate(170%); border-color:rgba(255,255,255,.12) !important;
+    box-shadow:0 14px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08) !important; border-radius:22px !important; transform:translate(-50%, 14px) scale(.96) !important; transition:opacity .2s ease, transform .32s cubic-bezier(.2,.9,.3,1) !important; }
+  .kg-undo.show{ transform:translate(-50%, 0) scale(1) !important; }
+  .kg-undo span{ font-weight:500; }
+  /* Lesbarkeit: Platzhalter und Nebentexte mit genug Kontrast */
+  textarea::placeholder, input::placeholder{ color:#737F83 !important; }
+  /* Seitentitel: ein Titel pro Bereich, darunter Luft */
+  .wrap > [id^="panel"] > h1:first-child{ margin-bottom:18px; }
+  .wrap > [id^="panel"] > h1 + .sub{ margin-top:-10px; margin-bottom:20px; font-size:14.5px; }
+  .k-head{ margin-bottom:16px; } .k-head h1{ margin:0; }
+  /* Tastatur am Desktop: sichtbarer Fokus */
+  button:focus-visible, a:focus-visible, [role="button"]:focus-visible{ outline:2px solid var(--forest); outline-offset:2px; }
+  /* Karten-Überschriften und Fließtext als Set: Gewicht + Größe + Zeilenabstand */
+  .turn-title{ letter-spacing:-.005em; line-height:1.3; }
+  .example-text, .fokus-text, .uj-snip, .msg-snip{ line-height:1.45; }
+  .modal-title{ font-size:20px; }
+  @media (prefers-reduced-transparency: reduce){ .kg-undo{ background:#161D21 !important; -webkit-backdrop-filter:none; backdrop-filter:none; } }
+  @media (prefers-reduced-motion: reduce){ .kg-undo, .kg-undo.show{ transform:translate(-50%, 0) !important; transition:opacity .2s ease !important; } }
   .refl-quick-btn.done{ color:var(--forest); border-color:rgba(34,227,211,.45); background:rgba(34,227,211,.08); font-weight:700; }
   .aufg-item.kg-leaving{ animation:kgLeave .42s cubic-bezier(.3,0,.2,1) forwards; overflow:hidden; }
   @keyframes kgLeave{ 0%{ opacity:1; max-height:120px; } 45%{ opacity:.55; transform:translateX(0); max-height:120px; } 100%{ opacity:0; transform:translateX(40px); max-height:0; padding-top:0; padding-bottom:0; border-width:0; } }
@@ -1757,9 +1796,7 @@
   </div>
 
   <div id="panelReflexion" style="display:none;">
-    <div class="eyebrow">Reflexion</div>
-    <h1>Rückblick über die Zeit</h1>
-    <div class="sub">Wähle einen Zeitraum für deine Reflexion.</div>
+    <h1>Reflexion</h1>
 
     <div class="card">
       <div class="step-label">Zeitraum wählen</div>
@@ -1797,9 +1834,8 @@
   </div>
 
   <div id="panelRoutinen" style="display:none;">
-    <div class="eyebrow">Routinen</div>
-    <h1>Deine Gewohnheiten</h1>
-    <div class="sub">Lege Gewohnheiten an, baue dir Routinen daraus und wähle beim Ausführen, welche du gerade machen willst.</div>
+    <h1>Routinen</h1>
+    <div class="sub">Gewohnheiten anlegen, zu Routinen bündeln und ausführen.</div>
 
     <div class="card">
       <div class="step-label">Gewohnheiten</div>
@@ -1936,9 +1972,7 @@
   </div>
 
   <div id="panelKoerper" style="display:none;">
-    <div class="eyebrow">Body</div>
     <div class="k-head"><h1>Body</h1><button type="button" class="k-gear" id="kSetBtn" aria-label="Body-Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
-    <div class="sub">Training, Ernährung, Rezepte und Gewicht an einem Ort.</div>
     <div class="aufg-tabs">
       <button type="button" class="aufg-tab k-tab active" data-v="training">Training</button>
       <button type="button" class="aufg-tab k-tab" data-v="ernaehrung">Ernährung</button>
@@ -1972,8 +2006,7 @@
   </div>
 
   <div id="panelZiele" style="display:none;">
-    <div class="eyebrow">Ziele</div>
-    <h1>Deine Ziele</h1>
+    <h1>Ziele</h1>
     <div class="sub">Denk rückwärts: erst das Jahresziel, dann Quartal, Monat, Woche.</div>
 
     <div id="zieleReminders"></div>
@@ -2119,9 +2152,7 @@
   </div>
 
   <div id="panelAktivitaeten" style="display:none;">
-    <div class="eyebrow">Übungen</div>
     <h1>Übungen</h1>
-    <div class="sub">Übungen und Werkzeuge für zwischendurch.</div>
     <div class="home-links">
       <button type="button" class="home-link" id="homeToSprechuebung">
         <span class="home-link-title">Sprechübung</span>
@@ -3494,7 +3525,7 @@
     const previousKey = getPeriodKey(tf, getOffsetDate(tf, -1));
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">${reflLabel(tf)}reflexion</div>
+        <div class="step-label">${tf === 'Tag' ? 'Abend' : reflLabel(tf)}reflexion</div>
         <div class="question" style="font-size:18px;">Für welchen Zeitraum?</div>
         <div class="reflex-grid" style="margin-top:14px;">
           <button class="ghost" id="periodCurrentBtn" style="padding:16px;">${{ Tag:'Heute', Woche:'Diese Woche', Monat:'Dieser Monat', Quartal:'Dieses Quartal', Jahr:'Dieses Jahr' }[tf] || 'Aktueller Zeitraum'}<br><span style="font-size:12.5px;color:var(--ink-soft);">${escapeHtml(periodLabel(tf, currentKey))}</span></button>
@@ -3617,7 +3648,7 @@
     }
     reflexionContent.innerHTML = `
       <div class="card">
-        <div class="step-label">${reflLabel(tf)}reflexion · ${escapeHtml(periodLabel(tf, getPeriodKey(tf, getReflectionDate())))}</div>
+        <div class="step-label">${tf === 'Tag' ? 'Abend' : reflLabel(tf)}reflexion · ${escapeHtml(periodLabel(tf, getPeriodKey(tf, getReflectionDate())))}</div>
         <div class="hint" style="margin-bottom:0;">Inhalt folgt in Kürze.</div>
       </div>
       <div class="nav-row" style="justify-content:flex-end;">
@@ -5708,13 +5739,7 @@
     });
     const remEl = document.getElementById('zieleReminders');
     if(missing.length === 0){ remEl.innerHTML = ''; return; }
-    remEl.innerHTML = missing.map(tf=>{
-      const key = getPeriodKey(tf, now);
-      return `<div class="example-box" style="border-left-color:var(--danger);">
-        <div class="example-title" style="color:var(--danger);">Noch kein ${reminderLabel[tf]} gesetzt</div>
-        <div class="example-text">Für ${escapeHtml(periodLabel(tf,key))} hast du noch kein Ziel angelegt.</div>
-      </div>`;
-    }).join('');
+    remEl.innerHTML = `<div class="ziel-open"><b>Noch ohne Ziel</b><div>${missing.map(tf=>`<span>${escapeHtml(periodLabel(tf, getPeriodKey(tf, now)))}</span>`).join('')}</div></div>`;
   }
 
   const ZIEL_STATUS_CLASS = { 'Offen':'', 'Erreicht':'ok', 'Teilweise':'mid', 'Nicht erreicht':'bad', 'Verworfen':'bad' };
