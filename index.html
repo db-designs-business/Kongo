@@ -476,6 +476,23 @@
   .xp-toast.show{ opacity:1; transform:translate(-50%, 0); }
   .xp-toast.big{ font-size:17px; padding:14px 22px; letter-spacing:.02em; }
   .prio-quest{ font-size:12px; color:var(--ink-soft); margin:-4px 0 10px; }
+  .fokus-box{ margin:2px 0 14px; padding:12px 14px; border-radius:14px; background:linear-gradient(135deg, rgba(34,227,211,.10), rgba(34,227,211,.03)); border:1px solid rgba(34,227,211,.28); }
+  .fokus-head{ display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--forest); }
+  .fokus-head span{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fokus-head small{ font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-soft); font-size:11.5px; }
+  .fokus-head button{ background:none; border:none; color:var(--ink-soft); font-size:15px; padding:2px 4px; }
+  .fokus-text{ font-size:15px; line-height:1.45; color:var(--ink); margin:8px 0 10px; }
+  .fokus-rate{ display:flex; gap:6px; } .fokus-rate button{ flex:1; padding:8px 4px; border-radius:10px; font-size:13px; font-weight:600; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink-soft); }
+  .fokus-rate button.on[data-v="2"]{ background:rgba(34,227,211,.2); border-color:var(--forest); color:var(--ink); }
+  .fokus-rate button.on[data-v="1"]{ background:rgba(245,181,68,.18); border-color:#f5b544; color:var(--ink); }
+  .fokus-rate button.on[data-v="0"]{ background:rgba(255,107,107,.15); border-color:#ff6b6b; color:var(--ink); }
+  .fokus-dots{ display:flex; gap:3px; margin-top:10px; } .fokus-dots i{ flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,.08); }
+  .fokus-dots i.v2{ background:var(--forest); } .fokus-dots i.v1{ background:#f5b544; } .fokus-dots i.v0{ background:#ff6b6b; }
+  .fokus-empty{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:12px 14px; margin:2px 0 14px; border-radius:14px; border:1px dashed rgba(34,227,211,.4); background:none; color:var(--ink-soft); font-size:14px; }
+  .fokus-sug{ display:block; width:100%; text-align:left; margin-top:8px; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink); font-size:14px; line-height:1.4; }
+  .fk-zrow{ display:flex; gap:6px; margin-top:6px; } .fk-zrow button{ flex:1; padding:9px 4px; border-radius:10px; font-size:13.5px; font-weight:600; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink-soft); }
+  .fk-zrow button.on{ background:rgba(34,227,211,.18); border-color:var(--forest); color:var(--ink); }
+  .fokus-hist{ margin-top:16px; } .fokus-hist div{ padding:8px 0; border-bottom:1px solid var(--line-soft); font-size:13px; } .fokus-hist small{ display:block; color:var(--ink-soft); margin-top:2px; }
   .prio-quest b{ color:var(--forest); }
   .prio-kat{ font-size:11.5px; font-weight:500; color:var(--ink-soft); margin-top:2px; }
   .prio-main{ flex:1; min-width:0; }
@@ -1656,6 +1673,7 @@
         <div class="prio-head-left"><div class="step-label" style="margin:0;">Dailys · Jeden Tag</div><span class="daily-streak" id="dailyStreak"></span></div>
         <button type="button" class="prio-edit-toggle" id="prioEditToggle">Auswählen</button>
       </div>
+      <div id="fokusBox"></div>
       <div class="prio-progress" id="prioProgress"></div>
       <div class="prio-quest" id="prioQuest"></div>
       <div id="prioList"><div class="loading">Lade ...</div></div>
@@ -3063,7 +3081,7 @@
     try{
       const map = {};
       map[TABLE_XP] = ()=>loadXP();
-      map[TABLE_PRIORITAETEN] = ()=>loadPrioritaeten();
+      map[TABLE_PRIORITAETEN] = ()=>{ loadPrioritaeten(); loadFokus(); };
       map[TABLE_AUFGABEN] = ()=>loadAufgaben();
       map[TABLE_NOFAP] = ()=>loadNofap();
       map[TABLE_PROFIL] = ()=>loadProfil();
@@ -3809,6 +3827,7 @@
         if(prioCache.length) L.push('- Dailys einzeln (an wie vielen Tagen erledigt): ' + Object.entries(per).map(([k,v])=>`${k} ${v}/${nDays}`).join(', '));
       }
     });
+    tryAdd(()=>{ fokusCoachText(from, t).forEach(x=>L.push(x)); });
     tryAdd(()=>{
       const tr = trainingsCache.filter(x=>inR(x.datum));
       L.push(`- Training: ${tr.length} Einheiten${tr.length ? ' (' + tr.map(x=>x.datum.slice(5) + ' ' + (x.plan || 'frei') + (x.dauer ? ' ' + x.dauer + ' Min' : '')).join('; ') + ')' : ''}. Fokus: ${profil.fokus || 'nicht gesetzt'}.`);
@@ -3832,7 +3851,7 @@
       const xp = xpEntries.filter(e=>inR(e.datum)).reduce((s,e)=>s + (e.xp || 0), 0);
       L.push(`- XP im Zeitraum: ${xp}. Level ${xpLevelInfo(xpTotal()).level}.`);
     });
-    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Dailys und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
+    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Dailys, Fokusaufgabe und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
     return L.join('\n');
   }
 
@@ -4810,6 +4829,7 @@
           <div><span>${doneN}/${prioCache.length || 4}</span><small>Dailys</small></div>
           <div><span>🔥 ${st.cur}</span><small>Streak</small></div>
         </div>
+        ${fokusCur() ? `<div class="turn-title" style="margin-top:14px;">Hat dein Fokus heute geklappt?</div><div id="eveningFokus">${fokusBoxHtml(fokusCur(), t, true)}</div>` : ''}
         <div class="turn-title" style="margin-top:14px;">Dailys abhaken</div>
         <div id="eveningDailys">${prioCache.map(p=>prioItemHtml(p, t, true)).join('') || '<div class="hint">Noch keine Dailys gewählt.</div>'}</div>
         ${run && nfOpen.length ? `<div class="nofap-checkin" style="margin-top:14px;"><div><b>NoFap-Check-in</b> · ${nfOpen.length === 1 ? fmtDay(nfOpen[0]) : nfOpen.length + ' Tage'} offen</div><button type="button" class="primary" id="eveningNofapBtn">Check-in</button></div>` : ''}
@@ -4845,6 +4865,7 @@
 
     if(key === 'abschluss'){
       reflexionContent.querySelectorAll('#eveningDailys .prio-check').forEach(b=>{ b.onclick = async ()=>{ await prioToggle(b.dataset.id); renderEveningStep(); }; });
+      wireFokus(reflexionContent.querySelector('#eveningFokus'), todayStr(), ()=>renderEveningStep());
       const nb = reflexionContent.querySelector('#eveningNofapBtn');
       if(nb) nb.onclick = ()=>{ const run = nofapCurrent(); if(run) openNofapCheckin(run, ()=>renderEveningStep()); };
     }
@@ -6556,6 +6577,7 @@
         <div class="turn-title">Wie ist deine Energie heute?</div>
         <div class="energy-row">${[1,2,3,4,5].map(n=>`<button type="button" class="energy-btn ${energie===n?'on':''}" data-e="${n}"><span>${['😴','😕','😐','🙂','⚡'][n-1]}</span>${n}</button>`).join('')}</div>
 
+        ${fokusCur() ? `<div class="turn-title" style="margin-top:18px;">🎯 Dein Fokus heute${fokusCur().bereich ? ' · ' + escapeHtml(fokusCur().bereich) : ''}</div><div class="fokus-text" style="margin:6px 0 0;padding:10px 12px;border-radius:12px;background:rgba(34,227,211,.08);border:1px solid rgba(34,227,211,.25);">${escapeHtml(fokusCur().text)}</div>` : ''}
         <div class="turn-title" style="margin-top:18px;">Was würde den heutigen Tag großartig machen?</div>
         <textarea id="morgenGrossartigInput" placeholder="Deine Antwort ..." style="min-height:90px;"></textarea>
         <div class="turn-title" style="margin-top:16px;">Was sind meine Ziele, Intentionen und Affirmationen?</div>
@@ -8250,6 +8272,133 @@ Antworte NUR mit JSON: {"zusammenfassung": "...", "umsetzen": "..."}`);
   let prioDay = prioToday();
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && prioToday() !== prioDay){ prioDay = prioToday(); renderPrioritaeten(); } });
   loadPrioritaeten();
+
+  /* =========================================================
+     FOKUSAUFGABE: ein Verhalten, in dem du dich gerade verbesserst (z. B. Charisma). Jeden Abend: umgesetzt / teilweise / nicht.
+     ========================================================= */
+  const TABLE_FOKUS = 'tblKgFokusAufg001';
+  let fokusAll = [];   // { id, bereich, text, start, ende, status, log:{ 'YYYY-MM-DD': 0|1|2 } }
+  const fokusCur = ()=>fokusAll.find(f=>f.status === 'aktiv') || null;
+  const FOKUS_LBL = { 2:'✓ Umgesetzt', 1:'~ Teilweise', 0:'✗ Nicht' };
+  async function loadFokus(){
+    try{
+      const recs = await airtableList(TABLE_FOKUS, ROUTINEN_BASE_ID);
+      fokusAll = recs.map(r=>{ const f = r.fields || {}; let log = {}; try{ log = JSON.parse(f['Log'] || '{}') || {}; }catch(e){}
+        return { id:r.id, bereich:f['Bereich'] || '', text:f['Text'] || '', start:f['Start'] || '', ende:f['Ende'] || '', ziel:+f['Ziel Tage'] || 0, status:f['Status'] || 'aktiv', log }; })
+        .filter(f=>f.text).sort((a,b)=>(b.start || '').localeCompare(a.start || ''));
+    }catch(e){ fokusAll = []; }
+    renderFokus();
+  }
+  function fokusStats(f, from, to){
+    const vals = Object.entries(f.log || {}).filter(([d])=>(!from || d >= from) && (!to || d <= to)).map(([,v])=>+v);
+    const days = f.start ? Math.max(1, Math.round((new Date(todayStr()) - new Date(f.start)) / 86400000) + 1) : vals.length;
+    return { days, ja:vals.filter(v=>v === 2).length, teil:vals.filter(v=>v === 1).length, nein:vals.filter(v=>v === 0).length };
+  }
+  function fokusBoxHtml(f, day, compact){
+    const v = day in f.log ? +f.log[day] : null;
+    const st = fokusStats(f);
+    const dots = Array.from({ length:14 }, (_, i)=>shiftDay(day, i - 13)).map(d=>`<i class="${d in f.log ? 'v' + f.log[d] : ''}" title="${fmtDay(d)}"></i>`).join('');
+    return `<div class="fokus-box" data-fokus="${f.id}">
+      <div class="fokus-head">🎯 <span>Fokus${f.bereich ? ' · ' + escapeHtml(f.bereich) : ''}</span><small>Tag ${st.days}${f.ziel ? '/' + f.ziel : ''} · ${st.ja}× ✓</small>${compact ? '' : '<button type="button" class="fokus-edit" aria-label="Fokus bearbeiten">✎</button>'}</div>
+      <div class="fokus-text">${escapeHtml(f.text)}</div>
+      <div class="fokus-rate">${[2,1,0].map(x=>`<button type="button" data-v="${x}" class="${v === x ? 'on' : ''}">${FOKUS_LBL[x]}</button>`).join('')}</div>
+      ${compact ? '' : `<div class="fokus-dots">${dots}</div>`}
+      ${!compact && f.ziel && st.days >= f.ziel ? `<div class="hint" style="margin:8px 0 0;">🎉 ${f.ziel} Tage geschafft. Weitermachen oder <button type="button" class="aufg-link fokus-new" style="padding:0;">neuen Fokus wählen</button>?</div>` : ''}
+    </div>`;
+  }
+  function wireFokus(host, day, after){
+    const f = fokusCur(); if(!f || !host) return;
+    host.querySelectorAll('.fokus-rate button').forEach(b=>b.onclick = ()=>fokusRate(f, day, +b.dataset.v, after));
+    const e = host.querySelector('.fokus-edit'); if(e) e.onclick = ()=>openFokusEdit();
+    const n = host.querySelector('.fokus-new'); if(n) n.onclick = ()=>openFokusEdit(true);
+  }
+  function renderFokus(){
+    const el = document.getElementById('fokusBox'); if(!el) return;
+    const f = fokusCur();
+    if(!f){ el.innerHTML = `<button type="button" class="fokus-empty" id="fokusAdd">🎯 <span><b style="color:var(--ink);">Fokusaufgabe festlegen</b><br><small>Ein Verhalten, in dem du dich gerade jeden Tag verbessern willst.</small></span></button>`; el.querySelector('#fokusAdd').onclick = ()=>openFokusEdit(); return; }
+    el.innerHTML = fokusBoxHtml(f, todayStr());
+    wireFokus(el, todayStr(), renderFokus);
+  }
+  async function fokusRate(f, day, v, after){
+    const prev = day in f.log ? +f.log[day] : null;
+    if(prev === v) delete f.log[day]; else f.log[day] = v;
+    if(prev !== v && v === 2) vibrateDevice();
+    renderFokus(); if(after && after !== renderFokus) after();
+    try{
+      await airtableFetch(TABLE_FOKUS + '/' + f.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Log': JSON.stringify(f.log) } }) }, ROUTINEN_BASE_ID);
+      const key = 'fokus:' + day; const now = day in f.log ? +f.log[day] : null;
+      await revokeXP(key).catch(()=>{});
+      if(now === 2) awardXP(key, 'Fokus: ' + (f.bereich || f.text.slice(0, 40)), PRIO_XP);
+      else if(now === 1) awardXP(key, 'Fokus teilweise: ' + (f.bereich || f.text.slice(0, 40)), Math.round(PRIO_XP / 2));
+    }catch(e){ if(prev === null) delete f.log[day]; else f.log[day] = prev; renderFokus(); if(after && after !== renderFokus) after(); kgUndoToast('Fokus konnte nicht gespeichert werden.'); }
+  }
+  function openFokusEdit(fresh){
+    const cur = fresh ? null : fokusCur();
+    const old = fokusAll.filter(f=>f.status !== 'aktiv');
+    let ziel = cur ? cur.ziel : 21;
+    openErnModal(`<div class="modal-title">${cur ? 'Fokus bearbeiten' : 'Neue Fokusaufgabe'}</div>
+      <div class="modal-sub">Ein konkretes Verhalten für jeden Tag, in dem du besser werden willst. Abends hakst du ab, ob es geklappt hat.</div>
+      <div class="turn-title">Worin willst du besser werden?</div>
+      <input type="text" id="fkBereich" value="${escapeHtml(cur ? cur.bereich : '')}" placeholder="z. B. Charisma, Geduld, Disziplin">
+      <div class="turn-title" style="margin-top:12px;">Deine Fokusaufgabe</div>
+      <textarea id="fkText" rows="4" style="min-height:96px;" placeholder="z. B. Ich bin im Gespräch voll und ganz bei meinem Gegenüber. Wenn ich abschweife, konzentriere ich mich kurz auf meinen Atem und höre wieder zu.">${escapeHtml(cur ? cur.text : '')}</textarea>
+      <button type="button" class="ghost" id="fkAi" style="width:100%;margin-top:8px;">✨ Formulierungen vorschlagen lassen</button>
+      <div id="fkSug"></div>
+      <div class="turn-title" style="margin-top:14px;">Wie lange?</div>
+      <div class="fk-zrow" id="fkZiel">${[[7,'7 Tage'],[21,'21 Tage'],[30,'30 Tage'],[0,'Offen']].map(([n,l])=>`<button type="button" class="${ziel === n ? 'on' : ''}" data-z="${n}">${l}</button>`).join('')}</div>
+      <div class="nav-row" style="margin-top:16px;"><button type="button" class="ghost" id="fkCancel">Abbrechen</button><button type="button" class="primary" id="fkSave">${cur ? 'Speichern' : 'Fokus starten'}</button></div>
+      ${cur ? '<button type="button" class="aufg-link" id="fkNew" style="margin-top:10px;">Neuen Fokus beginnen (dieser kommt ins Archiv)</button>' : ''}
+      ${old.length ? `<div class="fokus-hist"><div class="turn-title">Frühere Fokusse</div>${old.slice(0, 8).map(f=>{ const st = fokusStats(f, f.start, f.ende); return `<div><b>${escapeHtml(f.bereich || 'Fokus')}</b> · ${escapeHtml(f.text.slice(0, 90))}${f.text.length > 90 ? '…' : ''}<small>${f.start ? fmtDay(f.start) : ''}${f.ende ? ' bis ' + fmtDay(f.ende) : ''} · ${st.ja}× umgesetzt, ${st.teil}× teilweise, ${st.nein}× nicht</small></div>`; }).join('')}</div>` : ''}
+      <div id="fkStatus" class="save-status"></div>`);
+    const c = ernModalCard(), q = x=>c.querySelector(x);
+    q('#fkZiel').querySelectorAll('[data-z]').forEach(b=>b.onclick = ()=>{ ziel = +b.dataset.z; q('#fkZiel').querySelectorAll('[data-z]').forEach(x=>x.classList.toggle('on', x === b)); });
+    q('#fkCancel').onclick = closeErnModal;
+    if(q('#fkNew')) q('#fkNew').onclick = ()=>openFokusEdit(true);
+    q('#fkAi').onclick = async ()=>{
+      const b = q('#fkAi'), area = q('#fkBereich').value.trim(), draft = q('#fkText').value.trim();
+      if(!area && !draft){ q('#fkBereich').focus(); q('#fkStatus').textContent = 'Schreib erst, worin du besser werden willst.'; return; }
+      b.disabled = true; b.textContent = 'Claude denkt nach …';
+      try{
+        const out = await callClaudeCoach(`Dominic will sich jeden Tag in einem Bereich verbessern und formuliert dafür eine tägliche Fokusaufgabe. Bereich: "${area || '(nicht angegeben)'}".${draft ? ' Sein Entwurf: "' + draft + '".' : ''}
+Beispiel für den Stil (Bereich Charisma): "Ich bin im Gespräch voll und ganz bei meinem Gegenüber, und wenn ich abschweife, konzentriere ich mich kurz auf meinen Atem und höre dem anderen wieder zu."
+Schreib 3 alternative Fokusaufgaben auf Deutsch: Ich-Form, Präsens, ein konkretes beobachtbares Verhalten im Alltag, mit einem klaren Auslöser oder Rückholanker (was ich tue, wenn ich es vergesse), höchstens 2 Sätze. Abends muss er mit Ja, Teilweise oder Nein beantworten können, ob es geklappt hat.
+Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne Einleitung.`);
+        const lines = out.split('\n').map(x=>x.replace(/^\s*([-*•]|\d+[.)])\s*/, '').replace(/^"|"$/g, '').trim()).filter(x=>x.length > 15).slice(0, 3);
+        q('#fkSug').innerHTML = lines.map((l, i)=>`<button type="button" class="fokus-sug" data-i="${i}">${escapeHtml(l)}</button>`).join('');
+        q('#fkSug').querySelectorAll('[data-i]').forEach(x=>x.onclick = ()=>{ q('#fkText').value = lines[+x.dataset.i]; q('#fkSug').innerHTML = ''; });
+      }catch(e){ q('#fkStatus').textContent = e.message; }
+      b.disabled = false; b.textContent = '✨ Formulierungen vorschlagen lassen';
+    };
+    q('#fkSave').onclick = async ()=>{
+      const bereich = q('#fkBereich').value.trim(), text = q('#fkText').value.trim();
+      if(!text){ q('#fkText').focus(); q('#fkStatus').textContent = 'Bitte die Fokusaufgabe eintragen.'; return; }
+      const btn = q('#fkSave'); btn.disabled = true; q('#fkStatus').textContent = 'Speichere …';
+      try{
+        if(cur){
+          await airtableFetch(TABLE_FOKUS + '/' + cur.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Bereich':bereich, 'Text':text, 'Ziel Tage':ziel } }) }, ROUTINEN_BASE_ID);
+          Object.assign(cur, { bereich, text, ziel });
+        } else {
+          const prev = fokusCur();
+          if(prev){ await airtableFetch(TABLE_FOKUS + '/' + prev.id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Status':'archiv', 'Ende':todayStr() } }) }, ROUTINEN_BASE_ID); prev.status = 'archiv'; prev.ende = todayStr(); }
+          const id = await airtableCreate(TABLE_FOKUS, { 'Bereich':bereich, 'Text':text, 'Start':todayStr(), 'Status':'aktiv', 'Ziel Tage':ziel, 'Log':'{}' }, ROUTINEN_BASE_ID);
+          fokusAll.unshift({ id, bereich, text, start:todayStr(), ende:'', ziel, status:'aktiv', log:{} });
+        }
+        closeErnModal(); renderFokus(); kgUndoToast(cur ? 'Fokus gespeichert ✓' : '🎯 Neuer Fokus gestartet');
+      }catch(e){ btn.disabled = false; q('#fkStatus').textContent = 'Speichern fehlgeschlagen: ' + e.message; }
+    };
+  }
+  // Text für Coaching-Berichte
+  function fokusCoachText(from, to){
+    const L = [];
+    fokusAll.filter(f=>(f.start || '') <= to && (!f.ende || f.ende >= from)).forEach(f=>{
+      const st = fokusStats(f, from, to);
+      const days = Math.max(0, Math.round((new Date(to < (f.ende || to) ? to : (f.ende || to)) - new Date(from > f.start ? from : f.start)) / 86400000) + 1);
+      L.push(`- Fokusaufgabe${f.status === 'aktiv' ? ' (aktuell)' : ' (beendet ' + f.ende + ')'}${f.bereich ? ', Bereich ' + f.bereich : ''}, seit ${f.start}: "${f.text}". Im Zeitraum an ${days} Tagen aktiv: ${st.ja}x umgesetzt, ${st.teil}x teilweise, ${st.nein}x nicht, ${Math.max(0, days - st.ja - st.teil - st.nein)}x ohne Angabe.`);
+    });
+    return L;
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) renderFokus(); });
+  loadFokus();
 
   /* =========================================================
      AUFGABEN
