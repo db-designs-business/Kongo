@@ -10,9 +10,17 @@ function w_token_request(int $uid, array $params): ?array {
   $cfg = kg_get($uid, 'withings_cfg');
   $r = kg_http('POST', 'https://wbsapi.withings.net/v2/oauth2', [], array_merge(['action' => 'requesttoken', 'client_id' => $cfg['client_id'], 'client_secret' => $cfg['client_secret']], $params));
   $j = $r['json'] ?? [];
-  if (($j['status'] ?? -1) !== 0 || empty($j['body']['access_token'])) return null;
+  if (($j['status'] ?? -1) !== 0 || empty($j['body']['access_token'])) {
+    // Grund merken, damit die App ihn anzeigen kann (Token selbst bleiben unangetastet)
+    $t = kg_get($uid, 'withings_tok', []);
+    $GLOBALS['w_net_error'] = !$r['code'] || !is_array($r['json']);
+    $why = $GLOBALS['w_net_error'] ? 'Withings nicht erreichbar' . ($r['error'] ? ' (' . $r['error'] . ')' : '') : 'Anmeldung abgelaufen (' . ($j['error'] ?? ('Status ' . ($j['status'] ?? $r['code']))) . ')';
+    if (is_array($t) && $t) { $t['lastError'] = $why; $t['lastErrorTs'] = time(); kg_set($uid, 'withings_tok', $t); }
+    return null;
+  }
   $b = $j['body'];
   $tok = kg_get($uid, 'withings_tok', []);
+  unset($tok['lastError'], $tok['lastErrorTs']);
   $tok['access'] = $b['access_token']; $tok['refresh'] = $b['refresh_token'] ?? ($tok['refresh'] ?? '');
   $tok['exp'] = time() + (int)($b['expires_in'] ?? 10800) - 60; $tok['userid'] = $b['userid'] ?? ($tok['userid'] ?? '');
   kg_set($uid, 'withings_tok', $tok);
@@ -36,19 +44,35 @@ if ($action === 'callback') {
 $uid = kg_require_user();
 $in = kg_input();
 
-function w_access(int $uid): string {
+function w_access(int $uid, bool $force = false): string {
   $tok = kg_get($uid, 'withings_tok');
   if (!$tok || empty($tok['refresh'])) kg_json(['error' => ['type' => 'NOT_CONNECTED', 'message' => 'Withings ist nicht verbunden.']], 409);
-  if (($tok['exp'] ?? 0) > time()) return $tok['access'];
-  $tok = w_token_request($uid, ['grant_type' => 'refresh_token', 'refresh_token' => $tok['refresh']]);
-  if (!$tok) kg_json(['error' => ['type' => 'NOT_CONNECTED', 'message' => 'Withings-Verbindung abgelaufen. Bitte neu verbinden.']], 409);
-  return $tok['access'];
+  if (!$force && ($tok['exp'] ?? 0) > time()) return $tok['access'];
+  // Nur ein Erneuern gleichzeitig: Withings tauscht das Refresh-Token bei jedem Erneuern aus
+  $lock = fopen(sys_get_temp_dir() . '/kg_withings_' . $uid . '.lock', 'c'); if ($lock) flock($lock, LOCK_EX);
+  $cur = kg_get($uid, 'withings_tok');
+  if (!$force && ($cur['exp'] ?? 0) > time()) { if ($lock) flock($lock, LOCK_UN); return $cur['access']; }   // hat ein paralleler Aufruf schon erneuert
+  if ($force && ($cur['access'] ?? '') !== ($tok['access'] ?? '') && ($cur['exp'] ?? 0) > time()) { if ($lock) flock($lock, LOCK_UN); return $cur['access']; }
+  $new = w_token_request($uid, ['grant_type' => 'refresh_token', 'refresh_token' => $cur['refresh']]);
+  if ($lock) flock($lock, LOCK_UN);
+  if (!$new && !empty($GLOBALS['w_net_error'])) kg_json(['error' => ['message' => 'Withings ist gerade nicht erreichbar. Bitte später erneut versuchen.']], 502);
+  if (!$new) kg_json(['error' => ['type' => 'NOT_CONNECTED', 'message' => 'Die Withings-Anmeldung ist abgelaufen. Bitte „Neu verbinden“ tippen.']], 409);
+  return $new['access'];
+}
+function w_fail(int $uid, string $msg, int $code = 502): void {
+  $t = kg_get($uid, 'withings_tok', []); if (is_array($t) && $t) { $t['lastError'] = $msg; $t['lastErrorTs'] = time(); kg_set($uid, 'withings_tok', $t); }
+  kg_json(['error' => ['message' => $msg]], $code);
+}
+// Bekannte Withings-Statuscodes verständlich machen
+function w_status_text($st): string {
+  $m = [100 => 'Anmeldung ungültig', 101 => 'Anmeldung ungültig', 102 => 'Anmeldung ungültig', 200 => 'Anmeldung ungültig', 401 => 'Anmeldung ungültig', 293 => 'Anmeldung ungültig', 2554 => 'Unbekannte Aktion', 601 => 'Zu viele Anfragen, später erneut versuchen', 2555 => 'Withings-Serverfehler'];
+  return ($m[(int)$st] ?? 'Fehler') . ' (Status ' . $st . ')';
 }
 
 switch ($action) {
   case 'status':
     $cfg = kg_get($uid, 'withings_cfg'); $tok = kg_get($uid, 'withings_tok');
-    kg_json(['configured' => !empty($cfg['client_id']), 'connected' => !empty($tok['refresh']), 'lastSync' => $tok['lastSync'] ?? null, 'redirect_uri' => w_redirect_uri()]);
+    kg_json(['configured' => !empty($cfg['client_id']), 'connected' => !empty($tok['refresh']), 'lastSync' => $tok['lastSync'] ?? null, 'lastError' => $tok['lastError'] ?? null, 'lastErrorTs' => $tok['lastErrorTs'] ?? null, 'redirect_uri' => w_redirect_uri()]);
 
   case 'config':
     $cid = trim((string)($in['client_id'] ?? '')); $sec = trim((string)($in['client_secret'] ?? ''));
@@ -71,10 +95,18 @@ switch ($action) {
     $tok = kg_get($uid, 'withings_tok');
     $since = !empty($tok['lastSync']) && empty($_GET['full']) ? (int)$tok['lastSync'] - 86400 : time() - 365 * 86400;
     // 1 Gewicht, 6 Fettanteil %, 76 Muskelmasse, 77 Wasser, 88 Knochenmasse
-    $r = kg_http('POST', 'https://wbsapi.withings.net/measure', ['Authorization: Bearer ' . $access],
-      ['action' => 'getmeas', 'meastypes' => '1,6,76', 'category' => 1, 'startdate' => $since, 'enddate' => time()]);
+    $params = ['action' => 'getmeas', 'meastypes' => '1', 'category' => 1, 'startdate' => $since, 'enddate' => time()];
+    $r = kg_http('POST', 'https://wbsapi.withings.net/measure', ['Authorization: Bearer ' . $access], $params);
     $j = $r['json'] ?? [];
-    if (($j['status'] ?? -1) !== 0) kg_json(['error' => ['message' => 'Withings: Fehler ' . ($j['status'] ?? $r['code'])]], 502);
+    // Token von Withings vorzeitig ungültig gemacht: einmal erneuern und nochmal versuchen
+    if (in_array((int)($j['status'] ?? 0), [100, 101, 102, 200, 401, 293], true)) {
+      $access = w_access($uid, true);
+      $r = kg_http('POST', 'https://wbsapi.withings.net/measure', ['Authorization: Bearer ' . $access], $params);
+      $j = $r['json'] ?? [];
+    }
+    if (!$r['code'] || $r['error']) w_fail($uid, 'Withings nicht erreichbar (' . ($r['error'] ?: 'keine Antwort') . ')');
+    if (($j['status'] ?? -1) !== 0) w_fail($uid, 'Withings: ' . w_status_text($j['status'] ?? $r['code']) . (!empty($j['error']) ? ' · ' . mb_substr((string)$j['error'], 0, 80) : ''));
+    $tok = kg_get($uid, 'withings_tok');   // nach evtl. Erneuern neu lesen, sonst überschreibt lastSync das neue Token
     // Pro Tag die neueste Messung
     $days = [];
     foreach ($j['body']['measuregrps'] ?? [] as $g) {
@@ -99,7 +131,7 @@ switch ($action) {
       }
       $n++;
     }
-    $tok['lastSync'] = time(); kg_set($uid, 'withings_tok', $tok);
+    $tok['lastSync'] = time(); unset($tok['lastError'], $tok['lastErrorTs']); kg_set($uid, 'withings_tok', $tok);
     kg_json(['ok' => true, 'days' => $n, 'dates' => array_keys($days)]);
 }
 kg_json(['error' => ['message' => 'Unbekannte Aktion']], 400);

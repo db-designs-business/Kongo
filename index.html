@@ -1483,6 +1483,8 @@
   .shop-list{ max-height:50vh; overflow-y:auto; }
   .shop-item{ display:flex; gap:12px; align-items:center; padding:10px 2px; border-bottom:1px solid var(--line-soft); font-size:15px; cursor:pointer; }
   .shop-item input{ width:20px; height:20px; accent-color:var(--forest); flex-shrink:0; }
+  .w-err{ margin-top:8px; padding:10px 12px; border-radius:12px; font-size:13px; line-height:1.4; color:#FFC48A; background:rgba(255,154,77,.08); border:1px solid rgba(255,154,77,.3); }
+  .w-err div{ display:flex; gap:16px; margin-top:4px; }
   .shop-item.done span{ text-decoration:line-through; opacity:.5; }
   /* =========================================================
      APPLE-PRINZIPIEN · Branding bleibt (Schwarz + Cyan, Inter, Glow)
@@ -10790,7 +10792,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       </div>
       <div class="conn-sec">
         <div class="conn-h">⚖️ Withings <span>Waage → Gewicht-Tab</span></div>
-        ${w.connected ? `<div class="conn-ok">✓ Verbunden</div><button type="button" class="ghost" data-w-sync>Jetzt abgleichen</button> <button type="button" class="aufg-link" data-w-disc style="margin-left:10px;">Trennen</button>`
+        ${w.connected ? `<div class="conn-ok">✓ Verbunden${w.lastSync ? ' · zuletzt abgeglichen ' + new Date(w.lastSync * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : ''}</div>${w.lastError ? `<div class="w-err" style="margin:6px 0 10px;">⚠️ ${escapeHtml(w.lastError)}</div>` : ''}<button type="button" class="ghost" data-w-sync>Jetzt abgleichen</button> <button type="button" class="aufg-link" data-w-conn style="margin-left:10px;">Neu verbinden</button> <button type="button" class="aufg-link" data-w-disc style="margin-left:10px;">Trennen</button>`
           : w.configured ? `<button type="button" class="primary" data-w-conn>Mit Withings verbinden</button>`
           : `<div class="hint">Einmalig: auf developer.withings.com eine App anlegen (Public API). Callback-URL dort eintragen:</div>${copyRow(w.redirect_uri || '')}
              <input type="text" id="wCid" placeholder="Client ID" autocomplete="off" style="margin:8px 0;">
@@ -12194,7 +12196,13 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       gewichtCache = mapGewicht(await airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID));
       const t = todayStr();
       if(gewichtCache.some(x=>x.datum === t) && !xpHas('weight:' + t)) awardXP('weight:' + t, 'Gewicht (Withings)', WEIGHT_XP);
-    }catch(e){ /* still */ }
+      withingsStatus.lastError = null;
+      if(force) kgUndoToast('Withings abgeglichen ✓');
+    }catch(e){
+      // Fehler nicht mehr verschlucken: im Gewicht-Tab anzeigen
+      if(withingsStatus){ withingsStatus.lastError = e.message; withingsStatus.lastErrorTs = Math.floor(Date.now()/1000); }
+      if(force) kgUndoToast(e.message, null, 7000);
+    }
     withingsSyncing = false;
     if(koerperView === 'gewicht') renderGewichtView();
   }
@@ -13842,10 +13850,13 @@ Makros pro Portion, realistisch geschätzt.${pasted ? '\n\nRezept:\n' + pasted.s
       <div class="w-sync">${withingsStatus && withingsStatus.connected
           ? `<span>⚖️ Withings verbunden${withingsSyncing ? ' · gleiche ab …' : withingsStatus.lastSync ? ' · zuletzt ' + new Date(withingsStatus.lastSync * 1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : ''}</span><button type="button" class="aufg-link" id="wSyncBtn" ${withingsSyncing ? 'disabled' : ''}>Jetzt abgleichen</button>`
           : `<span>⚖️ Withings-Waage nicht verbunden</span><button type="button" class="aufg-link" id="wConnBtn">Verbinden</button>`}</div>
+      ${withingsStatus && withingsStatus.connected && withingsStatus.lastError && !withingsSyncing ? `<div class="w-err">⚠️ ${escapeHtml(withingsStatus.lastError)}<div><button type="button" class="aufg-link" id="wRetryBtn">Erneut versuchen</button><button type="button" class="aufg-link" id="wReconnBtn">Neu verbinden</button></div></div>` : ''}
       <div class="step-label" style="margin-top:18px;">Einträge</div>
       ${gewichtCache.length ? `<div class="card">${[...gewichtCache].reverse().slice(0,20).map(x=>`<div class="xp-hist-row"><span>${new Date(x.datum + 'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'2-digit'})}${x.quelle === 'Withings' ? ' <small style="color:var(--ink-soft);">· Withings</small>' : ''}</span><b>${fmtNum(x.kg)} kg</b></div>`).join('')}</div>` : '<div class="card"><div class="empty">Noch kein Gewicht eingetragen.</div></div>'}`;
     const wsb = body.querySelector('#wSyncBtn'); if(wsb) wsb.onclick = ()=>withingsSync(true);
     const wcb = body.querySelector('#wConnBtn'); if(wcb) wcb.onclick = ()=>openConnections();
+    const wrb = body.querySelector('#wRetryBtn'); if(wrb) wrb.onclick = ()=>withingsSync(true);
+    const wnb = body.querySelector('#wReconnBtn'); if(wnb) wnb.onclick = async ()=>{ wnb.disabled = true; try{ const j = await kgApi('withings.php?action=connect', {}); location.href = j.url; }catch(e){ wnb.disabled = false; kgUndoToast(e.message); } };
     const sb = body.querySelector('#wSave');
     sb.onclick = async ()=>{
       if(sb.disabled) return;
