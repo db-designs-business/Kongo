@@ -1595,6 +1595,9 @@
   .crm-next button.won{ background:rgba(34,227,211,.2); border-color:var(--forest); } .crm-next button.out{ background:none; border-color:var(--line-soft); color:var(--ink-soft); }
   #crmCall, #crmFu{ font:inherit; font-size:15px; min-height:48px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid var(--line-soft); color:var(--ink); -webkit-appearance:none; appearance:none; color-scheme:dark; }
   .crm-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; } .crm-2 > div{ min-width:0; } .crm-2 input, .crm-2 select{ width:100%; min-width:0; }
+  .crm-evs{ margin-top:8px; border-radius:12px; border:1px solid var(--line-soft); overflow:hidden; }
+  .crm-evs button{ display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; padding:10px 12px; background:rgba(255,255,255,.03); border:none; border-bottom:1px solid var(--line-soft); color:var(--ink); }
+  .crm-evs button:last-child{ border-bottom:none; } .crm-evs b{ font-size:14px; font-weight:600; } .crm-evs small{ font-size:12px; color:var(--ink-soft); }
   .crm-log{ margin-top:16px; } .crm-log > div:not(.turn-title){ display:flex; gap:12px; padding:6px 0; font-size:13.5px; border-bottom:1px solid var(--line-soft); } .crm-log span{ color:#7E8A8D; min-width:64px; }
   /* =========================================================
      APPLE-PRINZIPIEN · Runde 2: Klarheit, Trefferflächen, Konsistenz
@@ -11657,17 +11660,12 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       renderAufgaben(); renderHomeAufgaben();
     }catch(e){ kgUndoToast('Follow-up-Aufgabe konnte nicht gespeichert werden.'); }
   }
-  async function crmSyncCall(d, prevCall){
-    if(!d.call || d.call === prevCall) return;
-    const loc = dt=>{ const p = n=>String(n).padStart(2, '0'); return dt.getFullYear() + '-' + p(dt.getMonth() + 1) + '-' + p(dt.getDate()) + 'T' + p(dt.getHours()) + ':' + p(dt.getMinutes()) + ':00'; };
-    const s = new Date(d.call), e = new Date(s.getTime() + 30 * 60000);
-    try{
-      const ev = await kgApi('google.php?action=event_save', { id:d.callEvent || '', calendarId:'primary', title:'Sales Call: ' + d.name + (d.firma ? ' (' + d.firma + ')' : ''), allDay:false, start:loc(s), end:loc(e), description:(d.link ? d.link + '\n' : '') + (d.notiz || ''), location:'', reminder:15 });
-      if(ev && ev.id) d.callEvent = ev.id;
-      kgUndoToast('📅 Sales Call im Kalender eingetragen');
-    }catch(e){ kgUndoToast('Termin nicht im Kalender (Google verbunden?): ' + e.message, null, 6000); }
+  // Sales Calls trägt das Buchungstool selbst in den Kalender ein: hier nur den gebuchten Termin verknüpfen
+  async function crmCalendarEvents(){
+    const from = new Date(); from.setHours(0, 0, 0, 0); const to = new Date(from.getTime() + 21 * 86400000);
+    const j = await kgApi('google.php?action=events&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()));
+    return (j.events || []).filter(e=>!e.allDay && new Date(e.start) >= new Date(Date.now() - 3600000));
   }
-
   async function crmMove(d, to){
     const from = d.status; if(from === to) return;
     const prev = { status:d.status, fu:d.fu, log:d.log.slice() };
@@ -11748,7 +11746,9 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
         <div><div class="turn-title">Sales Call</div><input type="datetime-local" id="crmCall" value="${escapeHtml(callVal)}"></div>
         <div><div class="turn-title">Follow-up am</div><input type="date" id="crmFu" value="${escapeHtml(d.fu)}"></div>
       </div>
-      <div class="hint" style="margin:4px 0 0;">Sales Call → Google-Kalender · Follow-up → Aufgabe am Tag</div>
+      <button type="button" class="aufg-link" id="crmPickCall" style="margin-top:6px;">📅 Gebuchten Termin aus dem Kalender wählen</button>
+      <div id="crmEvList"></div>
+      <div class="hint" style="margin:4px 0 0;">Follow-up → Aufgabe am Tag</div>
       <div class="crm-2">
         <div><div class="turn-title">Quelle</div><select id="crmQuelle">${CRM_SRC.map(q=>`<option ${q === (d.quelle || 'Sonstiges') ? 'selected' : ''}>${q}</option>`).join('')}</select></div>
         <div><div class="turn-title">Link</div><input type="url" id="crmLink" value="${escapeHtml(d.link)}" placeholder="Upwork-Chat, Website …"></div>
@@ -11760,21 +11760,30 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       ${d0 ? '<button type="button" class="aufg-link" id="crmDel" style="display:block;margin:16px auto 0;color:#E88;">Karte löschen</button>' : ''}
       <div class="save-status" id="crmSt"></div>`);
     const c = ernModalCard(), q = x=>c.querySelector(x);
-    if(focus === 'call'){ setTimeout(()=>{ q('#crmCall').scrollIntoView({ block:'center' }); q('#crmCall').focus(); }, 250); q('#crmSt').textContent = 'Trag den Termin für den Sales Call ein.'; }
+    const pick = async ()=>{
+      const box = q('#crmEvList'); box.innerHTML = '<div class="hint" style="margin:6px 0 0;">Lade Termine …</div>';
+      let evs; try{ evs = await crmCalendarEvents(); }catch(e){ box.innerHTML = '<div class="hint" style="margin:6px 0 0;">Kalender nicht erreichbar: ' + escapeHtml(e.message) + '</div>'; return; }
+      const nm = (q('#crmName').value || '').toLowerCase().split(/\s+/).filter(w=>w.length > 2);
+      evs.sort((a, b)=>(nm.some(w=>b.title.toLowerCase().includes(w)) - nm.some(w=>a.title.toLowerCase().includes(w))) || a.start.localeCompare(b.start));
+      box.innerHTML = evs.length ? `<div class="crm-evs">${evs.slice(0, 12).map((e, i)=>`<button type="button" data-ev="${i}"><b>${escapeHtml(e.title)}</b><small>${escapeHtml(crmFmtCall(e.start))}</small></button>`).join('')}</div>` : '<div class="hint" style="margin:6px 0 0;">Keine Termine in den nächsten 3 Wochen.</div>';
+      box.querySelectorAll('[data-ev]').forEach(b=>b.onclick = ()=>{ const e = evs[+b.dataset.ev]; const dt = new Date(e.start); const p2 = n=>String(n).padStart(2, '0');
+        q('#crmCall').value = dt.getFullYear() + '-' + p2(dt.getMonth() + 1) + '-' + p2(dt.getDate()) + 'T' + p2(dt.getHours()) + ':' + p2(dt.getMinutes()); d.callEvent = e.id || ''; box.innerHTML = ''; });
+    };
+    q('#crmPickCall').onclick = pick;
+    if(focus === 'call'){ q('#crmSt').textContent = 'Wähl den gebuchten Termin aus deinem Kalender.'; setTimeout(()=>{ q('#crmPickCall').scrollIntoView({ block:'center' }); pick(); }, 250); }
     else if(!d0) setTimeout(()=>q('#crmName').focus(), 200);
     q('#crmCancel').onclick = closeErnModal;
     const collect = ()=>({ name:q('#crmName').value.trim(), firma:q('#crmFirma').value.trim(), wert:crmNum(q('#crmWert').value), call:q('#crmCall').value, fu:q('#crmFu').value, quelle:q('#crmQuelle').value, link:q('#crmLink').value.trim(), notiz:q('#crmNotiz').value.trim() });
     const save = async (moveTo)=>{
       const v = collect(); if(!v.name){ q('#crmName').focus(); q('#crmSt').textContent = 'Bitte einen Namen eintragen.'; return false; }
-      const prevCall = d.call, prevFu = d.fu, prevFuTask = d.fuTask;
+      const prevFu = d.fu, prevFuTask = d.fuTask;
       Object.assign(d, v);
       if(!d0){ d.log = [{ d:new Date().toISOString(), s:'lead' }]; }
       q('#crmSave').disabled = true; q('#crmSt').textContent = 'Speichere …';
       try{
         await crmSave(d);
         if(d.fu !== prevFu || (d.fu && !d.fuTask)) await crmSyncTask(d);
-        await crmSyncCall(d, prevCall);
-        if(d.fuTask !== prevFuTask || d.callEvent) await crmSave(d);
+        if(d.fuTask !== prevFuTask) await crmSave(d);
         closeErnModal(); crmRender();
         if(moveTo) await crmMove(d, moveTo); else if(!d0) kgUndoToast('Lead angelegt ✓');
         return true;
