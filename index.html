@@ -11620,7 +11620,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   try{ crm.phase = localStorage.getItem('kongrow_crm_phase') || 'leads'; }catch(e){}
   function crmMap(r){
     const f = r.fields || {}; let log = []; try{ log = JSON.parse(f['Verlauf'] || '[]') || []; }catch(e){}
-    return { id:r.id, name:f['Name'] || '', firma:f['Firma'] || '', status:f['Status'] || 'lead', wert:+f['Wert'] || 0, quelle:f['Quelle'] || '', link:f['Link'] || '', jobKey:f['JobKey'] || '',
+    return { id:r.id, name:f['Name'] || '', firma:f['Firma'] || '', status:f['Status'] || 'lead', wert:+f['Wert'] || 0, quelle:f['Quelle'] || '', link:f['Link'] || '', jobKey:f['JobKey'] || '', roomId:f['RoomId'] || '',
       call:f['Call'] || '', callEvent:f['CallEventId'] || '', fu:f['FollowUp'] || '', fuTask:f['FollowUpTaskId'] || '', notiz:f['Notiz'] || '', log, created:f['Erstellt am'] || r.createdTime || '', changed:f['Geaendert'] || '' };
   }
   async function crmLoad(force){
@@ -11631,7 +11631,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     if(typeof renderUpJobs === 'function' && curTab === 'upwork') renderUpJobs();
   }
   const crmByJob = j=>{ const k = j && (j.job_key || ((String(j.url || '').match(/~0[0-9a-z]+/i) || [])[0] || '')); return k ? crm.list.find(d=>d.jobKey && d.jobKey.toLowerCase() === String(k).toLowerCase()) : null; };
-  const crmFields = d=>({ 'Name':d.name, 'Firma':d.firma, 'Status':d.status, 'Wert':d.wert || '', 'Quelle':d.quelle, 'Link':d.link, 'JobKey':d.jobKey, 'Call':d.call, 'CallEventId':d.callEvent,
+  const crmFields = d=>({ 'Name':d.name, 'Firma':d.firma, 'Status':d.status, 'Wert':d.wert || '', 'Quelle':d.quelle, 'Link':d.link, 'JobKey':d.jobKey, 'RoomId':d.roomId || '', 'Call':d.call, 'CallEventId':d.callEvent,
     'FollowUp':d.fu, 'FollowUpTaskId':d.fuTask, 'Notiz':d.notiz, 'Verlauf':JSON.stringify(d.log.slice(-60)), 'Erstellt am':d.created, 'Geaendert':new Date().toISOString() });
   async function crmSave(d){
     if(d.id) await airtableFetch(TABLE_CRM + '/' + d.id, { method:'PATCH', body: JSON.stringify({ fields: crmFields(d) }) }, ROUTINEN_BASE_ID);
@@ -11755,8 +11755,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       </div>
       <div class="turn-title" style="margin-top:12px;">Notizen</div><textarea id="crmNotiz" rows="4" placeholder="Was will der Kunde? Budget, Zeitrahmen, Einwände …">${escapeHtml(d.notiz)}</textarea>
       <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="crmCancel">Abbrechen</button><button type="button" class="primary" id="crmSave">${d0 ? 'Speichern' : 'Lead anlegen'}</button></div>
-      ${d0 && d.link ? `<a class="aufg-link" href="${escapeHtml(d.link)}" target="_blank" rel="noopener" style="display:block;margin-top:12px;">Link öffnen ↗</a>` : ''}
-      ${d0 && d.log.length ? `<div class="crm-log"><div class="turn-title">Verlauf</div>${[...d.log].reverse().map(x=>`<div><span>${new Date(x.d).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit' })}</span>${escapeHtml(crmCol(x.s).n)}</div>`).join('')}</div>` : ''}
+      ${d0 && d.link ? `<a class="aufg-link" href="${escapeHtml(d.link)}" target="_blank" rel="noopener" style="display:block;margin-top:12px;">${d.roomId || /\/messages\//.test(d.link) ? 'Upwork-Chat öffnen ↗' : 'Link öffnen ↗'}</a>` : ''}
+      ${d0 && d.log.length ? `<div class="crm-log"><div class="turn-title">Verlauf</div>${[...d.log].reverse().map(x=>`<div><span>${new Date(x.d).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit' })}</span>${escapeHtml(crmCol(x.s).n)}${x.auto ? ' <small style="color:#7E8A8D;">· automatisch aus Upwork</small>' : ''}</div>`).join('')}</div>` : ''}
       ${d0 ? '<button type="button" class="aufg-link" id="crmDel" style="display:block;margin:16px auto 0;color:#E88;">Karte löschen</button>' : ''}
       <div class="save-status" id="crmSt"></div>`);
     const c = ernModalCard(), q = x=>c.querySelector(x);
@@ -12366,6 +12366,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
+      else if(open === 'crm'){ authReady.then(()=>{ const id = params.get('deal'); switchTab('crm'); crmLoad(true).then(()=>{ if(id) crmOpenCard(id); }); }); }
       else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null, params.get('draft') === '1'); if(params.get('check') === '1') try{ localStorage.removeItem('kongrow_uj_check_hide'); }catch(e){} }
       else if(open === 'nachrichten' || open === 'slack' || open === 'mail'){
         switchTab('nachrichten');

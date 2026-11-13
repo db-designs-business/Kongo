@@ -46,6 +46,24 @@ const MCP_TOOLS = [
     ]],
   ],
   [
+    'name' => 'crm_upwork_leads',
+    'description' => 'Liest, welche Upwork-Gespräche (room_id) schon als Lead in Dominics Kongrow-CRM stehen. Vor crm_add_upwork_lead aufrufen, um Doppelte zu vermeiden.',
+    'inputSchema' => ['type' => 'object'],
+  ],
+  [
+    'name' => 'crm_add_upwork_lead',
+    'description' => 'Legt in Dominics Kongrow-CRM einen neuen Lead an, wenn ein Kunde auf Upwork auf eine Bewerbung geantwortet hat (Spalte „Leads“, Follow-up-Aufgabe für heute, Push an Dominic). Doppelte Aufrufe für dieselbe room_id werden ignoriert. Schreibt nichts bei Upwork.',
+    'inputSchema' => ['type' => 'object', 'properties' => [
+      'room_id' => ['type' => 'string', 'description' => 'Die Upwork-Room-ID (room_…)'],
+      'client_name' => ['type' => 'string', 'description' => 'Name des Kunden, wie er im Chat heißt'],
+      'job_title' => ['type' => 'string', 'description' => 'Titel des Jobs/Projekts, falls bekannt'],
+      'job_url' => ['type' => 'string', 'description' => 'Optional: Link zum Upwork-Job (mit ~0…)'],
+      'summary' => ['type' => 'string', 'description' => 'Ein bis zwei Sätze auf Deutsch: was der Kunde geschrieben hat bzw. will'],
+      'value_usd' => ['type' => 'number', 'description' => 'Optional: Budget in USD, falls genannt'],
+      'last_message_at' => ['type' => 'string', 'description' => 'Optional: Zeitpunkt der letzten Kundennachricht (ISO)'],
+    ], 'required' => ['room_id', 'client_name']],
+  ],
+  [
     'name' => 'get_proposal_draft',
     'description' => 'Liest den aktuellen (ggf. von Dominic bearbeiteten) Proposal-Entwurf zu einem Upwork-Job aus Kongrow.',
     'inputSchema' => ['type' => 'object', 'properties' => [
@@ -56,8 +74,55 @@ const MCP_TOOLS = [
 
 function mcp_text(string $t, bool $err = false): array { return ['content' => [['type' => 'text', 'text' => $t]], 'isError' => $err]; }
 
+// CRM-Karten liegen in derselben Tabelle wie in der App (records, Airtable-artige IDs)
+const CRM_BASE = 'appFqTB9ogHBBIFU9'; const CRM_TBL = 'tblKgCrmDeals0001'; const TASK_TBL = 'tblibWJMIvlTBELVO';
+function crm_rows(int $uid): array {
+  $st = kg_db()->prepare('SELECT id, fields FROM records WHERE user_id=? AND base=? AND tbl=?'); $st->execute([$uid, CRM_BASE, CRM_TBL]);
+  return array_map(fn($r) => ['id' => $r['id'], 'f' => json_decode($r['fields'], true) ?: []], $st->fetchAll(PDO::FETCH_ASSOC));
+}
+function crm_new_id(): string { $a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; $s = 'rec'; for ($i = 0; $i < 14; $i++) $s .= $a[random_int(0, 61)]; return $s; }
+function crm_insert(int $uid, string $tbl, array $f): string {
+  $f = array_filter($f, fn($v) => !($v === null || $v === '' || $v === false || $v === []));
+  $id = crm_new_id();
+  kg_db()->prepare('INSERT INTO records(id,user_id,base,tbl,fields,created) VALUES(?,?,?,?,?,?)')->execute([$id, $uid, CRM_BASE, $tbl, json_encode($f, JSON_UNESCAPED_UNICODE), gmdate('Y-m-d\TH:i:s.000\Z')]);
+  return $id;
+}
+
 function mcp_call(int $uid, string $name, array $a): array {
   $db = uw_db();
+  if ($name === 'crm_upwork_leads') {
+    $out = [];
+    foreach (crm_rows($uid) as $r) if (!empty($r['f']['RoomId']) || ($r['f']['Quelle'] ?? '') === 'Upwork') $out[] = ['room_id' => $r['f']['RoomId'] ?? null, 'name' => $r['f']['Name'] ?? '', 'status' => $r['f']['Status'] ?? '', 'job_key' => $r['f']['JobKey'] ?? null];
+    return mcp_text(json_encode(['leads' => $out], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+  }
+  if ($name === 'crm_add_upwork_lead') {
+    $room = trim((string)($a['room_id'] ?? '')); $client = trim((string)($a['client_name'] ?? ''));
+    if (!preg_match('/^room_[A-Za-z0-9]+$/', $room) || $client === '') return mcp_text('room_id (room_…) und client_name sind nötig.', true);
+    $jobUrl = (string)($a['job_url'] ?? ''); $jk = preg_match('/(~0[0-9a-z]{10,})/i', $jobUrl, $m) ? $m[1] : '';
+    foreach (crm_rows($uid) as $r) {
+      if (($r['f']['RoomId'] ?? '') === $room) return mcp_text("Schon im CRM: {$client} (Status " . ($r['f']['Status'] ?? '?') . '). Nichts geändert.');
+      if ($jk && strcasecmp((string)($r['f']['JobKey'] ?? ''), $jk) === 0) {   // per Hand angelegter Lead zum selben Job: nur verknüpfen
+        $f = $r['f']; $f['RoomId'] = $room; if (empty($f['Link']) || !str_contains($f['Link'], '/messages/')) $f['Link'] = 'https://www.upwork.com/ab/messages/rooms/' . $room;
+        kg_db()->prepare('UPDATE records SET fields=? WHERE id=?')->execute([json_encode($f, JSON_UNESCAPED_UNICODE), $r['id']]);
+        return mcp_text("Lead zum Job gab es schon ({$f['Name']}), jetzt mit dem Upwork-Chat verknüpft.");
+      }
+    }
+    $now = gmdate('c'); $today = (new DateTime('now', new DateTimeZone('Europe/Berlin')))->format('Y-m-d');
+    $title = mb_substr(trim((string)($a['job_title'] ?? '')), 0, 120); $sum = mb_substr(trim((string)($a['summary'] ?? '')), 0, 1000);
+    $link = 'https://www.upwork.com/ab/messages/rooms/' . $room;
+    $dealId = crm_insert($uid, CRM_TBL, ['Name' => mb_substr($client, 0, 80), 'Firma' => $title, 'Status' => 'lead', 'Wert' => (float)($a['value_usd'] ?? 0) ?: '', 'Quelle' => 'Upwork', 'Link' => $link, 'JobKey' => $jk, 'RoomId' => $room,
+      'FollowUp' => $today, 'Notiz' => trim($sum . ($jobUrl ? "\nJob: " . $jobUrl : '')), 'Verlauf' => json_encode([['d' => $now, 's' => 'lead', 'auto' => 1]]), 'Erstellt am' => $now, 'Geaendert' => $now]);
+    $taskId = crm_insert($uid, TASK_TBL, ['Titel' => 'Follow-up: ' . $client . ($title ? ' (' . mb_substr($title, 0, 50) . ')' : ''), 'Faellig' => $today, 'Prio' => 'A', 'Bereich' => 'Business',
+      'Quelle' => json_encode(['src' => 'crm', 'id' => $dealId, 'label' => $client], JSON_UNESCAPED_UNICODE), 'Notiz' => 'Neuer Lead aus Upwork' . ($sum ? "\n" . $sum : ''), 'Erstellt am' => $now]);
+    $st = kg_db()->prepare('SELECT fields FROM records WHERE id=?'); $st->execute([$dealId]); $f = json_decode((string)$st->fetchColumn(), true) ?: []; $f['FollowUpTaskId'] = $taskId;
+    kg_db()->prepare('UPDATE records SET fields=? WHERE id=?')->execute([json_encode($f, JSON_UNESCAPED_UNICODE), $dealId]);
+    uw_log($uid, 'CRM-Lead aus Upwork: ' . mb_substr($client, 0, 40));
+    try {
+      require_once __DIR__ . '/../push/lib.php';
+      ob_start(); kg_push_all([['title' => '🤝 Neuer Lead: ' . mb_substr($client, 0, 40), 'body' => $sum !== '' ? mb_substr($sum, 0, 120) : ($title ?: 'Hat dir auf Upwork geschrieben'), 'url' => './?open=crm&deal=' . $dealId, 'tag' => 'crm-' . $dealId]]); ob_end_clean();
+    } catch (Throwable $e) { if (ob_get_level()) ob_end_clean(); }
+    return mcp_text("Lead „{$client}“ im CRM angelegt (Spalte Leads, Follow-up heute). Dominic hat eine Push-Nachricht bekommen.");
+  }
   // Fehlersuche auch über das bestehende Werkzeug erreichbar (falls die Werkzeugliste im Client zwischengespeichert ist)
   if ($name === 'get_proposal_draft' && str_starts_with((string)($a['job_url'] ?? ''), 'debug:alerts')) { $name = 'upwork_alert_debug'; $q = substr((string)$a['job_url'], 12); $a = ['title_contains' => trim($q, ' :'), 'max_mails' => 3]; }
   if ($name === 'upwork_alert_debug') {
