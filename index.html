@@ -10825,7 +10825,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     if(q('[data-s-conn]')) q('[data-s-conn]').onclick = async ()=>{ try{ const j = await kgApi('slack.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
     if(q('[data-w-save]')) q('[data-w-save]').onclick = async ()=>{ try{ await kgApi('withings.php?action=config', { client_id:q('#wCid').value, client_secret:q('#wSec').value }); renderConnections(); }catch(e){ st(e.message); } };
     if(q('[data-w-conn]')) q('[data-w-conn]').onclick = async ()=>{ try{ const j = await kgApi('withings.php?action=connect', {}); location.href = j.url; }catch(e){ st(e.message); } };
-    if(q('[data-w-sync]')) q('[data-w-sync]').onclick = async ()=>{ const b = q('[data-w-sync]'); b.disabled = true; b.textContent = 'Gleiche ab ...'; try{ const j = await kgApi('withings.php?action=sync&full=1', {}); b.textContent = j.days + ' Tage übernommen ✓'; withingsStatus = null; gewichtCache = mapGewicht((cacheDrop(TABLE_GEWICHT, ROUTINEN_BASE_ID), await airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID))); }catch(e){ st(e.message); b.disabled = false; b.textContent = 'Jetzt abgleichen'; } };
+    if(q('[data-w-sync]')) q('[data-w-sync]').onclick = async ()=>{ const b = q('[data-w-sync]'); b.disabled = true; b.textContent = 'Gleiche ab ...'; try{ const j = await kgApi('withings.php?action=sync&full=1', {}); b.textContent = j.days ? j.days + ' Tage übernommen ✓' : (j.latest ? 'Nichts Neues · letzte Messung ' + new Date(j.latest.ts * 1000).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' }) : 'Keine Messungen bei Withings gefunden'); withingsStatus = null; gewichtCache = mapGewicht((cacheDrop(TABLE_GEWICHT, ROUTINEN_BASE_ID), await airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID))); }catch(e){ st(e.message); b.disabled = false; b.textContent = 'Jetzt abgleichen'; } };
     if(q('[data-w-disc]')) q('[data-w-disc]').onclick = async ()=>{ const b = q('[data-w-disc]'); if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich trennen?'; return; } await kgApi('withings.php?action=disconnect', {}).catch(()=>{}); withingsStatus = null; renderConnections(); };
     body.querySelectorAll('[data-s-del]').forEach(b=>b.onclick = async ()=>{ if(!b.dataset.armed){ b.dataset.armed = '1'; b.textContent = 'Wirklich?'; return; } await kgApi('slack.php?action=disconnect', { team_id:b.dataset.sDel }).catch(()=>{}); msg.loadedAt = 0; renderConnections(); });
   }
@@ -12190,14 +12190,19 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       if(!withingsStatus.connected) return;
       if(!force && withingsStatus.lastSync && Date.now()/1000 - withingsStatus.lastSync < 1800) return;
       withingsSyncing = true; if(koerperView === 'gewicht') renderGewichtView();
-      await kgApi('withings.php?action=sync', {});
+      const res = await kgApi('withings.php?action=sync', {});
       withingsStatus.lastSync = Math.floor(Date.now()/1000);
       cacheDrop(TABLE_GEWICHT, ROUTINEN_BASE_ID);
       gewichtCache = mapGewicht(await airtableList(TABLE_GEWICHT, ROUTINEN_BASE_ID));
       const t = todayStr();
       if(gewichtCache.some(x=>x.datum === t) && !xpHas('weight:' + t)) awardXP('weight:' + t, 'Gewicht (Withings)', WEIGHT_XP);
       withingsStatus.lastError = null;
-      if(force) kgUndoToast('Withings abgeglichen ✓');
+      if(force){
+        const fd = ts=>new Date(ts * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        if(res.days) kgUndoToast('Withings: ' + res.days + (res.days === 1 ? ' Tag' : ' Tage') + ' übernommen ✓ (' + res.dates.slice(-3).map(d=>new Date(d + 'T12:00').toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' })).join(', ') + ')', null, 6000);
+        else if(res.latest) kgUndoToast('Keine neue Messung bei Withings. Die letzte dort ist vom ' + fd(res.latest.ts) + ' (' + fmtNum(res.latest.kg) + ' kg)' + (res.latest.attrib === 1 || res.latest.attrib === 4 ? '. Sie ist in der Withings-App noch keiner Person zugeordnet, bitte dort bestätigen.' : '. Hat die Waage schon synchronisiert? Öffne kurz die Withings-App.'), null, 9000);
+        else kgUndoToast('Withings hat in den letzten 90 Tagen keine Messung für dein Konto. Prüfe in der Withings-App, ob die Wiegungen dir zugeordnet sind.', null, 9000);
+      }
     }catch(e){
       // Fehler nicht mehr verschlucken: im Gewicht-Tab anzeigen
       if(withingsStatus){ withingsStatus.lastError = e.message; withingsStatus.lastErrorTs = Math.floor(Date.now()/1000); }

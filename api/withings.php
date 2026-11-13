@@ -95,7 +95,8 @@ switch ($action) {
     $tok = kg_get($uid, 'withings_tok');
     $since = !empty($tok['lastSync']) && empty($_GET['full']) ? (int)$tok['lastSync'] - 86400 : time() - 365 * 86400;
     // 1 Gewicht, 6 Fettanteil %, 76 Muskelmasse, 77 Wasser, 88 Knochenmasse
-    $params = ['action' => 'getmeas', 'meastypes' => '1', 'category' => 1, 'startdate' => $since, 'enddate' => time()];
+    // lastupdate statt Messdatum: so kommen auch Messungen an, die die Waage erst später hochgeladen hat
+    $params = ['action' => 'getmeas', 'meastype' => 1, 'category' => 1, 'lastupdate' => $since];
     $r = kg_http('POST', 'https://wbsapi.withings.net/measure', ['Authorization: Bearer ' . $access], $params);
     $j = $r['json'] ?? [];
     // Token von Withings vorzeitig ungültig gemacht: einmal erneuern und nochmal versuchen
@@ -106,6 +107,13 @@ switch ($action) {
     }
     if (!$r['code'] || $r['error']) w_fail($uid, 'Withings nicht erreichbar (' . ($r['error'] ?: 'keine Antwort') . ')');
     if (($j['status'] ?? -1) !== 0) w_fail($uid, 'Withings: ' . w_status_text($j['status'] ?? $r['code']) . (!empty($j['error']) ? ' · ' . mb_substr((string)$j['error'], 0, 80) : ''));
+    // Weitere Seiten holen, falls Withings nicht alles auf einmal liefert
+    for ($pg = 0; $pg < 10 && !empty($j['body']['more']) && isset($j['body']['offset']); $pg++) {
+      $r3 = kg_http('POST', 'https://wbsapi.withings.net/measure', ['Authorization: Bearer ' . $access], $params + ['offset' => $j['body']['offset']]);
+      if (($r3['json']['status'] ?? -1) !== 0) break;
+      $j['body']['measuregrps'] = array_merge($j['body']['measuregrps'] ?? [], $r3['json']['body']['measuregrps'] ?? []);
+      $j['body']['more'] = $r3['json']['body']['more'] ?? 0; $j['body']['offset'] = $r3['json']['body']['offset'] ?? null;
+    }
     $tok = kg_get($uid, 'withings_tok');   // nach evtl. Erneuern neu lesen, sonst überschreibt lastSync das neue Token
     // Pro Tag die neueste Messung
     $days = [];
@@ -131,7 +139,16 @@ switch ($action) {
       }
       $n++;
     }
+    // Zur Kontrolle: jüngste Messung, die Withings überhaupt hat (letzte 90 Tage)
+    $latest = null;
+    if (!$days) {
+      $r2 = kg_http('POST', 'https://wbsapi.withings.net/measure', ['Authorization: Bearer ' . $access], ['action' => 'getmeas', 'meastype' => 1, 'category' => 1, 'startdate' => time() - 90 * 86400, 'enddate' => time()]);
+      foreach ($r2['json']['body']['measuregrps'] ?? [] as $g) if (!$latest || $g['date'] > $latest['ts']) {
+        $v = null; foreach ($g['measures'] ?? [] as $m) if ((int)$m['type'] === 1) $v = $m['value'] * pow(10, (int)$m['unit']);
+        if ($v !== null) $latest = ['ts' => (int)$g['date'], 'kg' => round($v, 2), 'attrib' => (int)($g['attrib'] ?? 0)];
+      }
+    }
     $tok['lastSync'] = time(); unset($tok['lastError'], $tok['lastErrorTs']); kg_set($uid, 'withings_tok', $tok);
-    kg_json(['ok' => true, 'days' => $n, 'dates' => array_keys($days)]);
+    kg_json(['ok' => true, 'days' => $n, 'dates' => array_keys($days), 'groups' => count($j['body']['measuregrps'] ?? []), 'latest' => $latest]);
 }
 kg_json(['error' => ['message' => 'Unbekannte Aktion']], 400);
