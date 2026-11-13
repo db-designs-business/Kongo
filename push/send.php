@@ -53,6 +53,15 @@ if ($type === 'slack' || $type === 'upwork') {
         if ($t['problems']) $upMsgs[] = ['title' => '⚠️ Kongrow-Check: ' . count($t['problems']) . ' Problem' . (count($t['problems']) > 1 ? 'e' : ''), 'body' => implode("\n", array_slice($t['problems'], 0, 4)), 'url' => './?open=upwork&check=1', 'tag' => 'upwork-selftest'];
       }
     } catch (Throwable $e) { echo 'Selbsttest-Fehler: ' . $e->getMessage() . "\n"; }
+    // CRM: gebuchte Sales Calls im Kalender den Leads zuordnen (höchstens alle 30 Min.)
+    try {
+      if (time() - (int)kg_get($u, 'crm_cal_check', 0) >= 1800) {
+        kg_set($u, 'crm_cal_check', time());
+        require_once __DIR__ . '/../api/crm_lib.php';
+        $cm = crm_calendar_check($u);
+        if ($cm) { echo date('c') . ' crm: ' . count($cm) . " Call(s) zugeordnet\n"; $upMsgs = array_merge($upMsgs, $cm); }
+      }
+    } catch (Throwable $e) { echo 'CRM-Kalender-Fehler: ' . $e->getMessage() . "\n"; }
   }
   if ($upMsgs) echo kg_push_all($upMsgs) . " Gerät(e) für Upwork benachrichtigt\n";
   if ($type === 'upwork') exit(0);
