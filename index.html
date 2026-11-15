@@ -958,6 +958,8 @@
 
   /* ---------- Rich-Text-Beschreibung (Aufgaben) ---------- */
   .aufg-has-note.done{ color:var(--forest); }
+  .lesen-answer-done{ opacity:.7; }
+  .lesen-own{ scroll-margin-top:96px; }
   .rt-wrap{ margin-top:6px; border:1px solid var(--line-soft); border-radius:12px; background:rgba(255,255,255,.03); overflow:hidden; }
   .rt-wrap:focus-within{ border-color:rgba(34,227,211,.5); }
   .rt-bar{ display:flex; gap:4px; padding:6px; border-bottom:1px solid var(--line-soft); background:rgba(255,255,255,.02); }
@@ -7754,15 +7756,40 @@
             bodyEl.querySelector('#lesenFeedback').innerHTML = `<div class="card" style="margin-top:14px;">${renderSimpleMarkdown(fb)}</div>`;
             evalBtn.style.display = 'none';
             lesenMainEl.querySelector('#lesenSkipRecall').style.display = 'none';
-            const go = document.createElement('button');
-            go.className = 'primary'; go.textContent = 'Weiterlesen'; go.style.marginTop = '12px';
-            go.onclick = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
-            bodyEl.appendChild(go);
+            bodyEl.querySelectorAll('.lesen-answer').forEach(t=>{ t.readOnly = true; t.classList.add('lesen-answer-done'); });
             // Abfrage speichern (nur Dokumentation, kein Blocker bei Fehler)
-            airtableCreate(TABLE_LESEN_EINTRAEGE, {
+            const baseText = qa + '\n\nFeedback:\n' + fb;
+            const recP = airtableCreate(TABLE_LESEN_EINTRAEGE, {
               'Titel': 'Abfrage', 'BuchId': lesenBookId, 'Typ': 'Abfrage',
-              'Text': qa + '\n\nFeedback:\n' + fb, 'Erstellt am': new Date().toISOString()
-            }, LESEN_BASE_ID).catch(()=>{});
+              'Text': baseText, 'Erstellt am': new Date().toISOString()
+            }, LESEN_BASE_ID).catch(()=>null);
+            // Danach: alles nochmal in eigenen Worten wiedergeben (festigt das Gelernte)
+            const own = document.createElement('div');
+            own.className = 'lesen-own';
+            own.innerHTML = `<div class="step-label" style="margin-top:20px;">2 · In eigenen Worten</div>
+              <div class="hint" style="margin-top:4px;">Lies das Feedback und gib jetzt jede Antwort nochmal vollständig in deinen eigenen Worten wieder, ohne abzuschreiben.</div>
+              ${questions.map((q,i)=>`<div class="turn-title" style="margin-top:14px;">${i+1}. ${escapeHtml(q)}</div>
+              <textarea class="lesen-own-a" placeholder="In eigenen Worten ..." style="min-height:90px;"></textarea>`).join('')}
+              <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="lesenOwnSkip">Überspringen</button><button type="button" class="primary" id="lesenOwnSave">Speichern & weiterlesen</button></div>`;
+            bodyEl.appendChild(own);
+            setTimeout(()=>own.scrollIntoView({ behavior:'smooth', block:'start' }), 150);
+            const goOn = ()=>{ lesenPhase = 'notes'; renderLesenMain(); };
+            own.querySelector('#lesenOwnSkip').onclick = goOn;
+            const saveBtn = own.querySelector('#lesenOwnSave');
+            saveBtn.onclick = async ()=>{
+              const texts = [...own.querySelectorAll('.lesen-own-a')].map(t=>t.value.trim());
+              if(!texts.some(Boolean)){ own.querySelector('.lesen-own-a').focus(); statusEl.textContent = 'Schreib mindestens eine Antwort in eigenen Worten – oder tippe auf Überspringen.'; return; }
+              saveBtn.disabled = true; statusEl.textContent = 'Speichere ...';
+              const add = '\n\nIn eigenen Worten:\n' + questions.map((q,i)=>'Frage ' + (i+1) + ': ' + q + '\n' + (texts[i] || '(leer)')).join('\n\n');
+              try{
+                const id = await recP;
+                if(id) await airtableFetch(TABLE_LESEN_EINTRAEGE + '/' + id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Text': baseText + add } }) }, LESEN_BASE_ID);
+                else await airtableCreate(TABLE_LESEN_EINTRAEGE, { 'Titel':'Abfrage', 'BuchId':lesenBookId, 'Typ':'Abfrage', 'Text':baseText + add, 'Erstellt am':new Date().toISOString() }, LESEN_BASE_ID);
+                statusEl.textContent = '';
+                kgUndoToast('In eigenen Worten gespeichert ✓');
+                goOn();
+              }catch(e){ saveBtn.disabled = false; statusEl.textContent = 'Speichern fehlgeschlagen: ' + e.message; }
+            };
           }catch(e){
             statusEl.textContent = 'Auswertung fehlgeschlagen: ' + e.message;
             evalBtn.disabled = false;
