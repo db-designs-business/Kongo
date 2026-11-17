@@ -993,6 +993,8 @@
   .pomo-chip{ position:fixed; z-index:60; left:50%; transform:translateX(-50%); bottom:calc(var(--bb-h, 76px) + 16px + env(safe-area-inset-bottom)); padding:9px 16px; border-radius:999px; font-size:14.5px; font-weight:700; font-variant-numeric:tabular-nums;
     background:rgba(16,24,27,.88); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); border:1px solid rgba(34,227,211,.35); color:var(--ink); box-shadow:0 10px 30px rgba(0,0,0,.5); }
   .pomo-chip.paused{ color:var(--ink-soft); border-color:var(--line-soft); }
+  @media (min-width:1024px){ .pomo-chip{ left:16px; right:auto; bottom:22px; transform:none; width:calc(var(--side-w, 232px) - 32px); text-align:left; padding:12px 16px; border-radius:14px; z-index:61; } }
+  .pomo-chip.idle{ font-weight:600; font-size:13.5px; padding:8px 14px; color:var(--ink-soft); border-color:var(--line-soft); }
   @media (prefers-reduced-motion: reduce){ .pomo.run .pomo-dots i.cur{ animation:none; } }
   .rt-wrap{ margin-top:6px; border:1px solid var(--line-soft); border-radius:12px; background:rgba(255,255,255,.03); overflow:hidden; }
   .rt-wrap:focus-within{ border-color:rgba(34,227,211,.5); }
@@ -8662,6 +8664,9 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     async function wakeOn(){ try{ if(!wake && navigator.wakeLock && st.running && ov.style.display !== 'none') wake = await navigator.wakeLock.request('screen'); }catch(e){} }
     function wakeOff(){ try{ wake && wake.release(); }catch(e){} wake = null; }
     // Push zum Phasenende (falls die App im Hintergrund ist)
+    const pushTextFor = ph=>ph === 'work'
+      ? { title:'🍅 Pomodoro geschafft', body:'Zeit für die Pause. Starte sie in Kongrow.' }
+      : { title:'Pause vorbei', body:'Bereit für den nächsten Pomodoro? Starte ihn in Kongrow.' };
     const pushText = ()=>st.phase === 'work'
       ? { title:'🍅 Pomodoro geschafft', body: (st.done + 1 >= 4 ? 'Zeit für die lange Pause (' + st.longMin + ' Min).' : 'Zeit für 5 Min Pause.') + ' Starte sie in Kongrow.' }
       : { title:'Pause vorbei', body:'Bereit für den nächsten Pomodoro? Starte ihn in Kongrow.' };
@@ -8671,8 +8676,11 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     function start(){
       if(st.running) return;
       st.running = true; st.endAt = Date.now() + st.left; save();
-      armSound(); armPush(); wakeOn(); render();
+      armSound(); armPush(); wakeOn(); render(); setTimeout(()=>armEnd && armEnd(), 0);
+      // Dieses Gerät (z. B. PC) für die Benachrichtigung am Phasenende anmelden – fragt einmal nach Erlaubnis
+      if(window.kgPushEnsure) window.kgPushEnsure(true).then(r=>{ notifyState = r; render(); });
     }
+    let notifyState = '';
     function pause(){
       if(!st.running) return;
       st.left = left(); st.running = false; save();
@@ -8693,6 +8701,8 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       }
       if(!silent){
         try{ navigator.vibrate && navigator.vibrate([250, 120, 250]); }catch(e){}
+        // Tab im Hintergrund: Mitteilung direkt vom Gerät (gleicher Tag wie die Server-Push, erscheint also nur einmal)
+        if(document.hidden && window.kgLocalNotify){ const t = pushTextFor(was); window.kgLocalNotify(t.title, t.body, 'pomo'); }
         kgUndoToast(was === 'work' ? '🍅 Pomodoro geschafft · ' + (st.phase === 'long' ? 'lange Pause' : '5 Min Pause') + ' starten, wenn du so weit bist' : 'Pause vorbei · nächsten Pomodoro starten, wenn du so weit bist', null, 6000);
       }
       render();
@@ -8715,16 +8725,23 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
         $('pomoReset').disabled = fresh;
         $('pomoLong').innerHTML = st.phase === 'long' && fresh ? [15, 20, 25].map(n=>`<button type="button" data-lm="${n}" class="${st.longMin === n ? 'on' : ''}">${n} Min</button>`).join('') : '';
         $('pomoLong').querySelectorAll('[data-lm]').forEach(b=>b.onclick = ()=>{ st.longMin = +b.dataset.lm; st.left = dur('long'); save(); render(); });
-        $('pomoToday').textContent = st.today ? 'Heute ' + st.today + ' ' + (st.today === 1 ? 'Pomodoro' : 'Pomodoros') + ' 🍅' : '';
-        document.title = st.running ? fmt(ms) + ' · ' + LBL[st.phase] : 'Kongrow';
+        $('pomoToday').textContent = (st.today ? 'Heute ' + st.today + ' ' + (st.today === 1 ? 'Pomodoro' : 'Pomodoros') + ' 🍅' : '') + (notifyState === 'denied' ? (st.today ? ' · ' : '') + 'Mitteilungen sind in diesem Browser blockiert' : '');
       }
+      // Tab-Titel zählt live mit, solange eine Phase läuft
+      const t = st.running ? fmt(ms) + ' · ' + LBL[st.phase] : '';
+      if(t){ if(document.title !== t) document.title = t; } else if(/ · (Fokus|Pause|Lange Pause)$/.test(document.title)) document.title = 'Kongrow';
+      // Knopf unten bleibt immer da: läuft etwas, zeigt er die Zeit, sonst einfach „Pomodoro“
       const active = st.running || st.left !== dur(st.phase);
-      chip.style.display = !open && active ? '' : 'none';
-      if(!open && active){ chip.textContent = (st.phase === 'work' ? '🍅 ' : '☕ ') + fmt(ms) + (st.running ? '' : ' ⏸'); chip.classList.toggle('paused', !st.running); }
-      if(!st.running && !open) document.title = 'Kongrow';
+      chip.style.display = open ? 'none' : '';
+      chip.textContent = active ? (st.phase === 'work' ? '🍅 ' : '☕ ') + fmt(ms) + (st.running ? '' : ' ⏸') : '🍅 Pomodoro';
+      chip.classList.toggle('paused', active && !st.running); chip.classList.toggle('idle', !active);
     }
     function tick(){ if(st.running && left() <= 0) complete(false); else render(); }
     setInterval(tick, 500);
+    // Zusätzlich ein Zeitgeber genau aufs Phasenende (Hintergrund-Tabs drosseln Intervalle)
+    let endTimer = 0;
+    const armEnd = ()=>{ clearTimeout(endTimer); if(st.running) endTimer = setTimeout(tick, Math.max(0, st.endAt - Date.now()) + 50); };
+    setInterval(armEnd, 15000);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ tick(); if(st.running) wakeOn(); } });
 
     function openPomo(){ ov.style.display = 'flex'; ov.setAttribute('aria-hidden', 'false'); render(); wakeOn(); }
@@ -10201,6 +10218,27 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       if(r.ok) pushStatus.textContent = '';
     }catch(e){ console.warn('Push-Abgleich', e); }
   }
+  // Dieses Gerät für Push anmelden (z. B. aus dem Pomodoro heraus); fragt nur, wenn noch nicht entschieden
+  window.kgPushEnsure = async (ask)=>{
+    try{
+      if(!pushSupported) return 'unsupported';
+      if(Notification.permission === 'denied') return 'denied';
+      if(Notification.permission !== 'granted'){ if(!ask) return 'default'; if(await Notification.requestPermission() !== 'granted') return 'denied'; }
+      swReg = swReg || await navigator.serviceWorker.ready;
+      let sub = await swReg.pushManager.getSubscription();
+      if(!sub){
+        const res = await fetch('push/vapid.php', { cache:'no-store' }); if(!res.ok) return 'error';
+        const { publicKey } = await res.json();
+        sub = await swReg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8(publicKey) });
+        await fetch('push/subscribe.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'subscribe', subscription: sub.toJSON() }) });
+        pushRefreshUI();
+      }
+      return 'ok';
+    }catch(e){ return 'error'; }
+  };
+  window.kgLocalNotify = async (title, body, tag)=>{
+    try{ if(Notification.permission !== 'granted') return; const r = swReg || await navigator.serviceWorker.ready; await r.showNotification(title, { body, tag, renotify:true, icon:'app-icons/kg-192.png', data:{ url:'./?open=pomo' } }); }catch(e){}
+  };
   pushEnableBtn.onclick = async ()=>{
     if(pushEnableBtn.disabled) return;
     pushEnableBtn.disabled = true;
