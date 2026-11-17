@@ -966,6 +966,34 @@
   .aufg-has-note.done{ color:var(--forest); }
   .lesen-answer-done{ opacity:.7; }
   .lesen-own{ scroll-margin-top:96px; }
+
+  /* ---------- Pomodoro ---------- */
+  .pomo{ position:fixed; inset:0; z-index:95; background:#05090A; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom); }
+  .pomo.brk{ background:radial-gradient(120% 80% at 50% 45%, rgba(34,227,211,.10), rgba(34,227,211,0) 70%), #05090A; }
+  .pomo-x{ position:fixed; top:calc(14px + env(safe-area-inset-top)); left:16px; width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.06); border:1px solid var(--line-soft); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; }
+  .pomo-center{ display:flex; flex-direction:column; align-items:center; }
+  .pomo-label{ font-size:26px; font-weight:500; color:var(--ink); letter-spacing:-.01em; }
+  .pomo-time{ font-size:min(28vw, 132px); font-weight:300; line-height:1; letter-spacing:-.04em; font-variant-numeric:tabular-nums; color:#fff; margin:18px 0 26px; }
+  .pomo-dots{ display:flex; gap:12px; }
+  .pomo-dots i{ width:16px; height:16px; border-radius:50%; background:rgba(34,227,211,.16); transition:background .3s ease, transform .3s ease; }
+  .pomo-dots i.done{ background:var(--forest); }
+  .pomo-dots i.cur{ background:rgba(34,227,211,.45); transform:scale(1.1); }
+  .pomo.run .pomo-dots i.cur{ animation:pomoPulse 2s ease-in-out infinite; }
+  @keyframes pomoPulse{ 50%{ background:rgba(34,227,211,.8); } }
+  .pomo-long{ display:flex; gap:8px; margin-top:18px; min-height:0; }
+  .pomo-long button{ padding:7px 14px; border-radius:999px; font-size:14px; font-weight:600; background:rgba(255,255,255,.05); border:1px solid var(--line-soft); color:var(--ink-soft); }
+  .pomo-long button.on{ background:rgba(34,227,211,.16); border-color:rgba(34,227,211,.5); color:var(--ink); }
+  .pomo-play{ width:84px; height:84px; border-radius:50%; margin-top:34px; background:rgba(34,227,211,.16); border:1px solid rgba(34,227,211,.35); color:var(--forest); display:flex; align-items:center; justify-content:center; transition:transform .12s ease, background .2s ease; }
+  .pomo-play:active{ transform:scale(.94); background:rgba(34,227,211,.26); }
+  .pomo-play svg{ width:34px; height:34px; }
+  .pomo-sub{ display:flex; gap:22px; margin-top:28px; }
+  .pomo-sub button{ background:none; border:none; color:#7E8A8D; font-size:14px; font-weight:500; padding:10px 4px; }
+  .pomo-sub button:disabled{ opacity:.35; }
+  .pomo-today{ position:fixed; bottom:calc(26px + env(safe-area-inset-bottom)); left:0; right:0; text-align:center; font-size:13.5px; color:#7E8A8D; }
+  .pomo-chip{ position:fixed; z-index:60; left:50%; transform:translateX(-50%); bottom:calc(var(--bb-h, 76px) + 16px + env(safe-area-inset-bottom)); padding:9px 16px; border-radius:999px; font-size:14.5px; font-weight:700; font-variant-numeric:tabular-nums;
+    background:rgba(16,24,27,.88); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); border:1px solid rgba(34,227,211,.35); color:var(--ink); box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  .pomo-chip.paused{ color:var(--ink-soft); border-color:var(--line-soft); }
+  @media (prefers-reduced-motion: reduce){ .pomo.run .pomo-dots i.cur{ animation:none; } }
   .rt-wrap{ margin-top:6px; border:1px solid var(--line-soft); border-radius:12px; background:rgba(255,255,255,.03); overflow:hidden; }
   .rt-wrap:focus-within{ border-color:rgba(34,227,211,.5); }
   .rt-bar{ display:flex; gap:4px; padding:6px; border-bottom:1px solid var(--line-soft); background:rgba(255,255,255,.02); }
@@ -1705,6 +1733,24 @@
 </style>
 </head>
 <body>
+<!-- Pomodoro: ruhige Vollbild-Ansicht, jede Phase wird von Hand gestartet -->
+<div id="pomoOverlay" class="pomo" style="display:none;" aria-hidden="true">
+  <button type="button" class="pomo-x" id="pomoClose" aria-label="Schließen"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="pomo-center">
+    <div class="pomo-label" id="pomoLabel">Fokus</div>
+    <div class="pomo-time" id="pomoTime">25:00</div>
+    <div class="pomo-dots" id="pomoDots"></div>
+    <div class="pomo-long" id="pomoLong"></div>
+    <button type="button" class="pomo-play" id="pomoPlay" aria-label="Start"></button>
+    <div class="pomo-sub">
+      <button type="button" id="pomoReset" aria-label="Phase zurücksetzen">↺ Zurücksetzen</button>
+      <button type="button" id="pomoSkip" aria-label="Phase überspringen">Überspringen ⏭</button>
+    </div>
+  </div>
+  <div class="pomo-today" id="pomoToday"></div>
+</div>
+<button type="button" class="pomo-chip" id="pomoChip" style="display:none;" aria-label="Pomodoro öffnen"></button>
+
 <div class="auth-screen" id="authScreen">
   <form class="auth-card" id="authForm" autocomplete="on" onsubmit="return false;">
     <svg class="splash-mark" viewBox="0 0 398 306" aria-hidden="true" style="fill:var(--forest);stroke:var(--forest);stroke-width:72;stroke-linecap:round;">
@@ -1770,6 +1816,7 @@
       <button type="button" class="nav-menu-item" data-tab="reflexion">Reflexion</button>
       <button type="button" class="nav-menu-item" data-tab="routinen">Routinen</button>
       <button type="button" class="nav-menu-item" data-tab="aktivitaeten">Übungen</button>
+      <button type="button" class="nav-menu-item" id="navPomo">🍅 Pomodoro</button>
       <div class="nav-group">Planen & Auswerten</div>
       <button type="button" class="nav-menu-item" data-tab="ziele">Ziele</button>
       <button type="button" class="nav-menu-item" data-tab="fortschritt">Fortschritt</button>
@@ -3477,6 +3524,7 @@
   window.kgOpenSettings = openSettingsModal;
 
   document.getElementById('openSettingsBtn').onclick = ()=>{ navMenu.style.display = 'none'; openSettingsModal(); };
+  document.getElementById('navPomo').onclick = ()=>{ navMenu.style.display = 'none'; menuBtn.classList.remove('open'); window.kgPomoOpen && window.kgPomoOpen(); };
   document.getElementById('settingsModalCloseBtn').onclick = closeSettingsModal;
   settingsOverlay.addEventListener('click', (e)=>{ if(e.target === settingsOverlay) closeSettingsModal(); });
   document.getElementById('settingsSaveBtn').onclick = async ()=>{
@@ -8576,6 +8624,123 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     return L;
   }
   window.kgFokusList = ()=>openFokusList();
+
+  /* =========================================================
+     POMODORO: 25 Min Fokus · 5 Min Pause · nach 4 Pomodoros lange Pause (15–25 Min). Jede Phase startet von Hand.
+     ========================================================= */
+  (function(){
+    const KEY = 'kongrow_pomo', MIN = { work:25, short:5 };
+    const LBL = { work:'Fokus', short:'Pause', long:'Lange Pause' };
+    const ov = document.getElementById('pomoOverlay'), chip = document.getElementById('pomoChip');
+    const $ = id=>document.getElementById(id);
+    let st = { phase:'work', done:0, running:false, endAt:0, left:MIN.work * 60000, longMin:20, day:'', today:0 };
+    try{ Object.assign(st, JSON.parse(localStorage.getItem(KEY) || '{}')); }catch(e){}
+    const save = ()=>{ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} };
+    const dur = ph=>(ph === 'long' ? st.longMin : MIN[ph]) * 60000;
+    const left = ()=>st.running ? Math.max(0, st.endAt - Date.now()) : st.left;
+    const fmt = ms=>{ const t = Math.ceil(ms / 1000); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+    const today = ()=>todayStr();
+    if(st.day !== today()){ st.day = today(); st.today = 0; }
+
+    // Ton zum Phasenende: schon beim Start auf der Audio-Uhr geplant (iOS spielt Töne nur nach einem Tipp)
+    let ctx = null, nodes = [];
+    function armSound(){
+      disarmSound();
+      try{
+        const C = window.AudioContext || window.webkitAudioContext; if(!C) return;
+        if(!ctx || ctx.state === 'closed') ctx = new C();
+        if(ctx.state !== 'running') ctx.resume().catch(()=>{});
+        const t0 = ctx.currentTime + left() / 1000, notes = st.phase === 'work' ? [784, 988, 1175, 1568] : [1175, 988, 784];
+        notes.forEach((f, i)=>{ const o = ctx.createOscillator(), g = ctx.createGain(), t = t0 + i * 0.28;
+          o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+          o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 1); nodes.push(o); });
+      }catch(e){}
+    }
+    function disarmSound(){ nodes.forEach(o=>{ try{ o.stop(); }catch(e){} }); nodes = []; }
+    // Bildschirm anlassen, solange die Ansicht offen ist und der Timer läuft
+    let wake = null;
+    async function wakeOn(){ try{ if(!wake && navigator.wakeLock && st.running && ov.style.display !== 'none') wake = await navigator.wakeLock.request('screen'); }catch(e){} }
+    function wakeOff(){ try{ wake && wake.release(); }catch(e){} wake = null; }
+    // Push zum Phasenende (falls die App im Hintergrund ist)
+    const pushText = ()=>st.phase === 'work'
+      ? { title:'🍅 Pomodoro geschafft', body: (st.done + 1 >= 4 ? 'Zeit für die lange Pause (' + st.longMin + ' Min).' : 'Zeit für 5 Min Pause.') + ' Starte sie in Kongrow.' }
+      : { title:'Pause vorbei', body:'Bereit für den nächsten Pomodoro? Starte ihn in Kongrow.' };
+    const armPush = ()=>{ fetch('api/timer.php?action=set', { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(Object.assign({ at:st.endAt }, pushText())) }).catch(()=>{}); };
+    const cancelPush = ()=>{ fetch('api/timer.php?action=cancel', { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json' }, body:'{}' }).catch(()=>{}); };
+
+    function start(){
+      if(st.running) return;
+      st.running = true; st.endAt = Date.now() + st.left; save();
+      armSound(); armPush(); wakeOn(); render();
+    }
+    function pause(){
+      if(!st.running) return;
+      st.left = left(); st.running = false; save();
+      disarmSound(); cancelPush(); wakeOff(); render();
+    }
+    function setPhase(ph){ st.phase = ph; st.running = false; st.left = dur(ph); st.endAt = 0; save(); }
+    function complete(silent, skipped){
+      const was = st.phase;
+      disarmSound(); wakeOff();
+      if(was === 'work'){
+        st.done = Math.min(4, st.done + 1);
+        if(st.day !== today()){ st.day = today(); st.today = 0; }
+        if(!skipped){ st.today++; try{ awardXP('pomo:' + today() + ':' + st.today, 'Pomodoro', 5); }catch(e){} }   // übersprungene zählen nicht
+        setPhase(st.done >= 4 ? 'long' : 'short');
+      } else {
+        if(was === 'long') st.done = 0;
+        setPhase('work');
+      }
+      if(!silent){
+        try{ navigator.vibrate && navigator.vibrate([250, 120, 250]); }catch(e){}
+        kgUndoToast(was === 'work' ? '🍅 Pomodoro geschafft · ' + (st.phase === 'long' ? 'lange Pause' : '5 Min Pause') + ' starten, wenn du so weit bist' : 'Pause vorbei · nächsten Pomodoro starten, wenn du so weit bist', null, 6000);
+      }
+      render();
+    }
+    function skip(){ if(st.running) cancelPush(); st.running = false; complete(true, true); }
+    function reset(){ if(st.running) cancelPush(); disarmSound(); wakeOff(); setPhase(st.phase); render(); }
+
+    const playIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
+    const pauseIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="4.5" width="4" height="15" rx="1.2"/><rect x="13.5" y="4.5" width="4" height="15" rx="1.2"/></svg>';
+    function render(){
+      const ms = left(), open = ov.style.display !== 'none';
+      if(open){
+        ov.classList.toggle('run', st.running); ov.classList.toggle('brk', st.phase !== 'work');
+        $('pomoLabel').textContent = LBL[st.phase];
+        $('pomoTime').textContent = fmt(ms);
+        const cur = st.phase === 'work' ? st.done : -1;
+        $('pomoDots').innerHTML = [0,1,2,3].map(i=>`<i class="${i < st.done ? 'done' : i === cur ? 'cur' : ''}"></i>`).join('');
+        const play = $('pomoPlay'); play.innerHTML = st.running ? pauseIcon : playIcon; play.setAttribute('aria-label', st.running ? 'Pause' : 'Start');
+        const fresh = !st.running && st.left === dur(st.phase);
+        $('pomoReset').disabled = fresh;
+        $('pomoLong').innerHTML = st.phase === 'long' && fresh ? [15, 20, 25].map(n=>`<button type="button" data-lm="${n}" class="${st.longMin === n ? 'on' : ''}">${n} Min</button>`).join('') : '';
+        $('pomoLong').querySelectorAll('[data-lm]').forEach(b=>b.onclick = ()=>{ st.longMin = +b.dataset.lm; st.left = dur('long'); save(); render(); });
+        $('pomoToday').textContent = st.today ? 'Heute ' + st.today + ' ' + (st.today === 1 ? 'Pomodoro' : 'Pomodoros') + ' 🍅' : '';
+        document.title = st.running ? fmt(ms) + ' · ' + LBL[st.phase] : 'Kongrow';
+      }
+      const active = st.running || st.left !== dur(st.phase);
+      chip.style.display = !open && active ? '' : 'none';
+      if(!open && active){ chip.textContent = (st.phase === 'work' ? '🍅 ' : '☕ ') + fmt(ms) + (st.running ? '' : ' ⏸'); chip.classList.toggle('paused', !st.running); }
+      if(!st.running && !open) document.title = 'Kongrow';
+    }
+    function tick(){ if(st.running && left() <= 0) complete(false); else render(); }
+    setInterval(tick, 500);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ tick(); if(st.running) wakeOn(); } });
+
+    function openPomo(){ ov.style.display = 'flex'; ov.setAttribute('aria-hidden', 'false'); render(); wakeOn(); }
+    function closePomo(){ ov.style.display = 'none'; ov.setAttribute('aria-hidden', 'true'); wakeOff(); render(); }
+    $('pomoClose').onclick = closePomo;
+    $('pomoPlay').onclick = ()=>st.running ? pause() : start();
+    $('pomoSkip').onclick = skip;
+    $('pomoReset').onclick = reset;
+    chip.onclick = openPomo;
+    document.addEventListener('keydown', e=>{ if(ov.style.display === 'none') return; if(e.key === 'Escape') closePomo(); if(e.key === ' ' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)){ e.preventDefault(); $('pomoPlay').click(); } });
+    // Läuft beim Öffnen der App noch eine Phase, die inzwischen abgelaufen ist: abschließen
+    if(st.running && left() <= 0) complete(true);
+    window.kgPomoOpen = openPomo;
+    render();
+  })();
+
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) renderFokus(); });
   loadFokus();
 
@@ -12637,6 +12802,7 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     setTimeout(()=>{
       if(open === 'morning'){ switchTab('reflexion'); document.getElementById('startMorgenreflexionBtn').click(); }
       else if(open === 'evening'){ switchTab('reflexion'); document.getElementById('reflTagBtn').click(); }
+      else if(open === 'pomo'){ authReady.then(()=>window.kgPomoOpen && window.kgPomoOpen()); }
       else if(open === 'crm'){ authReady.then(()=>{ const id = params.get('deal'); switchTab('crm'); crmLoad(true).then(()=>{ if(id) crmOpenCard(id); }); }); }
       else if(open === 'upwork'){ ujOpenFromPush(+params.get('job') || null, params.get('draft') === '1'); if(params.get('check') === '1') try{ localStorage.removeItem('kongrow_uj_check_hide'); }catch(e){} }
       else if(open === 'nachrichten' || open === 'slack' || open === 'mail'){

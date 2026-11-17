@@ -53,6 +53,11 @@ if ($type === 'slack' || $type === 'upwork') {
         if ($t['problems']) $upMsgs[] = ['title' => '⚠️ Kongrow-Check: ' . count($t['problems']) . ' Problem' . (count($t['problems']) > 1 ? 'e' : ''), 'body' => implode("\n", array_slice($t['problems'], 0, 4)), 'url' => './?open=upwork&check=1', 'tag' => 'upwork-selftest'];
       }
     } catch (Throwable $e) { echo 'Selbsttest-Fehler: ' . $e->getMessage() . "\n"; }
+    // Pomodoro: verpasste Timer-Push nachholen (falls der Hintergrund-Wartevorgang abgebrochen wurde)
+    try {
+      $pt = kg_get($u, 'pomo_timer');
+      if (is_array($pt) && empty($pt['sent']) && (int)($pt['at'] ?? 0) <= time() && (int)$pt['at'] > time() - 3600) { $pt['sent'] = time(); kg_set($u, 'pomo_timer', $pt); $upMsgs[] = ['title' => $pt['title'], 'body' => $pt['body'], 'url' => './?open=pomo', 'tag' => 'pomo']; }
+    } catch (Throwable $e) {}
     // CRM: gebuchte Sales Calls im Kalender den Leads zuordnen (höchstens alle 30 Min.)
     try {
       if (time() - (int)kg_get($u, 'crm_cal_check', 0) >= 1800) {
