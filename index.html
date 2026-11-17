@@ -8730,11 +8730,10 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       // Tab-Titel zählt live mit, solange eine Phase läuft
       const t = st.running ? fmt(ms) + ' · ' + LBL[st.phase] : '';
       if(t){ if(document.title !== t) document.title = t; } else if(/ · (Fokus|Pause|Lange Pause)$/.test(document.title)) document.title = 'Kongrow';
-      // Knopf unten bleibt immer da: läuft etwas, zeigt er die Zeit, sonst einfach „Pomodoro“
+      // Knopf unten nur, solange ein Block läuft oder pausiert ist; nach Zurücksetzen oder Ende verschwindet er
       const active = st.running || st.left !== dur(st.phase);
-      chip.style.display = open ? 'none' : '';
-      chip.textContent = active ? (st.phase === 'work' ? '🍅 ' : '☕ ') + fmt(ms) + (st.running ? '' : ' ⏸') : '🍅 Pomodoro';
-      chip.classList.toggle('paused', active && !st.running); chip.classList.toggle('idle', !active);
+      chip.style.display = !open && active ? '' : 'none';
+      if(active){ chip.textContent = (st.phase === 'work' ? '🍅 ' : '☕ ') + fmt(ms) + (st.running ? '' : ' ⏸'); chip.classList.toggle('paused', !st.running); }
     }
     function tick(){ if(st.running && left() <= 0) complete(false); else render(); }
     setInterval(tick, 500);
