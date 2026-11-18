@@ -1744,6 +1744,7 @@
 .lq-n{ flex:1; min-height:52px; font-size:18px; font-weight:600; border-radius:14px; border:1px solid var(--line, rgba(127,127,127,.25)); background:transparent; color:inherit; cursor:pointer; }
 .lq-n.on{ background:var(--forest); color:#04201d; border-color:transparent; }
 .lq-book{ font-size:12px; opacity:.6; margin:2px 0 6px; }
+.aufg-zk-new{ width:100%; margin:10px 0 12px; }
 .aufg-zk-add{ display:flex; gap:8px; margin:10px 0 12px; }
 .aufg-zk-add input{ flex:1; margin:0; }
 .aufg-zk-add .primary{ flex:0 0 52px; padding:0; font-size:24px; justify-content:center; }
@@ -2571,6 +2572,7 @@
       </div>
       <div class="aufg-new-meta">
         <label><input type="checkbox" id="aufgNewHeute" checked> Für heute</label>
+        <label><input type="checkbox" id="aufgNewZukunft"> Zukünftig</label>
       </div>
       <div id="aufgNewMore">
         <div class="aufg-seg" id="aufgNewPrio">
@@ -4013,7 +4015,7 @@
         if(prioCache.length) L.push('- Dailys einzeln (an wie vielen Tagen erledigt): ' + Object.entries(per).map(([k,v])=>`${k} ${v}/${nDays}`).join(', '));
       }
     });
-    tryAdd(()=>{ fokusCoachText(from, t).forEach(x=>L.push(x)); });
+    // Fokusaufgabe bewusst nicht im Coaching-Bericht (Wunsch)
     tryAdd(()=>{
       const tr = trainingsCache.filter(x=>inR(x.datum));
       L.push(`- Training: ${tr.length} Einheiten${tr.length ? ' (' + tr.map(x=>x.datum.slice(5) + ' ' + (x.plan || 'frei') + (x.dauer ? ' ' + x.dauer + ' Min' : '')).join('; ') + ')' : ''}. Fokus: ${profil.fokus || 'nicht gesetzt'}.`);
@@ -4037,7 +4039,7 @@
       const xp = xpEntries.filter(e=>inR(e.datum)).reduce((s,e)=>s + (e.xp || 0), 0);
       L.push(`- XP im Zeitraum: ${xp}. Level ${xpLevelInfo(xpTotal()).level}.`);
     });
-    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Dailys, Fokusaufgabe und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
+    L.push('Beziehe diese Zahlen konkret ein: Was zeigt sich bei Training, Dailys und NoFap? Wo passt das Verhalten zu den Zielen, wo nicht?');
     return L.join('\n');
   }
 
@@ -8947,6 +8949,14 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
           createdAt: f['Erstellt am'] || ''
         };
       }).filter(t=>t.titel);
+      // Einmalig: „Zum Therapeuten gehen“ nach Zukünftig verschieben (Wunsch)
+      try{ if(!localStorage.getItem('kongrow_zk_mig1')){
+        aufgabenCache.filter(t=>!t.zukunft && !t.erledigtAm && /^zum therapeuten gehen$/i.test(t.titel.trim())).forEach(t=>{
+          t.zukunft = true; t.heute = '';
+          patchAufgabe(t, { 'Zukunft':'1', 'Heute':'' }).catch(()=>{ try{ localStorage.removeItem('kongrow_zk_mig1'); }catch(e){} });
+        });
+        localStorage.setItem('kongrow_zk_mig1', '1');
+      } }catch(e){}
       renderAufgaben();
       renderHomeAufgaben();
       if(typeof zieleCache !== 'undefined' && zieleCache.length) renderZieleListen();
@@ -9150,7 +9160,7 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
         : `<div class="card"><div class="empty">Nichts Dringendes. Stark.</div></div>`;
     } else if(aufgabenView === 'zukunft'){
       html += `<div class="hint">Dinge, die du irgendwann angehen willst. Sie tauchen nirgends sonst auf, bis du sie aktivierst.</div>
-        <div class="aufg-zk-add"><input type="text" id="aufgZkInput" placeholder="Was möchtest du zukünftig angehen?" enterkeyhint="done"><button type="button" class="primary" id="aufgZkAdd">+</button></div>`;
+        <button type="button" class="ghost aufg-zk-new" id="aufgZkNew">+ Zukünftige Aufgabe anlegen</button>`;
       html += zukunft.length
         ? `<div class="card aufg-card">${zukunft.sort((a,b)=>(b.createdAt || '').localeCompare(a.createdAt || '')).map(t=>`<div class="aufg-item" data-id="${t.id}">
             <div class="aufg-main" data-id="${t.id}"><div class="aufg-title">${escapeHtml(t.titel)}${t.notiz ? ' <span class="aufg-has-note" title="Hat Beschreibung">≡</span>' : ''}</div><div class="aufg-chips"><span class="aufg-chip">${escapeHtml(t.bereich)}</span></div></div>
@@ -9177,22 +9187,8 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     listEl.innerHTML = html;
     wireAufgabenRows(listEl, renderAufgaben);
 
-    const zkIn = document.getElementById('aufgZkInput');
-    if(zkIn){
-      const zkAdd = async ()=>{
-        const titel = zkIn.value.trim(); if(!titel){ zkIn.focus(); return; }
-        const fields = { 'Titel': titel, 'Prio': 'C', 'Bereich': aufgabenNewBereich || 'Business', 'Zukunft': '1', 'Erstellt am': new Date().toISOString() };
-        zkIn.value = '';
-        try{
-          const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
-          aufgabenCache.push({ id, titel, prio:'C', bereich: fields['Bereich'], faellig:'', heute:'', erledigtAm:'', zielId:'', notiz:'', quelle:null, eventId:'', termin:'', zukunft:true, createdAt: fields['Erstellt am'] });
-          renderAufgaben();
-          const n = document.getElementById('aufgZkInput'); if(n) n.focus();
-        }catch(e){ zkIn.value = titel; aufgabenStatus('Speichern fehlgeschlagen.'); }
-      };
-      document.getElementById('aufgZkAdd').onclick = zkAdd;
-      zkIn.onkeydown = ev=>{ if(ev.key === 'Enter') zkAdd(); };
-    }
+    const zkNew = document.getElementById('aufgZkNew');
+    if(zkNew) zkNew.onclick = ()=>window.__openAufgNew && window.__openAufgNew();
     listEl.querySelectorAll('.aufg-zk-go').forEach(b=>b.onclick = async ev=>{
       ev.stopPropagation();
       const t = aufgabenCache.find(x=>x.id === b.dataset.id); if(!t) return;
@@ -9559,6 +9555,8 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       pre = pre && pre.titel !== undefined ? pre : null;
       newQuelle = pre && pre.quelle || null;
       document.getElementById('aufgNewHeute').checked = pre && 'heute' in pre ? !!pre.heute : aufgabenView === 'heute';
+      document.getElementById('aufgNewZukunft').checked = !pre && aufgabenView === 'zukunft';
+      if(document.getElementById('aufgNewZukunft').checked) document.getElementById('aufgNewHeute').checked = false;
       if(pre){
         input.value = pre.titel || ''; document.getElementById('aufgNewNotiz').value = pre.notiz || '';
         document.getElementById('aufgNewFaellig').value = pre.faellig || '';
@@ -9583,6 +9581,8 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       }
     };
     document.getElementById('aufgNewOpen').onclick = openNew;
+    document.getElementById('aufgNewZukunft').onchange = e=>{ if(e.target.checked) document.getElementById('aufgNewHeute').checked = false; };
+    document.getElementById('aufgNewHeute').addEventListener('change', e=>{ if(e.target.checked) document.getElementById('aufgNewZukunft').checked = false; });
     document.getElementById('aufgNewClose').onclick = ()=>{ overlay.style.display = 'none'; };
     const more = document.getElementById('aufgNewMore');
     const paintNew = ()=>{
@@ -9597,7 +9597,8 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       const titel = input.value.trim();
       if(!titel){ newStatus('Bitte einen Titel eingeben.'); input.focus(); return; }
       const calFuture = document.getElementById('aufgCalOn').checked && (document.getElementById('aufgCalDate').value || todayStr()) > todayStr();
-      const heute = document.getElementById('aufgNewHeute').checked && !calFuture ? todayStr() : '';
+      const zukunftNew = document.getElementById('aufgNewZukunft').checked;
+      const heute = document.getElementById('aufgNewHeute').checked && !calFuture && !zukunftNew ? todayStr() : '';
       if(heute){
         const count = aufgabenCache.filter(x=>aufgabeIsHeute(x) && !x.erledigtAm).length;
         if(count >= HEUTE_LIMIT){ aufgabenStatus(`Heute sind schon ${count} Aufgaben geplant. Ich lege sie ohne „Heute" an.`); }
@@ -9609,12 +9610,13 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
         'Heute': (heute && count < HEUTE_LIMIT) ? heute : '',
         'Notiz': (document.getElementById('aufgNewNotiz').value || '').trim(),
         'Quelle': newQuelle ? JSON.stringify(newQuelle) : '',
+        'Zukunft': zukunftNew ? '1' : '',
         'Erstellt am': new Date().toISOString()
       };
       addBtn.disabled = true;
       try{
         const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
-        aufgabenCache.push({ id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig: fields['Faellig'], heute: fields['Heute'], erledigtAm:'', zielId:'', notiz: fields['Notiz'], quelle: newQuelle, createdAt: fields['Erstellt am'] });
+        aufgabenCache.push({ id, titel, prio: fields['Prio'], bereich: fields['Bereich'], faellig: fields['Faellig'], heute: fields['Heute'], erledigtAm:'', zielId:'', notiz: fields['Notiz'], quelle: newQuelle, zukunft: zukunftNew, createdAt: fields['Erstellt am'] });
         if(newQuelle) kgUndoToast('Aufgabe erstellt ✓');
         newQuelle = null;
         document.getElementById('aufgNewNotiz').value = '';
