@@ -1732,6 +1732,13 @@
   .mbox-colors{ display:flex; gap:10px; flex-wrap:wrap; }
   .mbox-color{ width:34px; height:34px; border-radius:99px; border:2px solid transparent; cursor:pointer; }
   .mbox-color.active{ border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.15); }
+.msg-att-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;}
+.msg-att-btn{padding:6px 12px;font-size:13px;border-radius:999px;}
+.msg-att-list{display:contents;}
+.msg-att-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 6px 5px 10px;border-radius:999px;background:var(--surface-2, rgba(127,127,127,.12));font-size:12.5px;}
+.msg-att-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;}
+.msg-att-chip small{opacity:.6;}
+.msg-att-chip button{border:0;background:transparent;color:inherit;font-size:15px;line-height:1;padding:2px 4px;cursor:pointer;opacity:.7;}
 </style>
 </head>
 <body>
@@ -2673,8 +2680,13 @@
       <textarea id="msgReply" rows="6" placeholder="Antwort schreiben ..."></textarea>
       <div class="mention-list" id="mentionList" style="display:none;"></div>
     </div>
+    <div class="msg-att-row" id="msgAttRow">
+      <button type="button" class="ghost msg-att-btn" id="msgAttBtn">📎 Anhang</button>
+      <input type="file" id="msgAttInput" multiple hidden>
+      <div class="msg-att-list" id="msgAttList"></div>
+    </div>
     <button type="button" class="aufg-link" id="msgSigLink" style="margin-top:6px;"></button>
-    <div class="hint" id="msgFwdHint" style="display:none;margin:6px 0 0;">Die ursprüngliche Nachricht wird unter deinem Text angehängt. Dateianhänge werden nicht mitgeschickt.</div>
+    <div class="hint" id="msgFwdHint" style="display:none;margin:6px 0 0;">Die ursprüngliche Nachricht wird unter deinem Text angehängt.</div>
     <div class="msg-send-row">
       <span class="save-status" id="msgStatus" style="margin:0;"></span>
       <button type="button" class="primary" id="msgSend">Senden</button>
@@ -10850,7 +10862,7 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     const imgs = atts.filter(a=>attIsImg(a) && !/heic|heif/i.test(a.mime || a.name));
     return `<div class="msg-atts-title">${atts.length} ${atts.length === 1 ? 'Anhang' : 'Anhänge'}</div>
       ${imgs.length ? `<div class="msg-att-thumbs">${imgs.map(a=>`<button type="button" class="msg-att-thumb" data-att="${atts.indexOf(a)}"><img loading="lazy" src="${escapeHtml(attUrl(m, a))}" alt="${escapeHtml(a.name)}"></button>`).join('')}</div>` : ''}
-      <div class="msg-atts">${atts.map((a, i)=>`<button type="button" class="msg-att" data-att="${i}"><span class="msg-att-ico">${attIcon(a)}</span><span class="msg-att-name">${escapeHtml(a.name)}<small>${attSize(a.size)}</small></span></button>`).join('')}</div>`;
+      <div class="msg-atts">${atts.map((a, i)=>`<button type="button" class="msg-att" data-att="${i}"><span class="msg-att-ico">${attIcon(a)}</span><span class="msg-att-name">${escapeHtml(a.name)}<small>${msgAttSize(a.size)}</small></span></button>`).join('')}</div>`;
   }
   async function openAttachment(m, a){
     if(!a) return;
@@ -11025,6 +11037,31 @@ ${ctx}`);
   };
   const msgComposeOverlay = document.getElementById('msgComposeOverlay');
   document.getElementById('msgComposeClose').onclick = ()=>{ msgComposeOverlay.style.display = 'none'; };
+  /* ---- Anhänge beim Schreiben ---- */
+  const MSG_ATT_MAX = 20 * 1024 * 1024;
+  msg.atts = [];
+  const msgAttSize = n => n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  function renderMsgAtts(){
+    const l = document.getElementById('msgAttList');
+    l.innerHTML = msg.atts.map((a, i)=>`<span class="msg-att-chip"><span title="${escapeHtml(a.name)}">📄 ${escapeHtml(a.name)}</span><small>${msgAttSize(a.size)}</small><button type="button" data-i="${i}" aria-label="Anhang entfernen">×</button></span>`).join('');
+    l.querySelectorAll('button').forEach(b=>b.onclick = ()=>{ msg.atts.splice(+b.dataset.i, 1); renderMsgAtts(); });
+  }
+  function resetMsgAtts(){ msg.atts = []; renderMsgAtts(); }
+  const msgAttInput = document.getElementById('msgAttInput');
+  document.getElementById('msgAttBtn').onclick = ()=>msgAttInput.click();
+  msgAttInput.onchange = async ()=>{
+    const st = document.getElementById('msgStatus');
+    let used = msg.atts.reduce((n, a)=>n + a.size, 0);
+    for(const f of [...msgAttInput.files]){
+      if(used + f.size > MSG_ATT_MAX){ st.textContent = '„' + f.name + '“ passt nicht mehr rein (max. 20 MB zusammen).'; continue; }
+      try{
+        const data = await new Promise((res, rej)=>{ const r = new FileReader(); r.onload = ()=>res(String(r.result).split(',')[1] || ''); r.onerror = ()=>rej(r.error); r.readAsDataURL(f); });
+        msg.atts.push({ name: f.name, mime: f.type || 'application/octet-stream', size: f.size, data }); used += f.size;
+      }catch(e){ st.textContent = '„' + f.name + '“ konnte nicht gelesen werden.'; }
+    }
+    msgAttInput.value = ''; renderMsgAtts();
+  };
+  const msgAttPayload = ()=>msg.atts.map(a=>({ name:a.name, mime:a.mime, data:a.data }));
   /* ---- Neue E-Mail schreiben ---- */
   function newMailFrom(){ const v = document.getElementById('msgFrom').value; return (msg.sources || []).find(x=>x.key === v) || null; }
   function openNewMail(prefill){
@@ -11047,6 +11084,7 @@ ${ctx}`);
     document.getElementById('msgCtx').innerHTML = '';
     ['msgFromRow','msgToRow','msgSubjRow'].forEach(id=>document.getElementById(id).style.display = '');
     document.getElementById('msgFwdHint').style.display = 'none';
+    document.getElementById('msgAttRow').style.display = ''; resetMsgAtts();
     document.getElementById('msgTo').placeholder = 'An (E-Mail-Adresse)';
     document.getElementById('msgTo').value = (prefill && prefill.to) || '';
     document.getElementById('msgSubj').value = (prefill && prefill.subject) || '';
@@ -11088,16 +11126,17 @@ Antworte NUR mit JSON: {"betreff": "...", "text": "..."}`;
     if(!f){ st.textContent = 'Bitte ein Absender-Postfach wählen.'; return; }
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to.split(/[,;\s]+/)[0] || '')){ st.textContent = 'Bitte eine gültige E-Mail-Adresse eintragen.'; return; }
     const sig = msgSig(f.src, f.account);
-    if(!body || (sig && body === sig)){ st.textContent = 'Bitte zuerst einen Text schreiben.'; return; }
+    if((!body || (sig && body === sig)) && !msg.atts.length){ st.textContent = 'Bitte zuerst einen Text schreiben.'; return; }
     if(!subject && !btn.dataset.nosubj){ btn.dataset.nosubj = '1'; st.textContent = 'Ohne Betreff senden? Dann noch einmal auf Senden tippen.'; return; }
     if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
     btn.dataset.armed = ''; btn.dataset.nosubj = ''; btn.disabled = true; btn.textContent = 'Sende ...';
     try{
-      if(f.src === 'gmail') await kgApi('google.php?action=mail_send', { to, subject, body });
+      const attachments = msgAttPayload();
+      if(f.src === 'gmail') await kgApi('google.php?action=mail_send', { to, subject, body, attachments });
       else { const acc = (msg.items || []).find(x=>x.source === 'mail' && x.account === f.account); const accounts = await kgApi('mail.php?action=accounts'); const a = (accounts.accounts || []).find(x=>x.label === f.account);
-        await kgApi('mail.php?action=send', { account: a ? a.id : (acc && acc.accountId), to, subject, body }); }
+        await kgApi('mail.php?action=send', { account: a ? a.id : (acc && acc.accountId), to, subject, body, attachments }); }
       st.textContent = 'Gesendet ✓';
-      ['msgReply','msgTo','msgSubj','msgAiHint'].forEach(id=>document.getElementById(id).value = '');
+      ['msgReply','msgTo','msgSubj','msgAiHint'].forEach(id=>document.getElementById(id).value = ''); resetMsgAtts();
       setTimeout(()=>{ msgComposeOverlay.style.display = 'none'; }, 700);
       msg.loadedAt = 0;
     }catch(e){ st.textContent = e.message; }
@@ -11117,7 +11156,8 @@ Antworte NUR mit JSON: {"betreff": "...", "text": "..."}`;
     const atts = d.attachments || [];
     document.getElementById('msgFwdHint').textContent = 'Die ursprüngliche Nachricht wird unter deinem Text angehängt.' + (atts.length ? ' Anhänge werden mitgeschickt: ' + atts.map(a=>a.name).join(', ') + '.' : '');
     const sig = m.source === 'slack' ? '' : msgSig(m.source, m.account);
-    if(msg.composeFor !== m || msg.composeMode !== mode){ document.getElementById('msgReply').value = sig ? '\n\n' + sig : ''; document.getElementById('msgAiHint').value = ''; if(fwd) document.getElementById('msgTo').value = ''; }
+    document.getElementById('msgAttRow').style.display = m.source === 'slack' ? 'none' : '';
+    if(msg.composeFor !== m || msg.composeMode !== mode){ document.getElementById('msgReply').value = sig ? '\n\n' + sig : ''; document.getElementById('msgAiHint').value = ''; if(fwd) document.getElementById('msgTo').value = ''; resetMsgAtts(); }
     const sl = document.getElementById('msgSigLink');
     sl.style.display = m.source === 'slack' ? 'none' : '';
     sl.textContent = sig ? '✎ Signatur bearbeiten' : '+ Signatur für dieses Postfach anlegen';
@@ -11233,7 +11273,7 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
     const fwdTo = document.getElementById('msgTo').value.trim();
     if(fwd && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fwdTo.split(/[,;\s]+/)[0] || '')){ st.textContent = 'Bitte eine gültige E-Mail-Adresse eintragen.'; return; }
     const sigS = m.source === 'slack' ? '' : msgSig(m.source, m.account);
-    if((!text || (sigS && text === sigS)) && !fwd){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
+    if((!text || (sigS && text === sigS)) && !fwd && !(m.source !== 'slack' && msg.atts.length)){ st.textContent = 'Bitte zuerst eine Antwort schreiben.'; return; }
     if(!btn.dataset.armed){ btn.dataset.armed = '1'; btn.textContent = 'Wirklich senden?'; setTimeout(()=>{ btn.dataset.armed = ''; btn.textContent = 'Senden'; }, 4000); return; }
     btn.dataset.armed = ''; btn.disabled = true; btn.textContent = 'Sende ...';
     try{
@@ -11241,18 +11281,18 @@ Gib NUR den fertigen Antworttext aus, ohne Erklärungen.`;
       else if(fwd){
         const subj = /^(wg|fwd?):/i.test(d.subject || '') ? d.subject : 'WG: ' + (d.subject || m.subject);
         const body = (text ? text + '\n\n' : '') + '---------- Weitergeleitete Nachricht ----------\nVon: ' + (d.from || '') + '\nDatum: ' + (d.date || '') + '\nBetreff: ' + (d.subject || m.subject) + '\nAn: ' + (d.to || '') + (d.cc ? '\nCc: ' + d.cc : '') + '\n\n' + (d.text || '');
-        const payload = { to: fwdTo, subject: subj, body, id: d.id || m.id };
+        const payload = { to: fwdTo, subject: subj, body, id: d.id || m.id, attachments: msgAttPayload() };
         if(m.source === 'gmail') await kgApi('google.php?action=mail_forward', payload);
         else { payload.account = m.accountId; await kgApi('mail.php?action=forward', payload); }
       } else {
         const subj = /^re:/i.test(d.subject || '') ? d.subject : 'Re: ' + (d.subject || m.subject);
         const to = d.replyTo || d.from;
-        const payload = { to, subject: subj, body: text, inReplyTo: d.messageId || '', references: d.references || '' };
+        const payload = { to, subject: subj, body: text, inReplyTo: d.messageId || '', references: d.references || '', attachments: msgAttPayload() };
         if(m.source === 'gmail'){ payload.thread = d.thread; await kgApi('google.php?action=mail_send', payload); }
         else { payload.account = m.accountId; await kgApi('mail.php?action=send', payload); }
       }
       st.textContent = fwd ? 'Weitergeleitet ✓' : 'Gesendet ✓';
-      document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = '';
+      document.getElementById('msgReply').value = ''; document.getElementById('msgAiHint').value = ''; resetMsgAtts();
       setTimeout(()=>{ msgComposeOverlay.style.display = 'none'; }, 600);
       if(m.source === 'slack') openMessage(m);
       else if(!fwd) setTimeout(()=>{ if(msg.current && msg.current.item === m){ msgOverlay.style.display = 'none'; renderMessages(); } }, 900);

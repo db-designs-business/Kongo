@@ -217,7 +217,7 @@ switch ($action) {
     [$mb, $err] = m_open($a);
     if (!$mb) kg_json(['error' => ['message' => $err]], 502);
     $st = imap_fetchstructure($mb, $u, FT_UID);
-    $atts = []; $total = 0; $skipped = [];
+    $atts = kg_in_atts($in); $total = array_sum(array_map(fn($x) => strlen($x['data']), $atts)); $skipped = [];
     foreach ($st ? m_attachments($st) : [] as $x) {
       if ($total + $x['size'] > 20 * 1024 * 1024) { $skipped[] = $x['name']; continue; }
       $d = imap_fetchbody($mb, $u, $x['num'], FT_UID | FT_PEEK);
@@ -238,13 +238,14 @@ switch ($action) {
     $a = m_find($uid, (string)($in['account'] ?? ''));
     $to = trim((string)($in['to'] ?? '')); $subject = (string)($in['subject'] ?? ''); $body = (string)($in['body'] ?? '');
     preg_match_all('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $to, $mm); $rcpts = array_unique($mm[0]);
-    if (!$rcpts || trim($body) === '') kg_json(['error' => ['message' => 'Empfänger oder Text fehlt.']], 400);
+    $atts = kg_in_atts($in);
+    if (!$rcpts || (trim($body) === '' && !$atts)) kg_json(['error' => ['message' => 'Empfänger oder Text fehlt.']], 400);
     $from = $a['email']; $fromHdr = $a['name'] ? (mb_encode_mimeheader($a['name'], 'UTF-8', 'B') . ' <' . $from . '>') : $from;
     $domain = substr(strrchr($from, '@'), 1);
     $hdr = ['Date: ' . date('r'), 'From: ' . $fromHdr, 'To: ' . $to, 'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8', 'B'),
-      'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $domain . '>', 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'];
+      'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $domain . '>'];
     if (!empty($in['inReplyTo'])) { $hdr[] = 'In-Reply-To: ' . $in['inReplyTo']; $hdr[] = 'References: ' . trim(($in['references'] ?? '') . ' ' . $in['inReplyTo']); }
-    $data = implode("\r\n", $hdr) . "\r\n\r\n" . rtrim(chunk_split(base64_encode($body)));
+    $data = kg_mime_mixed($hdr, $body, $atts);
     $err = m_smtp($a, $from, $rcpts, $data);
     if ($err) kg_json(['error' => ['message' => $err]], 502);
     // Kopie in "Gesendet" ablegen

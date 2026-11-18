@@ -227,7 +227,9 @@ switch ($action) {
       }
       foreach ($p['parts'] ?? [] as $c) $walk($c);
     };
+    $own = kg_in_atts($in); $total = array_sum(array_map(fn($x) => strlen($x["data"]), $own));
     $walk($m['payload'] ?? []);
+    $atts = array_merge($own, $atts);
     if ($skipped) $body .= "\n\n(Nicht mitgeschickt, zu groß: " . implode(', ', $skipped) . ')';
     $raw = kg_mime_mixed(['From: ' . ($tok['email'] ?? ''), 'To: ' . $to, 'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8', 'B')], $body, $atts);
     g_api($uid, 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', ['raw' => rtrim(strtr(base64_encode($raw), '+/', '-_'), '=')]);
@@ -307,10 +309,11 @@ switch ($action) {
   case 'mail_send':
     $tok = kg_get($uid, 'google_tok');
     $to = trim((string)($in['to'] ?? '')); $subject = (string)($in['subject'] ?? ''); $body = (string)($in['body'] ?? '');
-    if (!$to || trim($body) === '') kg_json(['error' => ['message' => 'Empfänger oder Text fehlt.']], 400);
-    $hdr = ['From: ' . ($tok['email'] ?? ''), 'To: ' . $to, 'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8', 'B'), 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'];
+    $atts = kg_in_atts($in);
+    if (!$to || (trim($body) === '' && !$atts)) kg_json(['error' => ['message' => 'Empfänger oder Text fehlt.']], 400);
+    $hdr = ['From: ' . ($tok['email'] ?? ''), 'To: ' . $to, 'Subject: ' . mb_encode_mimeheader($subject, 'UTF-8', 'B')];
     if (!empty($in['inReplyTo'])) { $hdr[] = 'In-Reply-To: ' . $in['inReplyTo']; $hdr[] = 'References: ' . trim(($in['references'] ?? '') . ' ' . $in['inReplyTo']); }
-    $raw = implode("\r\n", $hdr) . "\r\n\r\n" . chunk_split(base64_encode($body));
+    $raw = kg_mime_mixed($hdr, $body, $atts);
     $payload = ['raw' => rtrim(strtr(base64_encode($raw), '+/', '-_'), '=')];
     if (!empty($in['thread'])) $payload['threadId'] = $in['thread'];
     g_api($uid, 'POST', 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', $payload);

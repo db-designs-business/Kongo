@@ -228,6 +228,21 @@ function kg_mime_mixed(array $headers, string $text, array $atts): string {
   return $out . '--' . $b . "--\r\n";
 }
 
+// Vom Browser mitgeschickte Anhänge (base64) prüfen und dekodieren; max. 20 MB gesamt
+function kg_in_atts(array $in, int $used = 0): array {
+  $out = []; $total = $used;
+  foreach (array_slice((array)($in['attachments'] ?? []), 0, 20) as $a) {
+    if (!is_array($a)) continue;
+    $data = base64_decode((string)($a['data'] ?? ''), true);
+    if ($data === false || $data === '') continue;
+    $total += strlen($data);
+    if ($total > 20 * 1024 * 1024) kg_json(['error' => ['message' => 'Anhänge zu groß (max. 20 MB zusammen).']], 413);
+    $name = trim(preg_replace('/[\r\n\t"\\\\\/]+/', '_', (string)($a['name'] ?? 'Anhang'))) ?: 'Anhang';
+    $out[] = ['name' => mb_substr($name, 0, 150), 'mime' => (string)($a['mime'] ?? ''), 'data' => $data];
+  }
+  return $out;
+}
+
 // Anhang ausliefern: nur harmlose Typen dürfen im Browser angezeigt werden, alles andere nur als Download (Schutz vor Skripten in Anhängen)
 function kg_send_attachment(string $name, string $mime, string $data, bool $download): void {
   $mime = strtolower(trim($mime));
