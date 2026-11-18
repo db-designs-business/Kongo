@@ -1739,6 +1739,11 @@
 .msg-att-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;}
 .msg-att-chip small{opacity:.6;}
 .msg-att-chip button{border:0;background:transparent;color:inherit;font-size:15px;line-height:1;padding:2px 4px;cursor:pointer;opacity:.7;}
+.lesen-quiz-btn{ width:100%; margin-top:8px; min-height:44px; }
+.lq-count{ display:flex; gap:8px; margin-top:8px; }
+.lq-n{ flex:1; min-height:52px; font-size:18px; font-weight:600; border-radius:14px; border:1px solid var(--line, rgba(127,127,127,.25)); background:transparent; color:inherit; cursor:pointer; }
+.lq-n.on{ background:var(--forest); color:#04201d; border-color:transparent; }
+.lq-book{ font-size:12px; opacity:.6; margin:2px 0 6px; }
 </style>
 </head>
 <body>
@@ -7460,8 +7465,10 @@
           <div class="lesen-hero-meta">${b.seiten ? pct + '% · S. ' + (b.aktuelleSeite || 0) + '/' + b.seiten : (b.aktuelleSeite ? 'S. ' + b.aktuelleSeite : 'Seitenzahl fehlt')} · ${st.sessions} Sessions</div>
         </div>
       </div>
-      ${lesenActive ? '' : `<button type="button" class="primary lesen-start" id="lesenStartBtn">${running ? 'Session fortsetzen' : '▶ 25-Min-Session starten'}</button>`}`;
+      ${lesenActive ? '' : `<button type="button" class="primary lesen-start" id="lesenStartBtn">${running ? 'Session fortsetzen' : '▶ 25-Min-Session starten'}</button>`}
+      ${lesenActive || !lesenQuizPool().length ? '' : `<button type="button" class="ghost lesen-quiz-btn" id="lesenQuizBtn">🧠 Quiz aus allen Notizen</button>`}`;
     el.querySelector('#lesenHeroCard').onclick = ()=>openLesenDash(b.id);
+    const qb = el.querySelector('#lesenQuizBtn'); if(qb) qb.onclick = openLesenQuiz;
     const sb = el.querySelector('#lesenStartBtn');
     if(sb) sb.onclick = lesenBeginSession;
   }
@@ -7756,6 +7763,87 @@
     if(lesenPhase === 'recall') return renderLesenRecall();
     if(lesenPhase === 'summary') return renderLesenSummary();
     return renderLesenNotes();
+  }
+
+  /* ----- Quiz: zufällige Fragen aus allen Notizen ----- */
+  function lesenQuizPool(){ return lesenEntries.filter(e=>(e.typ === 'Notiz' || e.typ === 'Zitat' || e.typ === 'Zusammenfassung') && (e.text || '').trim().length > 8); }
+  function openLesenQuiz(){
+    let n = 5; try{ n = +localStorage.getItem('kongrow_quiz_n') || 5; }catch(e){}
+    openErnModal(`<div class="modal-title">🧠 Quiz</div>
+      <div class="modal-sub">Zufällige Fragen aus all deinen Notizen. Antworte aus dem Kopf, ohne nachzuschauen.</div>
+      <div id="lqBody">
+        <div class="step-label" style="margin-top:6px;">Wie viele Fragen?</div>
+        <div class="lq-count">${[3,5,10].map(k=>`<button type="button" class="lq-n${k === n ? ' on' : ''}" data-n="${k}">${k}</button>`).join('')}</div>
+        <button type="button" class="primary" id="lqStart" style="width:100%;margin-top:16px;">Quiz starten</button>
+      </div>
+      <div class="save-status" id="lqStatus"></div>`);
+    const card = ernModalCard();
+    card.querySelectorAll('.lq-n').forEach(b=>b.onclick = ()=>{ n = +b.dataset.n; try{ localStorage.setItem('kongrow_quiz_n', String(n)); }catch(e){} card.querySelectorAll('.lq-n').forEach(x=>x.classList.toggle('on', x === b)); });
+    card.querySelector('#lqStart').onclick = ()=>lesenQuizRun(n);
+  }
+  async function lesenQuizRun(n){
+    const card = ernModalCard(), body = card.querySelector('#lqBody'), st = card.querySelector('#lqStatus');
+    const btn = card.querySelector('#lqStart'); if(btn.disabled) return; btn.disabled = true;
+    const pool = lesenQuizPool().slice();
+    for(let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const picks = pool.slice(0, n);
+    const bookOf = e=>{ const b = lesenBooks.find(x=>x.id === e.bookId); return b ? b.titel : 'Unbekanntes Buch'; };
+    const material = picks.map((e, i)=>'[' + (i + 1) + '] Buch: ' + bookOf(e) + (e.kapitel ? ' · Kapitel: ' + e.kapitel : '') + ' · ' + e.typ + ':\n' + e.text.slice(0, 1500)).join('\n\n');
+    st.textContent = 'Die KI überlegt Fragen ...';
+    let qs = [];
+    try{
+      const reply = await callClaudeCoach('Du bist ein Lern-Coach. Unten stehen ' + picks.length + ' nummerierte Notizen aus Büchern, die ich gelesen habe. Stelle mir genau ' + n + ' klare, konkrete Fragen, mit denen ich das Wissen aus diesen Notizen aktiv abrufen muss' + (picks.length >= n ? ', eine Frage pro Notiz in derselben Reihenfolge' : ', verteilt über alle Notizen') + '. Keine Ja/Nein-Fragen, verrate die Antworten nicht. Antworte NUR mit einem JSON-Array: [{"nr": <Nummer der Notiz>, "frage": "..."}] auf Deutsch.\n\n' + material);
+      const m = reply.match(/\[[\s\S]*\]/);
+      if(m){ try{ qs = JSON.parse(m[0]).map(x=>typeof x === 'string' ? { frage:x } : x).filter(x=>x && x.frage); }catch(e){} }
+      if(!qs.length) throw new Error('Keine Fragen erhalten');
+      qs = qs.slice(0, n).map((x, i)=>{ const e = picks[(+x.nr || i + 1) - 1] || picks[i % picks.length]; return { frage: String(x.frage), buch: bookOf(e) }; });
+    }catch(e){ st.textContent = 'Fehler: ' + e.message; btn.disabled = false; return; }
+    st.textContent = '';
+    body.innerHTML = qs.map((q, i)=>`<div class="turn-title" style="margin-top:16px;">${i + 1}. ${escapeHtml(q.frage)}</div>
+      <div class="lq-book">📖 ${escapeHtml(q.buch)}</div>
+      <textarea class="lesen-answer lq-a" placeholder="Deine Antwort ..." style="min-height:80px;"></textarea>`).join('') +
+      `<div id="lqFeedback"></div><button type="button" class="primary" id="lqEval" style="width:100%;margin-top:14px;">Auswerten</button>`;
+    card.scrollTop = 0;
+    const evalBtn = body.querySelector('#lqEval');
+    evalBtn.onclick = async ()=>{
+      if(evalBtn.disabled) return;
+      const answers = [...body.querySelectorAll('.lq-a')].map(t=>t.value.trim());
+      if(!answers.some(Boolean)){ st.textContent = 'Beantworte mindestens eine Frage.'; return; }
+      evalBtn.disabled = true; st.textContent = 'Die KI wertet aus ...';
+      const qa = qs.map((q, i)=>'Frage ' + (i + 1) + ' (' + q.buch + '): ' + q.frage + '\nMeine Antwort: ' + (answers[i] || '(keine Antwort)')).join('\n\n');
+      let fb = '';
+      try{
+        fb = await callClaudeCoach('Du bist ein freundlicher, direkter Lern-Coach. Hier sind meine Notizen und ' + qs.length + ' Fragen mit meinen Antworten. Sage mir pro Frage kurz: was ich richtig hatte und was gefehlt hat (laut Notizen). Schließe mit einem Satz, was ich mir nochmal verinnerlichen sollte. Kurz, Deutsch, einfache Markdown-Formatierung.\n\nNOTIZEN:\n' + material + '\n\n' + qa);
+      }catch(e){ st.textContent = 'Auswertung fehlgeschlagen: ' + e.message; evalBtn.disabled = false; return; }
+      st.textContent = '';
+      body.querySelector('#lqFeedback').innerHTML = `<div class="card" style="margin-top:14px;">${renderSimpleMarkdown(fb)}</div>`;
+      evalBtn.style.display = 'none';
+      body.querySelectorAll('.lq-a').forEach(t=>{ t.readOnly = true; t.classList.add('lesen-answer-done'); });
+      const baseText = qa + '\n\nFeedback:\n' + fb;
+      const recP = airtableCreate(TABLE_LESEN_EINTRAEGE, { 'Titel':'Quiz', 'BuchId':'', 'Typ':'Quiz', 'Text':baseText, 'Erstellt am':new Date().toISOString() }, LESEN_BASE_ID).catch(()=>null);
+      const own = document.createElement('div');
+      own.className = 'lesen-own';
+      own.innerHTML = `<div class="step-label" style="margin-top:20px;">In eigenen Worten</div>
+        <div class="hint" style="margin-top:4px;">Lies das Feedback und gib jede Antwort nochmal vollständig in deinen eigenen Worten wieder, ohne abzuschreiben.</div>
+        ${qs.map((q, i)=>`<div class="turn-title" style="margin-top:14px;">${i + 1}. ${escapeHtml(q.frage)}</div><textarea class="lesen-own-a" placeholder="In eigenen Worten ..." style="min-height:80px;"></textarea>`).join('')}
+        <div class="nav-row" style="margin-top:14px;"><button type="button" class="ghost" id="lqOwnSkip">Fertig</button><button type="button" class="primary" id="lqOwnSave">Speichern</button></div>`;
+      body.appendChild(own);
+      setTimeout(()=>own.scrollIntoView({ behavior:'smooth', block:'start' }), 150);
+      own.querySelector('#lqOwnSkip').onclick = ()=>{ closeErnModal(); kgUndoToast('Quiz gespeichert ✓'); };
+      const sv = own.querySelector('#lqOwnSave');
+      sv.onclick = async ()=>{
+        const texts = [...own.querySelectorAll('.lesen-own-a')].map(t=>t.value.trim());
+        if(!texts.some(Boolean)){ own.querySelector('.lesen-own-a').focus(); st.textContent = 'Schreib mindestens eine Antwort in eigenen Worten, oder tippe auf Fertig.'; return; }
+        sv.disabled = true; st.textContent = 'Speichere ...';
+        const add = '\n\nIn eigenen Worten:\n' + qs.map((q, i)=>'Frage ' + (i + 1) + ': ' + q.frage + '\n' + (texts[i] || '(leer)')).join('\n\n');
+        try{
+          const id = await recP;
+          if(id) await airtableFetch(TABLE_LESEN_EINTRAEGE + '/' + id, { method:'PATCH', body: JSON.stringify({ fields:{ 'Text': baseText + add } }) }, LESEN_BASE_ID);
+          else await airtableCreate(TABLE_LESEN_EINTRAEGE, { 'Titel':'Quiz', 'BuchId':'', 'Typ':'Quiz', 'Text':baseText + add, 'Erstellt am':new Date().toISOString() }, LESEN_BASE_ID);
+          st.textContent = ''; closeErnModal(); kgUndoToast('Quiz gespeichert ✓');
+        }catch(e){ sv.disabled = false; st.textContent = 'Speichern fehlgeschlagen: ' + e.message; }
+      };
+    };
   }
 
   /* ----- Phase 1: Abfrage ----- */
@@ -9761,6 +9849,7 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
           const typ = fields['Typ'];
           if(typ === 'Notiz') awardXP('lesen:' + t, 'Lesesitzung', 15);
           else if(typ === 'Abfrage') awardXP('lesenquiz:' + t, 'Lese-Abfrage', 10);
+          else if(typ === 'Quiz') awardXP('lesenquizall:' + t, 'Lese-Quiz', 10);
           else if(typ === 'Zusammenfassung') awardXP('kapitel:' + id, 'Kapitel-Zusammenfassung', 20);
           break;
         }
