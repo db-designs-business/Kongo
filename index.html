@@ -7792,7 +7792,7 @@
     st.textContent = 'Die KI überlegt Fragen ...';
     let qs = [];
     try{
-      const reply = await callClaudeCoach('Du bist ein Lern-Coach. Unten stehen ' + picks.length + ' nummerierte Notizen aus Büchern, die ich gelesen habe. Stelle mir genau ' + n + ' klare, konkrete Fragen, mit denen ich das Wissen aus diesen Notizen aktiv abrufen muss' + (picks.length >= n ? ', eine Frage pro Notiz in derselben Reihenfolge' : ', verteilt über alle Notizen') + '. Keine Ja/Nein-Fragen, verrate die Antworten nicht. Antworte NUR mit einem JSON-Array: [{"nr": <Nummer der Notiz>, "frage": "..."}] auf Deutsch.\n\n' + material);
+      const reply = await callClaudeCoach('Du bist ein Lern-Coach. Unten stehen ' + picks.length + ' nummerierte Notizen aus Büchern, die ich gelesen habe. Stelle mir genau ' + n + ' klare, konkrete Fragen, mit denen ich das Wissen aus diesen Notizen aktiv abrufen muss' + (picks.length >= n ? ', eine Frage pro Notiz in derselben Reihenfolge' : ', verteilt über alle Notizen') + '. Keine Ja/Nein-Fragen, verrate die Antworten nicht. Jede Frage muss für sich allein verständlich sein und direkt nach dem Inhalt fragen (Idee, Begriff, Beispiel, Zusammenhang). Erwähne NIE die Notiz, den Text, das Zitat oder die Zusammenfassung (also nicht: „In der Notiz wird beschrieben ...“, „Laut deiner Notiz ...“, „Was steht im Zitat ...“). Nenne stattdessen das konkrete Thema, damit klar ist, worum es geht. Antworte NUR mit einem JSON-Array: [{"nr": <Nummer der Notiz>, "frage": "..."}] auf Deutsch.\n\n' + material);
       const m = reply.match(/\[[\s\S]*\]/);
       if(m){ try{ qs = JSON.parse(m[0]).map(x=>typeof x === 'string' ? { frage:x } : x).filter(x=>x && x.frage); }catch(e){} }
       if(!qs.length) throw new Error('Keine Fragen erhalten');
@@ -7882,7 +7882,7 @@
       const material = lesenRecallMaterial();
       try{
         const reply = await callClaudeCoach(
-          'Du bist ein Lern-Coach. Unten stehen Notizen, die ich beim Lesen eines Buches gemacht habe. Stelle mir genau 3 klare, konkrete Fragen, mit denen ich mein Wissen aus diesen Notizen aktiv abrufen muss. Keine Ja/Nein-Fragen, verrate die Antworten nicht. Antworte NUR mit einem JSON-Array aus 3 Strings auf Deutsch.\n\n' + material
+          'Du bist ein Lern-Coach. Unten stehen Notizen, die ich beim Lesen eines Buches gemacht habe. Stelle mir genau 3 klare, konkrete Fragen, mit denen ich mein Wissen aus diesen Notizen aktiv abrufen muss. Keine Ja/Nein-Fragen, verrate die Antworten nicht. Jede Frage muss für sich allein verständlich sein und direkt nach dem Inhalt fragen (Idee, Begriff, Beispiel, Zusammenhang). Erwähne NIE die Notiz, den Text, das Zitat oder die Zusammenfassung (also nicht: „In der Notiz wird beschrieben ...“, „Laut deiner Notiz ...“, „Was steht im Zitat ...“). Nenne stattdessen das konkrete Thema, damit klar ist, worum es geht. Antworte NUR mit einem JSON-Array aus 3 Strings auf Deutsch.\n\n' + material
         );
         let questions = [];
         const m = reply.match(/\[[\s\S]*\]/);
