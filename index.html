@@ -1744,6 +1744,13 @@
 .lq-n{ flex:1; min-height:52px; font-size:18px; font-weight:600; border-radius:14px; border:1px solid var(--line, rgba(127,127,127,.25)); background:transparent; color:inherit; cursor:pointer; }
 .lq-n.on{ background:var(--forest); color:#04201d; border-color:transparent; }
 .lq-book{ font-size:12px; opacity:.6; margin:2px 0 6px; }
+.aufg-zk-add{ display:flex; gap:8px; margin:10px 0 12px; }
+.aufg-zk-add input{ flex:1; margin:0; }
+.aufg-zk-add .primary{ flex:0 0 52px; padding:0; font-size:24px; justify-content:center; }
+.aufg-zk-add .primary::after{ content:''; display:none; }
+#panelAufgaben > .aufg-tabs .aufg-tab{ white-space:nowrap; font-size:13px; padding-left:4px; padding-right:4px; }
+#panelAufgaben > .aufg-tabs .aufg-tab .cnt{ margin-left:3px; }
+.aufg-zk-go{ flex-shrink:0; padding:6px 12px; min-height:34px; font-size:13px; border-radius:999px; }
 </style>
 </head>
 <body>
@@ -2129,6 +2136,7 @@
       <button type="button" class="aufg-tab active" data-view="heute">Heute<span class="cnt" id="aufgCountHeute"></span></button>
       <button type="button" class="aufg-tab" data-view="next">Als Nächstes<span class="cnt" id="aufgCountNext"></span></button>
       <button type="button" class="aufg-tab" data-view="alle">Alle<span class="cnt" id="aufgCountAlle"></span></button>
+      <button type="button" class="aufg-tab" data-view="zukunft">Zukünftig<span class="cnt" id="aufgCountZukunft"></span></button>
     </div>
     <div class="aufg-filters" id="aufgabenFilterRow" style="display:none;">
       <button type="button" class="aufg-filter active" data-f="Alle">Alle</button>
@@ -6746,7 +6754,7 @@
   function renderMorgenreflexionForm(container){
     const today = todayStr();
     let energie = 0;
-    const openTasks = aufgabenCache.filter(t=>!t.erledigtAm).sort(aufgabenSort);
+    const openTasks = aufgabenCache.filter(t=>!t.erledigtAm && !t.zukunft).sort(aufgabenSort);
     // Aufgaben kurz durchgehen: Prio ändern, für heute markieren, abhaken. Gespeichert wird erst bei "Tag starten".
     const chg = {};   // id -> { prio, heute, done }
     const val = (t, k)=>chg[t.id] && k in chg[t.id] ? chg[t.id][k] : (k === 'heute' ? t.heute === today : k === 'done' ? false : t.prio);
@@ -8866,7 +8874,7 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
   const TABLE_AUFGABEN = 'tblibWJMIvlTBELVO';
   const HEUTE_LIMIT = 5;
   let aufgabenCache = [];
-  let aufgabenView = 'heute';      // heute | next | alle
+  let aufgabenView = 'heute';      // heute | next | alle | zukunft
   let aufgabenFilter = 'Alle';     // Alle | Business | Privat
   let aufgabenShowDone = false, aufgabenShowDoneHeute = false;
   let aufgabenEditId = null;
@@ -8935,6 +8943,7 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
           quelle: (()=>{ try{ return f['Quelle'] ? JSON.parse(f['Quelle']) : null; }catch(e){ return null; } })(),
           eventId: f['EventId'] || '',
           termin: f['Termin'] || '',
+          zukunft: !!f['Zukunft'],
           createdAt: f['Erstellt am'] || ''
         };
       }).filter(t=>t.titel);
@@ -9101,10 +9110,13 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     document.querySelectorAll('.aufg-filter').forEach(b=>b.classList.toggle('active', b.dataset.f === aufgabenFilter));
     document.getElementById('aufgabenFilterRow').style.display = aufgabenView === 'alle' ? 'flex' : 'none';
 
-    const heuteOpen = aufgabenCache.filter(t=>aufgabeIsHeute(t) && !t.erledigtAm);
-    const heuteDone = aufgabenCache.filter(t=>aufgabeIsHeute(t) && aufgabeIsDoneToday(t));
-    const nextList = aufgabenCache.filter(t=>!t.erledigtAm && !aufgabeIsHeute(t) && (t.prio === 'A' || (t.faellig && t.faellig <= plusDaysStr(7))));
-    const openAll = aufgabenCache.filter(t=>!t.erledigtAm);
+    const aktiv = aufgabenCache.filter(t=>!t.zukunft);
+    const zukunft = aufgabenCache.filter(t=>t.zukunft && !t.erledigtAm);
+    const heuteOpen = aktiv.filter(t=>aufgabeIsHeute(t) && !t.erledigtAm);
+    const heuteDone = aktiv.filter(t=>aufgabeIsHeute(t) && aufgabeIsDoneToday(t));
+    const nextList = aktiv.filter(t=>!t.erledigtAm && !aufgabeIsHeute(t) && (t.prio === 'A' || (t.faellig && t.faellig <= plusDaysStr(7))));
+    const openAll = aktiv.filter(t=>!t.erledigtAm);
+    document.getElementById('aufgCountZukunft').textContent = zukunft.length ? zukunft.length : '';
     document.getElementById('aufgCountHeute').textContent = heuteOpen.length ? heuteOpen.length : '';
     document.getElementById('aufgCountNext').textContent = nextList.length ? nextList.length : '';
     document.getElementById('aufgCountAlle').textContent = openAll.length ? openAll.length : '';
@@ -9136,8 +9148,17 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
       html += nextList.length
         ? `<div class="hint">Priorität A oder in den nächsten 7 Tagen fällig.</div><div class="card aufg-card">${nextList.sort(aufgabenSort).map(t=>aufgabeRowHtml(t)).join('')}</div>`
         : `<div class="card"><div class="empty">Nichts Dringendes. Stark.</div></div>`;
+    } else if(aufgabenView === 'zukunft'){
+      html += `<div class="hint">Dinge, die du irgendwann angehen willst. Sie tauchen nirgends sonst auf, bis du sie aktivierst.</div>
+        <div class="aufg-zk-add"><input type="text" id="aufgZkInput" placeholder="Was möchtest du zukünftig angehen?" enterkeyhint="done"><button type="button" class="primary" id="aufgZkAdd">+</button></div>`;
+      html += zukunft.length
+        ? `<div class="card aufg-card">${zukunft.sort((a,b)=>(b.createdAt || '').localeCompare(a.createdAt || '')).map(t=>`<div class="aufg-item" data-id="${t.id}">
+            <div class="aufg-main" data-id="${t.id}"><div class="aufg-title">${escapeHtml(t.titel)}${t.notiz ? ' <span class="aufg-has-note" title="Hat Beschreibung">≡</span>' : ''}</div><div class="aufg-chips"><span class="aufg-chip">${escapeHtml(t.bereich)}</span></div></div>
+            <button type="button" class="ghost aufg-zk-go" data-id="${t.id}">Angehen</button>
+          </div>`).join('')}</div>`
+        : `<div class="card"><div class="empty">Noch nichts für später notiert.</div></div>`;
     } else {
-      const filtered = aufgabenCache.filter(t=> (aufgabenFilter === 'Alle' || t.bereich === aufgabenFilter));
+      const filtered = aktiv.filter(t=> (aufgabenFilter === 'Alle' || t.bereich === aufgabenFilter));
       const open = filtered.filter(t=>!t.erledigtAm).sort(aufgabenSort);
       const done = filtered.filter(t=>t.erledigtAm).sort((a,b)=> b.erledigtAm.localeCompare(a.erledigtAm));
       ['A','B','C'].forEach(p=>{
@@ -9155,6 +9176,30 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     }
     listEl.innerHTML = html;
     wireAufgabenRows(listEl, renderAufgaben);
+
+    const zkIn = document.getElementById('aufgZkInput');
+    if(zkIn){
+      const zkAdd = async ()=>{
+        const titel = zkIn.value.trim(); if(!titel){ zkIn.focus(); return; }
+        const fields = { 'Titel': titel, 'Prio': 'C', 'Bereich': aufgabenNewBereich || 'Business', 'Zukunft': '1', 'Erstellt am': new Date().toISOString() };
+        zkIn.value = '';
+        try{
+          const id = await airtableCreate(TABLE_AUFGABEN, fields, ROUTINEN_BASE_ID);
+          aufgabenCache.push({ id, titel, prio:'C', bereich: fields['Bereich'], faellig:'', heute:'', erledigtAm:'', zielId:'', notiz:'', quelle:null, eventId:'', termin:'', zukunft:true, createdAt: fields['Erstellt am'] });
+          renderAufgaben();
+          const n = document.getElementById('aufgZkInput'); if(n) n.focus();
+        }catch(e){ zkIn.value = titel; aufgabenStatus('Speichern fehlgeschlagen.'); }
+      };
+      document.getElementById('aufgZkAdd').onclick = zkAdd;
+      zkIn.onkeydown = ev=>{ if(ev.key === 'Enter') zkAdd(); };
+    }
+    listEl.querySelectorAll('.aufg-zk-go').forEach(b=>b.onclick = async ev=>{
+      ev.stopPropagation();
+      const t = aufgabenCache.find(x=>x.id === b.dataset.id); if(!t) return;
+      t.zukunft = false; renderAufgaben();
+      kgUndoToast('Zu „Alle“ verschoben', async ()=>{ t.zukunft = true; renderAufgaben(); try{ await patchAufgabe(t, { 'Zukunft':'1' }); }catch(e){} });
+      try{ await patchAufgabe(t, { 'Zukunft':'' }); }catch(e){ t.zukunft = true; renderAufgaben(); aufgabenStatus('Konnte nicht gespeichert werden.'); }
+    });
 
     const carry = document.getElementById('aufgCarryBtn');
     if(carry) carry.onclick = ()=>carryAufgabenToTomorrow(carry);
@@ -9414,7 +9459,7 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
         </div>
       </div>`}
       <div class="nav-row" style="margin-top:12px;">
-        <button type="button" class="entry-delete" id="aufgEditDelete" style="margin:0;">Löschen</button>
+        <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="entry-delete" id="aufgEditDelete" style="margin:0;">Löschen</button><button type="button" class="aufg-link" id="aufgEditZk">${t.zukunft ? '→ Jetzt angehen' : '→ Zukünftig'}</button></div>
         <div style="display:flex;gap:8px;">
           <button type="button" class="ghost" id="aufgEditCancel">Schließen</button>
           <button type="button" class="primary" id="aufgEditSave">Speichern</button>
@@ -9475,13 +9520,21 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
     };
     const delBtn = host.querySelector('#aufgEditDelete');
     delBtn.onclick = ()=>{ closeAufgabeEdit(); deleteAufgabeWithUndo(t.id); };
+    host.querySelector('#aufgEditZk').onclick = async ()=>{
+      const to = !t.zukunft, prev = { zukunft:t.zukunft, heute:t.heute };
+      const f = { 'Zukunft': to ? '1' : '' }; if(to && t.heute) f['Heute'] = '';
+      t.zukunft = to; if(to) t.heute = '';
+      closeAufgabeEdit(); renderAufgaben(); renderHomeAufgaben();
+      kgUndoToast(to ? 'Nach „Zukünftig“ verschoben' : 'Zu „Alle“ verschoben');
+      try{ await patchAufgabe(t, f); }catch(e){ Object.assign(t, prev); renderAufgaben(); renderHomeAufgaben(); aufgabenStatus('Konnte nicht gespeichert werden.'); }
+    };
   }
 
   function renderHomeAufgaben(){
     const el = document.getElementById('homeAufgabenList');
     if(!el) return;
-    const open = aufgabenCache.filter(t=>aufgabeIsHeute(t) && !t.erledigtAm).sort(aufgabenSort);
-    const done = aufgabenCache.filter(t=>aufgabeIsHeute(t) && aufgabeIsDoneToday(t));
+    const open = aufgabenCache.filter(t=>aufgabeIsHeute(t) && !t.erledigtAm && !t.zukunft).sort(aufgabenSort);
+    const done = aufgabenCache.filter(t=>aufgabeIsHeute(t) && aufgabeIsDoneToday(t) && !t.zukunft);
     const meta = document.getElementById('homeAufgabenMeta');
     meta.textContent = (open.length + done.length) ? `${done.length}/${open.length + done.length}` : '';
     if(!open.length && !done.length){
