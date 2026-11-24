@@ -13653,6 +13653,12 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   }
 
   const DEHN = [
+    ['Kieferlinie & Nacken', [
+      ['chintuck', 'Chin Tucks', 50, false, '10 Wiederholungen: Kopf gerade nach hinten ziehen (Doppelkinn), 5 Sek halten, lösen. Den Tag über: Zunge flach am Gaumen, Lippen zu.', 3],
+      ['kinndecke', 'Kinn zur Decke', 100, false, '10 Wiederholungen: Kopf in den Nacken legen und den Unterkiefer nach vorn schieben, bis es unter dem Kinn zieht. 10 Sek halten, lösen.', 1],
+      ['neckcurl', 'Neck Curls', 45, false, '15 bis 20 Wiederholungen: Auf dem Rücken liegen, Kopf ragt über den Bank- oder Bettrand. Kinn langsam zur Brust, kontrolliert zurück.', 2],
+      ['neckext', 'Neck Extensions', 45, false, '15 bis 20 Wiederholungen: Auf dem Bauch liegen, Kopf ragt über den Rand. Kopf langsam nach hinten oben heben, kontrolliert senken.', 2]
+    ]],
     ['Nacken & Schultern', [
       ['nacken', 'Nacken seitlich', 30, true, 'Aufrecht sitzen, Ohr Richtung Schulter neigen. Die andere Schulter bewusst nach unten ziehen.'],
       ['schulterquer', 'Schulter quer vor der Brust', 30, true, 'Arm gestreckt vor die Brust führen und mit dem anderen Unterarm am Ellbogen heranziehen. Schulter bleibt unten.'],
@@ -13688,8 +13694,9 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
       ['worlds', 'World’s Greatest Stretch', 30, true, 'Großer Ausfallschritt, Hand innen neben den vorderen Fuß, den anderen Arm zur Decke aufdrehen und hinterher schauen.']
     ]]
   ];
-  const DEHN_BY = {}; DEHN.forEach(([g, l])=>l.forEach(x=>DEHN_BY[x[0]] = { id:x[0], name:x[1], sek:x[2], seiten:x[3], text:x[4], gruppe:g }));
+  const DEHN_BY = {}; DEHN.forEach(([g, l])=>l.forEach(x=>DEHN_BY[x[0]] = { id:x[0], name:x[1], sek:x[2], seiten:x[3], text:x[4], saetze:x[5] || 1, gruppe:g }));
   const DEHN_SETS = [
+    ['Kieferlinie & Nacken', ['chintuck','kinndecke','neckcurl','neckext']],
     ['Nach dem Krafttraining', ['brust','schulterquer','trizeps','hueftbeuger','beinbeuger','quad','wade','kind']],
     ['Hüfte & unterer Rücken', ['katzekuh','hueftbeuger','taube','figur4','drehung','kind']],
     ['Schreibtisch & Nacken', ['nacken','schulterquer','brust','unterarm','unterarm2','katzekuh']],
@@ -13698,15 +13705,15 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
   function dehnView(){
     const body = document.querySelector('#ivOverlay .iv-body .iv-pane');
     const D = ivCfg.dehnSel || (ivCfg.dehnSel = { ids:[], extra:0, pause:10 });
-    const dur = ids=>ids.reduce((a, id)=>{ const x = DEHN_BY[id]; return a + (x ? (x.sek + D.extra) * (x.seiten ? 2 : 1) + D.pause * (x.seiten ? 2 : 1) : 0); }, 0);
+    const dur = ids=>ids.reduce((a, id)=>{ const x = DEHN_BY[id]; return a + (x ? ((x.sek + D.extra) + D.pause) * (x.seiten ? 2 : 1) * x.saetze : 0); }, 0);
     body.innerHTML = `
       <div class="step-label" style="margin:0 0 8px;">Fertige Abläufe</div>
-      <div class="cd-sets">${DEHN_SETS.map(([n, ids], i)=>`<button type="button" class="k-plan" data-set="${i}"><b>${n}</b><span>${ids.length} Dehnungen · ca. ${Math.round(dur(ids) / 60)} Min</span></button>`).join('')}</div>
+      <div class="cd-sets">${DEHN_SETS.map(([n, ids], i)=>`<button type="button" class="k-plan" data-set="${i}"><b>${n}</b><span>${ids.length} ${ids.some(id=>DEHN_BY[id] && DEHN_BY[id].gruppe === 'Kieferlinie & Nacken') ? 'Übungen' : 'Dehnungen'} · ca. ${Math.round(dur(ids) / 60)} Min</span></button>`).join('')}</div>
       <div class="step-label" style="margin:18px 0 8px;">Oder selbst zusammenstellen</div>
-      ${DEHN.map(([g, l])=>`<div class="dh-group">${g}</div>${l.map(([id, n, sek, seiten, text])=>`
+      ${DEHN.map(([g, l])=>`<div class="dh-group">${g}</div>${l.map(([id, n, sek, seiten, text, saetze])=>`
         <div class="dh-item ${D.ids.includes(id) ? 'on' : ''}" data-id="${id}">
           <button type="button" class="dh-check" data-tog="${id}" aria-label="Auswählen">${D.ids.includes(id) ? (D.ids.indexOf(id) + 1) : ''}</button>
-          <div class="dh-main" data-open="${id}"><b>${n}</b><small>${sek} Sek${seiten ? ' je Seite' : ''}</small><div class="dh-text">${text}</div></div>
+          <div class="dh-main" data-open="${id}"><b>${n}</b><small>${saetze > 1 ? saetze + ' × ' : ''}${sek} Sek${seiten ? ' je Seite' : ''}</small><div class="dh-text">${text}</div></div>
         </div>`).join('')}`).join('')}
       <div class="card iv-card" style="margin-top:16px;">
         <div class="iv-row"><span>Länger halten</span><div class="iv-step"><button type="button" data-dk="extra" data-d="-5">−</button><b>+${D.extra} s</b><button type="button" data-dk="extra" data-d="5">+</button></div></div>
@@ -13724,7 +13731,8 @@ Regeln: Mehrere Wünsche = mehrere Aktionen. Fragen ("Was steht heute an?", "Wan
     const D = ivCfg.dehnSel || { extra:0, pause:10 };
     const items = [];
     ids.forEach(id=>{ const x = DEHN_BY[id]; if(!x) return; const d = x.sek + (D.extra || 0);
-      if(x.seiten){ items.push({ label:x.name + ' · links', d, text:x.text }); items.push({ label:x.name + ' · rechts', d, text:x.text }); } else items.push({ label:x.name, d, text:x.text }); });
+      for(let k = 1; k <= x.saetze; k++){ const sx = x.saetze > 1 ? ' · Satz ' + k + '/' + x.saetze : '';
+        if(x.seiten){ items.push({ label:x.name + ' · links' + sx, d, text:x.text }); items.push({ label:x.name + ' · rechts' + sx, d, text:x.text }); } else items.push({ label:x.name + sx, d, text:x.text }); } });
     ivStart({ modus:'dehnen', titel:name, items, pause: D.pause || 0 });
   }
 
