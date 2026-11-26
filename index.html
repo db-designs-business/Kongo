@@ -1752,6 +1752,9 @@
 #panelAufgaben > .aufg-tabs .aufg-tab{ white-space:nowrap; font-size:13px; padding-left:4px; padding-right:4px; }
 #panelAufgaben > .aufg-tabs .aufg-tab .cnt{ margin-left:3px; }
 .aufg-zk-go{ flex-shrink:0; padding:6px 12px; min-height:34px; font-size:13px; border-radius:999px; }
+.aufg-cal-cur{ font-size:14px; margin-bottom:8px; }
+.aufg-cal-quick{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+.aufg-cal-quick .ghost{ padding:7px 14px; min-height:36px; font-size:13.5px; border-radius:999px; }
 </style>
 </head>
 <body>
@@ -9438,22 +9441,23 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
           ${t.zielId && !ziele.find(z=>z.id===t.zielId) && zielById(t.zielId) ? `<option value="${t.zielId}" selected>${escapeHtml(zielById(t.zielId).text)}</option>` : ''}
         </select>
       </div>
-      ${t.termin ? `<div class="hint" style="margin:10px 0 0;">📅 Im Kalender: ${escapeHtml(new Date(t.termin).toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} Uhr</div>` : ''}
       ${t.quelle ? `<button type="button" class="aufg-src" id="aufgEditSrc">${t.quelle.src === 'crm' ? '🤝 Zum CRM: ' : (t.quelle.src === 'slack' ? '💬' : '✉️') + ' Zur Nachricht: '}${escapeHtml((t.quelle.label || '').slice(0, 60))}</button>` : ''}
       <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink-soft);">Beschreibung</div>
       <div id="aufgEditNotizHost"></div>
-      ${t.termin ? '' : `<div class="aufg-cal-box">
-        <label class="aufg-cal-toggle"><input type="checkbox" id="aufgEditCalOn"> 📅 Im Kalender eintragen</label>
+      <div class="aufg-cal-box">
+        ${t.termin ? `<div class="aufg-cal-cur">📅 Im Kalender: <b>${escapeHtml(new Date(t.termin).toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))} Uhr</b></div>
+        <div class="aufg-cal-quick"><button type="button" class="ghost" id="aufgEditCalTomorrow">Morgen, gleiche Uhrzeit</button><button type="button" class="aufg-link" id="aufgEditCalDel">Termin löschen</button></div>` : ''}
+        <label class="aufg-cal-toggle"><input type="checkbox" id="aufgEditCalOn"> ${t.termin ? '🔁 Termin umplanen' : '📅 Im Kalender eintragen'}</label>
         <div id="aufgEditCalFields" style="display:none;">
           <div class="ev-grid" style="margin-top:10px;">
-            <label>Datum<input type="date" id="aufgEditCalDate" value="${t.faellig || todayStr()}"></label>
-            <label>Uhrzeit<input type="time" id="aufgEditCalTime" value="09:00"></label>
+            <label>Datum<input type="date" id="aufgEditCalDate" value="${t.termin ? t.termin.slice(0,10) : (t.faellig || todayStr())}"></label>
+            <label>Uhrzeit<input type="time" id="aufgEditCalTime" value="${t.termin ? t.termin.slice(11,16) : '09:00'}"></label>
             <label>Dauer<select id="aufgEditCalDur"><option value="15">15 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60" selected>1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option><option value="180">3 Std</option></select></label>
             <label>Erinnerung<select id="aufgEditCalRem"><option value="-1">Keine</option><option value="0">Zum Start</option><option value="10">10 Min vorher</option><option value="15" selected>15 Min vorher</option><option value="30">30 Min vorher</option><option value="60">1 Std vorher</option><option value="1440">1 Tag vorher</option></select></label>
           </div>
-          <div class="hint" id="aufgEditCalHint" style="margin:8px 0 0;">Titel und Beschreibung werden übernommen.</div>
+          <div class="hint" id="aufgEditCalHint" style="margin:8px 0 0;">${t.termin ? 'Der bestehende Termin wird verschoben, die Aufgabe bekommt das neue Datum.' : 'Titel und Beschreibung werden übernommen.'}</div>
         </div>
-      </div>`}
+      </div>
       <div class="nav-row" style="margin-top:12px;">
         <div style="display:flex;gap:10px;align-items:center;"><button type="button" class="entry-delete" id="aufgEditDelete" style="margin:0;">Löschen</button><button type="button" class="aufg-link" id="aufgEditZk">${t.zukunft ? '→ Jetzt angehen' : '→ Zukünftig'}</button></div>
         <div style="display:flex;gap:8px;">
@@ -9473,6 +9477,25 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
         const hint = host.querySelector('#aufgEditCalHint');
         if(!st.connected){ hint.innerHTML = '⚠️ Google ist noch nicht verbunden. <button type="button" class="aufg-link" id="aufgEditCalConn">Jetzt verbinden</button>'; host.querySelector('#aufgEditCalConn').onclick = ()=>{ closeAufgabeEdit(); openConnections(); }; }
       }
+    };
+    const tmr = host.querySelector('#aufgEditCalTomorrow');
+    if(tmr) tmr.onclick = ()=>{
+      if(!ecal.checked){ ecal.checked = true; ecal.onchange(); }
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      host.querySelector('#aufgEditCalDate').value = d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+      host.querySelector('#aufgEditCalDate').scrollIntoView({ behavior:'smooth', block:'center' });
+    };
+    const cdel = host.querySelector('#aufgEditCalDel');
+    if(cdel) cdel.onclick = async ()=>{
+      if(cdel.disabled) return; cdel.disabled = true; cdel.textContent = 'Lösche …';
+      try{
+        if(t.eventId) await kgApi('google.php?action=event_delete', { calendarId:'primary', id: t.eventId });
+        await patchAufgabe(t, { 'EventId':'', 'Termin':'' });
+        t.eventId = ''; t.termin = ''; homeTermineLoaded = 0; cal.loadedKey = '';
+        renderHomeTermine(true); renderAufgaben(); renderHomeAufgaben();
+        kgUndoToast('Termin aus dem Kalender gelöscht');
+        openAufgabeEdit(t.id);
+      }catch(err){ cdel.disabled = false; cdel.textContent = 'Termin löschen'; aufgabenStatus('Löschen fehlgeschlagen: ' + err.message); }
     };
     const clr = host.querySelector('#aufgEditFaelligClear');
     if(clr) clr.onclick = ()=>{ host.querySelector('#aufgEditFaellig').value = ''; clr.remove(); };
@@ -9499,16 +9522,19 @@ Antworte nur mit den 3 Fokusaufgaben, eine pro Zeile, ohne Nummerierung und ohne
         const sdt = new Date(date + 'T' + time), edt = new Date(+sdt + dur * 60000);
         const loc = d=>d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00';
         try{
-          const ev = await kgApi('google.php?action=event_save', { calendarId:'primary', title: titel, allDay:false, start: loc(sdt), end: loc(edt), description: fields['Notiz'] || '', location:'', reminder: Number(host.querySelector('#aufgEditCalRem').value) });
-          fields['EventId'] = ev.id || ''; fields['Termin'] = loc(sdt);
-          if(!fields['Faellig']) fields['Faellig'] = date;
+          const ev = await kgApi('google.php?action=event_save', { calendarId:'primary', id: t.termin && t.eventId ? t.eventId : '', title: titel, allDay:false, start: loc(sdt), end: loc(edt), description: fields['Notiz'] || '', location:'', reminder: Number(host.querySelector('#aufgEditCalRem').value) });
+          fields['EventId'] = ev.id || t.eventId || ''; fields['Termin'] = loc(sdt);
+          if(t.termin){ fields['Faellig'] = date; if(date > todayStr() && t.heute) fields['Heute'] = ''; }
+          else if(!fields['Faellig']) fields['Faellig'] = date;
           homeTermineLoaded = 0; cal.loadedKey = '';
         }catch(err){ saveBtn.disabled = false; aufgabenStatus('Kalender-Eintrag fehlgeschlagen: ' + err.message); host.querySelector('#aufgEditCalHint').textContent = 'Kalender-Eintrag fehlgeschlagen: ' + err.message; return; }
       }
       try{
         await patchAufgabe(t, fields);
         Object.assign(t, { titel, prio, bereich, faellig: fields['Faellig'], zielId: fields['ZielId'], notiz: fields['Notiz'] });
-        if(fields['Termin']){ t.termin = fields['Termin']; t.eventId = fields['EventId']; renderHomeTermine(true); }
+        if('Heute' in fields) t.heute = fields['Heute'];
+        if(fields['Termin']){ const moved = !!t.termin && t.termin !== fields['Termin']; t.termin = fields['Termin']; t.eventId = fields['EventId']; renderHomeTermine(true);
+          if(moved) kgUndoToast('Termin verschoben auf ' + new Date(fields['Termin']).toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + ' Uhr'); }
         closeAufgabeEdit();
         aufgabenStatus('');
         renderAufgaben(); renderHomeAufgaben();
